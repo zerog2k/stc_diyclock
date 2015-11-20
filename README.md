@@ -1,5 +1,5 @@
 # STC15F204EA blinky example
-Simple blinky example which uses [sdcc](sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
+Simple blinky example which uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
 
 ## hardware
 Hardware is assumed to be a generic LED with anode (+) connected to VCC (3.3-5V) through current limiting resistor (~1kohm) with cathode (-) connected to LED pin (as defined in src/blinky.c) of uC.
@@ -22,7 +22,7 @@ make flash
 `PORT=/dev/ttyUSB0 make flash`
 
 ## use STC-ISP flash tool
-Instead of stcgal, you can use official stc-isp tool () to flash.
+Instead of stcgal, you can use official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.
 A windows app, but worked fine for me under mac and linux with wine.
 It can take the .hex or .bin.
 
