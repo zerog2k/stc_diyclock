@@ -1,0 +1,3 @@
+[submodule "stcgal"]
+	path = stcgal
+	url = https://github.com/grigorig/stcgal.git

@@ -1,6 +1,6 @@
 SDCCOPTS ?= --iram-size 256
-COMPORT ?= /dev/ttyUSB1
-STCGAL ?= stcgal.py
+PORT ?= /dev/ttyUSB1
+STCGAL ?= stcgal/stcgal.py
 FLASHFILE ?= blinky.bin
 
 SRC = src/soft_serial/serial.c
@@ -23,7 +23,7 @@ makebin:
 	makebin -p build/blinky.ihx blinky.bin
 
 flash:
-	$(STCGAL) -p $(COMPORT) -P stc15 $(FLASHFILE)
+	$(STCGAL) -p $(PORT) -P stc15 $(FLASHFILE)
 
 clean:
 	rm -f *.ihx *.hex *.bin

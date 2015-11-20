@@ -32,7 +32,7 @@ void _delay_ms(unsigned char ms)
     } while (--ms);
 }
 
-const char* startstring = "\n TX Device Ready!\n";
+const char* startstring = "\nSTC15F204EA starting up...\n";
 
 int main()
 {
@@ -57,7 +57,6 @@ int main()
         _delay_ms(255);
         printf("counter: %d \n", temp);
         temp++;
-        //CLR_WDT = 0b1;   // service WDT // for some reason - this doesnt work right
         WDT_CONTR |= 1 << 4; // clear wdt
     }
 }
