@@ -90,7 +90,7 @@ void main()
 //__data __at 0x0D BYTE RCNT;
 //__data __at 0x0E BYTE TBIT;
 //__data __at 0x0F BYTE RBIT;	=> ar7
-void _tm0() __interrupt 1 __using 1
+void _tm1() __interrupt 3 __using 1
 {
 	__asm
 		jb	_RING,00002$	
@@ -148,14 +148,14 @@ void UART_INIT()
 	REND = 0;
 	TCNT = 0;
 	RCNT = 0;
-
-	TMOD = 0x00;
-	AUXR = 0x80;
-	TL0 = BAUDTMR & 0xFF;
-	TH0 = (BAUDTMR & 0xFF00) >> 8;
-	TR0 = 1;
-	ET0 = 1;
-	PT0 = 1;
+	
+	TMOD = 0x00; // T1 mode 0
+	AUXR = 0x40; // T1x12
+	TL1 = BAUDTMR & 0xFF;
+	TH1 = (BAUDTMR & 0xFF00) >> 8;
+	TR1 = 1;
+	ET1 = 1;
+	PT1 = 1;
 	EA = 1;
 }
 

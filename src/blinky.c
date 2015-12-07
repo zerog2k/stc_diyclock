@@ -54,7 +54,7 @@ int main()
     while(1)
     {                
         LED = 0;
-		_delay_ms(100);
+		_delay_ms(250);
         
         //LED = 1;
         //_delay_ms(100);
@@ -62,8 +62,9 @@ int main()
         //_delay_ms(100);
         
         LED = 1;        
-        _delay_ms(255);
-        _delay_ms(255);
+        _delay_ms(250);
+        _delay_ms(250);
+        _delay_ms(250);
         printf("counter: %d \n", temp);
         temp++;
         WDT_CONTR |= 1 << 4; // clear wdt

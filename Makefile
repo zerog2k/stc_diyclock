@@ -1,15 +1,14 @@
 SDCCOPTS ?= --iram-size 256
 PORT ?= /dev/ttyUSB1
 STCGAL ?= stcgal/stcgal.py
-FLASHFILE ?= blinky.bin
+FLASHFILE ?= blinky.hex
+SYSCLK ?= 11059
 
 SRC = src/soft_serial/serial.c
 
-BINDIR ?= bin
-
 OBJ=$(patsubst src%.c,build%.rel, $(SRC))
 
-all: blinky makebin
+all: blinky
 
 build/%.rel: src/%.c
 	mkdir -p $(dir $@)
@@ -19,11 +18,8 @@ blinky: $(OBJ)
 	sdcc -o build/ src/$@.c $(SDCCOPTS) $^
 	cp build/$@.ihx $@.hex
 	
-makebin:
-	makebin -p build/blinky.ihx blinky.bin
-
 flash:
-	$(STCGAL) -p $(PORT) -P stc15 $(FLASHFILE)
+	$(STCGAL) -p $(PORT) -P stc15a -t $(SYSCLK) $(FLASHFILE)
 
 clean:
 	rm -f *.ihx *.hex *.bin
