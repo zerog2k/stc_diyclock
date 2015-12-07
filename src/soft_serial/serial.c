@@ -148,9 +148,8 @@ void UART_INIT()
 	REND = 0;
 	TCNT = 0;
 	RCNT = 0;
-	
-	TMOD = 0x00; // T1 mode 0
-	AUXR = 0x40; // T1x12
+	TMOD &= 0x0F; // Timer1 Mode 0
+	AUXR |= 0x40; // T1x12
 	TL1 = BAUDTMR & 0xFF;
 	TH1 = (BAUDTMR & 0xFF00) >> 8;
 	TR1 = 1;
