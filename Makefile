@@ -1,14 +1,14 @@
 SDCCOPTS ?= --iram-size 256
-PORT ?= /dev/ttyUSB1
+PORT ?= /dev/ttyUSB0
 STCGAL ?= stcgal/stcgal.py
-FLASHFILE ?= blinky.hex
+FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 
 SRC = src/soft_serial/serial.c
 
 OBJ=$(patsubst src%.c,build%.rel, $(SRC))
 
-all: blinky
+all: main
 
 build/%.rel: src/%.c
 	mkdir -p $(dir $@)
