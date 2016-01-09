@@ -21,7 +21,10 @@ make flash
 
 ## options
 * override default serial port:
-`PORT=/dev/ttyUSB0 make flash`
+`STCGALPORT=/dev/ttyUSB0 make flash`
+
+* add other options:
+`STCGALOPTS="-l 9600 -b 9600" make flash`
 
 ## use STC-ISP flash tool
 Instead of stcgal, you could alternatively use the official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.

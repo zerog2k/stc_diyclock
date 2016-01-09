@@ -1,10 +1,11 @@
-SDCCOPTS ?= --iram-size 256
-PORT ?= /dev/ttyUSB0
+SDCCOPTS ?= --iram-size 256 --code-size 4096 --xram-size 0
 STCGAL ?= stcgal/stcgal.py
+STCGALOPTS ?= 
+STCGALPORT ?= /dev/ttyUSB0
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 
-SRC = src/soft_serial/serial.c
+SRC = src/soft_serial/serial.c src/adc.c
 
 OBJ=$(patsubst src%.c,build%.rel, $(SRC))
 
@@ -14,12 +15,12 @@ build/%.rel: src/%.c
 	mkdir -p $(dir $@)
 	sdcc $(SDCCOPTS) -o $@ -c $<
 
-blinky: $(OBJ)
+main: $(OBJ)
 	sdcc -o build/ src/$@.c $(SDCCOPTS) $^
 	cp build/$@.ihx $@.hex
 	
 flash:
-	$(STCGAL) -p $(PORT) -P stc15a -t $(SYSCLK) $(FLASHFILE)
+	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
 
 clean:
 	rm -f *.ihx *.hex *.bin
