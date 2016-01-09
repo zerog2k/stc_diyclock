@@ -1,11 +1,19 @@
 # STC DIY Clock Kit firmware
 Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available from banggood.com, aliexpress.com, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
 
-**note this is currently work-in-progress, unfinished state**
+## TODOs
+**note this is currently work-in-progress, non-working, unfinished state**
+
+* led display/multiplexing
+* ds1302 interaction
+* temperature measurement
+* ui: button scan / settings, menu
+* alarm/chime
+* light sensor, display dimming
 
 ## hardware
- * DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
- * uC connected to PC via cheap USB-UART adapter, e.g. CP2102.
+* DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
+* uC connected to PC via cheap USB-UART adapter, e.g. CP2102.
 
 ## requirements
 * linux or mac (windows untested)
