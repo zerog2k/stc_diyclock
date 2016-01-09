@@ -75,22 +75,17 @@ const char* startstring = "\nSTC15F204EA starting up...\n";
 void ds_writebit(__bit bit) {
     _nop_; _nop_;
     DS_IO = bit;
-//    _nop_; _nop_;     
-//    _nop_; _nop_;
     DS_SCLK = 1;
     _nop_; _nop_;
-//    _nop_; _nop_;
     DS_SCLK = 0;
 }
 
 __bit ds_readbit() {
     __bit b;
     _nop_; _nop_;
-//    _nop_; _nop_;
     b = DS_IO;
     DS_SCLK = 1;
     _nop_; _nop_;
-//    _nop_; _nop_;    
     DS_SCLK = 0;
     return b;
 }
@@ -99,17 +94,13 @@ unsigned char ds_readbyte(unsigned char addr) {
     // ds1302 single-byte read
     unsigned char i, b = 0;
     b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_READ;
-    //printf("ds_command_byte: %02x\n", b);
     DS_CE = 0;
     DS_SCLK = 0;
-//    _nop_; _nop_;
     DS_CE = 1;
-//    _nop_; _nop_;
     // send cmd byte
     for (i=0; i < 8; i++) {
         ds_writebit((b >> i) & 0x01);
         _nop_; _nop_;
-   //     _nop_; _nop_;        
     }
     // read byte
     for (i=0; i < 8; i++) {
@@ -118,33 +109,27 @@ unsigned char ds_readbyte(unsigned char addr) {
         else
             b &= ~(1 << i); // clear  
         _nop_; _nop_;              
-  //          _nop_; _nop_;
     }
     DS_CE = 0;
     return b;
 }
 
 unsigned char ds_writebyte(unsigned char addr, unsigned char data) {
-    // ds1302 single-byte read
+    // ds1302 single-byte write
     unsigned char i, b = 0;
     b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_WRITE;
-    //printf("ds_command_byte: %02x\n", b);
     DS_CE = 0;
     DS_SCLK = 0;
-//    _nop_; _nop_;
     DS_CE = 1;
-//_nop_; _nop_;
     // send cmd byte
     for (i=0; i < 8; i++) {
         ds_writebit((b >> i) & 0x01);
         _nop_; _nop_;
-    //    _nop_; _nop_;        
     }
     // send data byte
     for (i=0; i < 8; i++) {
         ds_writebit((data >> i) & 0x01);
         _nop_; _nop_;
-   //     _nop_; _nop_;        
     }
 
     DS_CE = 0;
