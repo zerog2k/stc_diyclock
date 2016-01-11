@@ -148,13 +148,14 @@ void UART_INIT()
 	REND = 0;
 	TCNT = 0;
 	RCNT = 0;
+    
 	TMOD &= 0x0F; // Timer1 Mode 0
 	AUXR |= 0x40; // T1x12
 	TL1 = BAUDTMR & 0xFF;
 	TH1 = (BAUDTMR & 0xFF00) >> 8;
-	TR1 = 1;
-	ET1 = 1;
-	PT1 = 1;
-	EA = 1;
+	TR1 = 1;    // Timer1 start running
+	ET1 = 1;    // enable Timer1 interrupt
+	PT1 = 1;    //
+	EA = 1;     // global interrupt enable
 }
 
