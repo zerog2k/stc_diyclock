@@ -42,6 +42,11 @@ Get ADC result - 10 bits
 unsigned int getADCResult(char chan);
 
 /*----------------------------
+Get ADC result - 8 bits
+----------------------------*/
+unsigned char getADCResult8(char chan);
+
+/*----------------------------
 Initialize ADC sfr
 ----------------------------*/
 void InitADC(char chan);

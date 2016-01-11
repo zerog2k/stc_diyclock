@@ -57,6 +57,15 @@ unsigned int getADCResult(char chan)
 	return  ADC_RES << 2 | (ADC_RESL & 0b11) ;  //Return ADC result
 }
 
+unsigned char getADCResult8(char chan)
+{
+	ADC_CONTR = ADC_POWER | ADC_SPEEDHH | ADC_START | chan;
+	_nop_;       //Must wait before inquiry
+	while (!(ADC_CONTR & ADC_FLAG));  //Wait complete flag
+	ADC_CONTR &= ~ADC_FLAG;           //Close ADC
+	return  ADC_RES;  //Return ADC result
+}
+
 /*----------------------------
 Initial ADC sfr
 ----------------------------*/

@@ -9,12 +9,7 @@
 #include <stdio.h>
 #include "adc.h"
 
-
 #define FOSC    11059200
-// #define MODE1T
-
-//#define T1MS    (65536-FOSC/12/1000)
-#define T1MS    65536
 
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4) // clear wdt
 /* ------------------------------------------------------------------------- */
@@ -246,7 +241,15 @@ void filldisplay(uint8_t val, uint8_t pos) {
     }
 }
 
+
+// GLOBALS
+uint8_t i;
+int count = 0;
+const char* startstring = "\nSTC15F204EA DIY Clock starting up...\n";
+unsigned int tempval = 0;    // temperature sensor value
+uint8_t lightval = 0;   // light sensor value
 volatile uint8_t displaycounter = 0;
+
 
 /* Timer0 ISR */
 void tm0_isr() __interrupt 1 __using 1
@@ -258,11 +261,13 @@ void tm0_isr() __interrupt 1 __using 1
     // turn off all digits, set high    
     P3 |= 0x3C;
 
-    // fill digit
-    P2 = display[digit];
-    // turn on selected digit, set low
-    P3 &= ~((0x1 << digit) << 2);  
-    
+    // auto dimming, skip lighting for some cycles
+    if (displaycounter < 4 || displaycounter > lightval) {
+        // fill digits
+        P2 = display[digit];
+        // turn on selected digit, set low
+        P3 &= ~((0x1 << digit) << 2);  
+    }
     displaycounter++;
     // done    
 }
@@ -271,19 +276,14 @@ void Timer0Init(void)		//10ms@11.0592MHz
 {
     AUXR &= 0x7F;		//Timer clock is 12T mode
     TMOD &= 0xF0;		//Set timer work mode
-    TL0 = 0x00;		//Initial timer value
+    TL0 = 0xA0;		//Initial timer value
     TH0 = 0xFF;		//Initial timer value
     TF0 = 0;		//Clear TF0 flag
     TR0 = 1;		//Timer0 start run
     ET0 = 1;
 }
 
-// globals
-uint8_t i;
-int count = 0;
-const char* startstring = "\nSTC15F204EA DIY Clock starting up...\n";
-unsigned int lightval = 0;   // light sensor value
-unsigned int tempval = 0;    // temperature sensor value
+
 
 int main()
 {
@@ -320,14 +320,10 @@ int main()
       //BUZZER = 1;
       printf("\ncounter: %d \n", count);
       
-      lightval = getADCResult(ADC_LIGHT);
+      lightval = getADCResult8(ADC_LIGHT);
       tempval = getADCResult(ADC_TEMP);
       
       printf("adc: light raw: %03d, temperature raw: %03d\n", lightval, tempval);   
-      
-      // auto dimming
-      //TL0 = (0xFF00 - lightval << 1) & 0xFF;
-      TH0 = (0xF000 - (lightval << 2)) >> 8;
       
       /*
       printf("seconds: %02x, minutes: %02x, hour: %02x, day: %02x, month: %02x, weekday: %02x, year: %02x\n", 
