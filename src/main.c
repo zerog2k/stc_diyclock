@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "adc.h"
+#include "ds1302.h"
 
 #define FOSC    11059200
 
@@ -22,20 +23,6 @@
 #define RELAY   P1_4
 #define BUZZER  P1_5
     
-#define LED_A1  P3_2
-#define LED_A2  P3_3
-#define LED_A3  P3_4
-#define LED_A4  P3_5
-
-#define LED_a   P2_0
-#define LED_b   P2_1
-#define LED_c   P2_2
-#define LED_d   P2_3
-#define LED_e   P2_4
-#define LED_f   P2_5
-#define LED_g   P2_6
-#define LED_dp  P2_7
-
 #define ADC_LIGHT 6
 #define ADC_TEMP  7
 
@@ -44,175 +31,6 @@
 
 /* ------------------------------------------------------------------------- */
 
-// ds1302 section. TODO: move to lib
-#define DS_CE    P1_0
-#define DS_IO    P1_1
-#define DS_SCLK  P1_2
-
-#define DS_CMD        1 << 7
-#define DS_CMD_READ   1
-#define DS_CMD_WRITE  0
-#define DS_CMD_RAM    1 << 6
-#define DS_CMD_CLOCK  0 << 6
-
-#define DS_ADDR_SECONDS     0
-#define DS_ADDR_MINUTES     1
-#define DS_ADDR_HOUR        2
-#define DS_ADDR_DAY         3
-#define DS_ADDR_MONTH       4
-#define DS_ADDR_WEEKDAY     5
-#define DS_ADDR_YEAR        6
-#define DS_ADDR_WP          7
-#define DS_ADDR_TCSDS       8
-
-#define DS_BURST_MODE       31
-
-struct ds1302_rtc {
-    // inspiration from http://playground.arduino.cc/Main/DS1302
-    // 8 bytes. data fields are bcd
-    
-    // 00-59
-    uint8_t seconds:4;      
-    uint8_t tenseconds:3;   
-    uint8_t clock_halt:1;
-
-    // 00-59    
-    uint8_t minutes:4;      
-    uint8_t tenminutes:3;   
-    uint8_t reserved1:1;
-    
-    union {
-        struct {
-            // 1-12
-            uint8_t hour:4;         
-            uint8_t tenhour:2;       
-            uint8_t reserved2:1;
-            uint8_t hour_12_24:1;    // 0=24h
-        } h24;
-        struct {
-            // 0-23
-            uint8_t hour:4;      
-            uint8_t tenhour:1;
-            uint8_t pm:1;           // 0=am, 1=pm;
-            uint8_t reserved2:1;
-            uint8_t hour_12_24:1;   // 1=12h
-        } h12;
-    };
-      
-    // 1-31
-    uint8_t day:4;          
-    uint8_t tenday:2;
-    uint8_t reserved3:2;
-
-    // 1-12
-    uint8_t month:4;        
-    uint8_t tenmonth:1;
-    uint8_t reserved4:3;
-    
-    // 1-7
-    uint8_t weekday:3;      
-    uint8_t reserved5:5;
-    
-    // 00-99
-    uint8_t year:4;         
-    uint8_t tenyear:4;
-    
-    uint8_t reserved:7;    
-    uint8_t write_protect:1;
-};
-
-
-struct ds1302_rtc rtc;
-
-void ds_writebit(__bit bit) {
-    _nop_; _nop_;
-    DS_IO = bit;
-    DS_SCLK = 1;
-    _nop_; _nop_;
-    DS_SCLK = 0;
-}
-
-__bit ds_readbit() {
-    __bit b;
-    _nop_; _nop_;
-    b = DS_IO;
-    DS_SCLK = 1;
-    _nop_; _nop_;
-    DS_SCLK = 0;
-    return b;
-}
-
-uint8_t ds_readbyte(uint8_t addr) {
-    // ds1302 single-byte read
-    uint8_t i, b = 0;
-    b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_READ;
-    DS_CE = 0;
-    DS_SCLK = 0;
-    DS_CE = 1;
-    // send cmd byte
-    for (i=0; i < 8; i++) {
-        ds_writebit((b >> i) & 0x01);
-        _nop_; _nop_;
-    }
-    // read byte
-    for (i=0; i < 8; i++) {
-        if (ds_readbit()) 
-            b |= 1 << i; // set
-        else
-            b &= ~(1 << i); // clear  
-        _nop_; _nop_;              
-    }
-    DS_CE = 0;
-    return b;
-}
-
-void ds_readburst(uint8_t time[8]) {
-    // ds1302 burst-read 8 bytes into struct
-    uint8_t i, j, b = 0;
-    b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
-    DS_CE = 0;
-    DS_SCLK = 0;
-    DS_CE = 1;
-    // send cmd byte
-    for (i=0; i < 8; i++) {
-        ds_writebit((b >> i) & 0x01);
-        _nop_; _nop_;
-    }
-    // read bytes
-    for (j=0; j < 8; j++) {
-        for (i=0; i < 8; i++) {
-            if (ds_readbit()) 
-                b |= 1 << i; // set
-            else
-                b &= ~(1 << i); // clear  
-            _nop_; _nop_;              
-        }
-        time[j] = b;
-    }
-    DS_CE = 0;
-}
-
-uint8_t ds_writebyte(uint8_t addr, uint8_t data) {
-    // ds1302 single-byte write
-    uint8_t i, b = 0;
-    b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_WRITE;
-    DS_CE = 0;
-    DS_SCLK = 0;
-    DS_CE = 1;
-    // send cmd byte
-    for (i=0; i < 8; i++) {
-        ds_writebit((b >> i) & 0x01);
-        _nop_; _nop_;
-    }
-    // send data byte
-    for (i=0; i < 8; i++) {
-        ds_writebit((data >> i) & 0x01);
-        _nop_; _nop_;
-    }
-
-    DS_CE = 0;
-    return b;
-}
 
 // LEDs
 const uint8_t ledtable[] = {
@@ -232,12 +50,12 @@ const uint8_t ledtable[] = {
 
 uint8_t display[4] = {0,0,0,0};
 
-void filldisplay(uint8_t val, uint8_t pos) {
+void filldisplay(uint8_t dbuf[4], uint8_t val, uint8_t pos) {
     // store display bytes, inverted    
-    display[pos] = ~(ledtable[val]);
+    dbuf[pos] = ~(ledtable[val]);
     if (pos == 2) {
         // rotate third digit, by swapping bits fed with cba
-        display[pos] = display[pos] & 0b11000000 | (display[pos] & 0b00111000) >> 3 | (display[pos] & 0b00000111) << 3;
+        dbuf[pos] = dbuf[pos] & 0b11000000 | (dbuf[pos] & 0b00111000) >> 3 | (dbuf[pos] & 0b00000111) << 3;
     }
 }
 
@@ -249,7 +67,7 @@ const char* startstring = "\nSTC15F204EA DIY Clock starting up...\n";
 unsigned int tempval = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
 volatile uint8_t displaycounter = 0;
-
+struct ds1302_rtc rtc;
 
 /* Timer0 ISR */
 void tm0_isr() __interrupt 1 __using 1
@@ -284,7 +102,6 @@ void Timer0Init(void)		//10ms@11.0592MHz
 }
 
 
-
 int main()
 {
     // SETUP
@@ -314,7 +131,7 @@ int main()
     {             
       RELAY = 0;
       //BUZZER = 0;
-      _delay_ms(200);
+      _delay_ms(255);
 
       RELAY = 1;
       //BUZZER = 1;
@@ -337,15 +154,15 @@ int main()
           rtc.tenyear, rtc.year, rtc.tenmonth, rtc.month, rtc.tenday, rtc.day, rtc.h12.tenhour, rtc.h12.hour, 
           rtc.tenminutes, rtc.minutes, rtc.tenseconds, rtc.seconds, rtc.h12.pm, rtc.h12.hour_12_24, rtc.weekday);
       //
-      filldisplay(rtc.h12.tenhour, 0);
-      filldisplay(rtc.h12.hour, 1);
-      filldisplay(rtc.tenminutes, 2);
-      filldisplay(rtc.minutes, 3);
+      filldisplay(display, rtc.h12.tenhour, 0);
+      filldisplay(display, rtc.h12.hour, 1);
+      filldisplay(display, rtc.tenminutes, 2);
+      filldisplay(display, rtc.minutes, 3);
       
       //printf("%02x %02x %02x %02x\n", display[0], display[1], display[2], display[3]);
       
-      _delay_ms(250);
-      _delay_ms(200);
+      _delay_ms(255);
+      _delay_ms(255);
       count++;
       WDT_CLEAR();
     }
