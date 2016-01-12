@@ -57,6 +57,7 @@ uint8_t lightval = 0;   // light sensor value
 volatile uint8_t displaycounter = 0;
 struct ds1302_rtc rtc;
 uint8_t display[4] = {0,0,0,0};     // led display buffer
+__bit  display_colon = 0;         // flash colon
 
 /* Timer0 ISR */
 void tm0_isr() __interrupt 1 __using 1
@@ -120,16 +121,14 @@ int main()
     {             
       RELAY = 0;
       //BUZZER = 0;
-      _delay_ms(255);
+      _delay_ms(200);
 
       RELAY = 1;
       //BUZZER = 1;
-      printf("\ncounter: %d \n", count);
+      printf("counter: %d \n", count);
       
       lightval = getADCResult8(ADC_LIGHT);
       tempval = getADCResult(ADC_TEMP);
-      
-      printf("adc: light raw: %03d, temperature raw: %03d\n", lightval, tempval);   
       
       /*
       printf("seconds: %02x, minutes: %02x, hour: %02x, day: %02x, month: %02x, weekday: %02x, year: %02x\n", 
@@ -139,19 +138,23 @@ int main()
       */
       
       ds_readburst((uint8_t *) &rtc); // read rtc
-      printf("yy mm dd hh mm ss am/pm 24/12 ww \n%d%d %d%d %d%d %d%d %d%d %d%d     %d     %d  %d\n",
-          rtc.tenyear, rtc.year, rtc.tenmonth, rtc.month, rtc.tenday, rtc.day, rtc.h12.tenhour, rtc.h12.hour, 
-          rtc.tenminutes, rtc.minutes, rtc.tenseconds, rtc.seconds, rtc.h12.pm, rtc.h12.hour_12_24, rtc.weekday);
-      //
-      filldisplay(display, rtc.h12.tenhour, 0);
-      filldisplay(display, rtc.h12.hour, 1);
-      filldisplay(display, rtc.tenminutes, 2);
-      filldisplay(display, rtc.minutes, 3);
+
+      display_colon = ((count % 2 == 0) ? 1 : 0); // alternate flashing colon
+
+      if (display_colon) {
+          // only print every second
+          printf("adc: light raw: %03d, temperature raw: %03d\n", lightval, tempval);   
+          printf("yy mm dd hh mm ss am/pm 24/12 ww \n%d%d %d%d %d%d %d%d %d%d %d%d     %d     %d  %d\n",
+              rtc.tenyear, rtc.year, rtc.tenmonth, rtc.month, rtc.tenday, rtc.day, rtc.h12.tenhour, rtc.h12.hour, 
+              rtc.tenminutes, rtc.minutes, rtc.tenseconds, rtc.seconds, rtc.h12.pm, rtc.h12.hour_12_24, rtc.weekday);
+      }
       
-      //printf("%02x %02x %02x %02x\n", display[0], display[1], display[2], display[3]);
-      
-      _delay_ms(255);
-      _delay_ms(255);
+      filldisplay(display, 0, rtc.h12.tenhour, 0);
+      filldisplay(display, 1, rtc.h12.hour, display_colon);
+      filldisplay(display, 2, rtc.tenminutes, display_colon);
+      filldisplay(display, 3, rtc.minutes, 0);
+            
+      _delay_ms(200);
       count++;
       WDT_CLEAR();
     }

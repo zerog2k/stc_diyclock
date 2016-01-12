@@ -2,4 +2,4 @@
 
 #include <stdint.h>
 
-void filldisplay(uint8_t dbuf[4], uint8_t val, uint8_t pos);
+void filldisplay(uint8_t dbuf[4], uint8_t pos, uint8_t val, __bit dp);
