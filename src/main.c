@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include "adc.h"
 #include "ds1302.h"
-
+#include "led.h"
+#include "./soft_serial/serial.h"
+    
 #define FOSC    11059200
 
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4) // clear wdt
@@ -17,7 +19,6 @@
 /* Printing functions */
 /* ------------------------------------------------------------------------- */
 
-#include "./soft_serial/serial.h"
 #define printf printf_fast     // see sdcc user guide
 
 #define RELAY   P1_4
@@ -30,34 +31,6 @@
 #define SW1     P3_1
 
 /* ------------------------------------------------------------------------- */
-
-
-// LEDs
-const uint8_t ledtable[] = {
-    // digit to led digit lookup table
-    // dp,g,f,e,d,c,b,a 
-    0b00111111, // 0
-    0b00000110, // 1
-    0b01011011, // 2
-    0b01001111, // 3
-    0b01100110, // 4
-    0b01101101, // 5
-    0b01111101, // 6
-    0b00000111, // 7
-    0b01111111, // 8
-    0b01100111  // 9
-};
-
-uint8_t display[4] = {0,0,0,0};
-
-void filldisplay(uint8_t dbuf[4], uint8_t val, uint8_t pos) {
-    // store display bytes, inverted    
-    dbuf[pos] = ~(ledtable[val]);
-    if (pos == 2) {
-        // rotate third digit, by swapping bits fed with cba
-        dbuf[pos] = dbuf[pos] & 0b11000000 | (dbuf[pos] & 0b00111000) >> 3 | (dbuf[pos] & 0b00000111) << 3;
-    }
-}
 
 void _delay_ms(uint8_t ms)
 {	
@@ -83,6 +56,7 @@ unsigned int tempval = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
 volatile uint8_t displaycounter = 0;
 struct ds1302_rtc rtc;
+uint8_t display[4] = {0,0,0,0};     // led display buffer
 
 /* Timer0 ISR */
 void tm0_isr() __interrupt 1 __using 1
@@ -95,7 +69,7 @@ void tm0_isr() __interrupt 1 __using 1
     P3 |= 0x3C;
 
     // auto dimming, skip lighting for some cycles
-    if (displaycounter < 4 || displaycounter > lightval) {
+    if (displaycounter > 247  || displaycounter > lightval) {
         // fill digits
         P2 = display[digit];
         // turn on selected digit, set low
