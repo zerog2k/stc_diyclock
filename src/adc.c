@@ -17,38 +17,21 @@
 #include <stc12.h>
 #include "adc.h"
 
-void _delay_ms(unsigned char ms)
-{	
-    // i,j selected for fosc 11.0592MHz, using oscilloscope
-    // the stc-isp tool gives inaccurate values (perhaps for C51 vs sdcc?)
-    // max 255 ms
-    unsigned char i, j;
-    do {
-    	i = 4;
-    	j = 200;
-    	do
-    	{
-    		while (--j);
-    	} while (--i);
-    } while (--ms);
-}
-
 /*----------------------------
-Software delay function
+Initial ADC sfr
 ----------------------------*/
-void Delay(unsigned int n)
+void InitADC(uint8_t chan)
 {
-	unsigned int x;
-	while (n--) {
-		x = 5000;
-		while (x--);
-	}
+	P1ASF |= 1 << chan;             //enable channel ADC function
+	ADC_RES = 0;                    //Clear previous result
+	ADC_CONTR = ADC_POWER | ADC_SPEEDLL;
+	//Delay(2);                       //ADC power-on and delay
 }
 
 /*----------------------------
 Get ADC result - 10 bit
 ----------------------------*/
-unsigned int getADCResult(char chan)
+uint16_t getADCResult(uint8_t chan)
 {
 	ADC_CONTR = ADC_POWER | ADC_SPEEDHH | ADC_START | chan;
 	_nop_;       //Must wait before inquiry
@@ -57,7 +40,7 @@ unsigned int getADCResult(char chan)
 	return  ADC_RES << 2 | (ADC_RESL & 0b11) ;  //Return ADC result
 }
 
-unsigned char getADCResult8(char chan)
+uint8_t getADCResult8(uint8_t chan)
 {
 	ADC_CONTR = ADC_POWER | ADC_SPEEDHH | ADC_START | chan;
 	_nop_;       //Must wait before inquiry
@@ -66,14 +49,4 @@ unsigned char getADCResult8(char chan)
 	return  ADC_RES;  //Return ADC result
 }
 
-/*----------------------------
-Initial ADC sfr
-----------------------------*/
-void InitADC(char chan)
-{
-	P1ASF |= 1 << chan;             //enable channel ADC function
-	ADC_RES = 0;                    //Clear previous result
-	ADC_CONTR = ADC_POWER | ADC_SPEEDLL;
-	Delay(2);                       //ADC power-on and delay
-}
 

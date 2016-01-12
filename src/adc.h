@@ -15,9 +15,8 @@
 */
 /*----------------------------------------------------------------------------------*/
 #include <stc12.h>
+#include <stdint.h>
 
-typedef unsigned char BYTE;
-typedef unsigned int WORD;
 #define _nop_ __asm nop __endasm;
 
 /*Define ADC operation const for ADC_CONTR*/
@@ -29,25 +28,20 @@ typedef unsigned int WORD;
 #define ADC_SPEEDH  0x40            //180 clocks
 #define ADC_SPEEDHH 0x60            //90 clocks
 
-
 /*----------------------------
-Software delay function
+Initialize ADC sfr
 ----------------------------*/
-void _delay_ms(unsigned char ms);
-void Delay(unsigned int n);
+void InitADC(uint8_t chan);
 
 /*----------------------------
 Get ADC result - 10 bits
 ----------------------------*/
-unsigned int getADCResult(char chan);
+uint16_t getADCResult(uint8_t chan);
 
 /*----------------------------
 Get ADC result - 8 bits
 ----------------------------*/
-unsigned char getADCResult8(char chan);
+uint8_t getADCResult8(uint8_t chan);
 
-/*----------------------------
-Initialize ADC sfr
-----------------------------*/
-void InitADC(char chan);
+
 

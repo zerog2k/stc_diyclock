@@ -59,6 +59,21 @@ void filldisplay(uint8_t dbuf[4], uint8_t val, uint8_t pos) {
     }
 }
 
+void _delay_ms(uint8_t ms)
+{	
+    // i,j selected for fosc 11.0592MHz, using oscilloscope
+    // the stc-isp tool gives inaccurate values (perhaps for C51 vs sdcc?)
+    // max 255 ms
+    uint8_t i, j;
+    do {
+    	i = 4;
+    	j = 200;
+    	do
+    	{
+    		while (--j);
+    	} while (--i);
+    } while (--ms);
+}
 
 // GLOBALS
 uint8_t i;
