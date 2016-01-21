@@ -4,12 +4,11 @@ Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available fr
 ## TODOs
 **note this is currently work-in-progress, unfinished state**
 
-* led display. Mostly done, needs blink/colon/flash/decimal points.
-* ds1302 interaction. Mostly done, reads rtc. Still needs time setting routines.
-* temperature measurement
-* ui: button scan / settings, some kind of menu
-* alarm/chime
-* light sensor, display auto-dimming. Done.
+* ui: basic display state machine skeleton in place
+* working on time setting routines.
+* temperature display and adjustment. needs raw to temp conversion.
+* date display/set.
+* alarm/chime. Later.
 
 ## hardware
 * DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
@@ -41,6 +40,10 @@ A windows app, but also works fine for me under mac and linux with wine.
 ## clock assumptions
 Some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
 Specifically, the soft serial code (src/soft_serial/serial.c, SYSCLK) and delay routines would need to be adjusted if this is different.
+
+## disclaimers
+This code is provided as-is, with NO guarantees or liabilities.
+As the original firmware loaded on an STC MCU cannot be downloaded or backed up, it cannot be restored. If you are not comfortable with experimenting, I suggest obtaining another blank STC MCU and using this to test, so that you can move back to original firmware, if desired.
 
 ### references
 http://www.stcmcu.com (mostly in Chinese)
