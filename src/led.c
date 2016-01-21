@@ -14,7 +14,8 @@ const uint8_t ledtable[] = {
     0b01111101, // 6
     0b00000111, // 7
     0b01111111, // 8
-    0b01100111  // 9
+    0b01100111, // 9
+    0b00000000, // 10 - blank
 };
 
 void filldisplay(uint8_t dbuf[4], uint8_t pos, uint8_t val, __bit dp) {
