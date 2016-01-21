@@ -29,7 +29,7 @@
 
 #define DS_BURST_MODE       31
 
-struct ds1302_rtc {
+typedef struct ds1302_rtc {
     // inspiration from http://playground.arduino.cc/Main/DS1302
     // 8 bytes. data fields are bcd
     
@@ -96,3 +96,15 @@ void ds_readburst(uint8_t time[8]);
 
 // ds1302 single-byte write
 uint8_t ds_writebyte(uint8_t addr, uint8_t data);
+
+// set hours
+void ds_set_hours(struct ds1302_rtc* rtc);
+
+// set minutes
+void ds_set_minutes(struct ds1302_rtc* rtc);
+
+// increment hours
+void ds_hours_incr(struct ds1302_rtc* rtc);
+
+// increment minutes
+void ds_minutes_incr(struct ds1302_rtc* rtc);

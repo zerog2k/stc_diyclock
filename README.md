@@ -4,8 +4,8 @@ Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available fr
 ## TODOs
 **note this is currently work-in-progress, unfinished state**
 
-* ui: basic display state machine skeleton in place
-* working on time setting routines.
+* ui: basic display state machine in place. More to come.
+* very basic time setting functionality working. More to come.
 * temperature display and adjustment. needs raw to temp conversion.
 * date display/set.
 * alarm/chime. Later.

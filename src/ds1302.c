@@ -93,3 +93,50 @@ uint8_t ds_writebyte(uint8_t addr, uint8_t data) {
     DS_CE = 0;
     return b;
 }
+
+
+// set hours
+void ds_set_hours(struct ds1302_rtc* rtc) {
+    uint8_t b = ds_readbyte(DS_ADDR_HOUR);
+    b = (b & 0b11000000) | rtc->h12.tenhour << 4 | rtc->h12.hour;
+    ds_writebyte(DS_ADDR_HOUR, b);
+}
+
+// set minutes
+void ds_set_minutes(struct ds1302_rtc* rtc) {
+    uint8_t b = ds_readbyte(DS_ADDR_MINUTES);
+    b = (b & 0b10000000) | rtc->tenminutes << 4 | rtc->minutes;
+    ds_writebyte(DS_ADDR_MINUTES, b);
+}
+
+// increment hours
+void ds_hours_incr(struct ds1302_rtc* rtc) {
+    if (rtc->h12.hour_12_24) {
+        // 12 hour
+        if (rtc->h12.hour < 2 || (rtc->h12.tenhour < 1 && rtc->h12.hour < 9)) {
+            rtc->h12.hour++;
+        } else {
+            rtc->h12.hour = 0;
+            if (rtc->h12.tenhour < 1)
+                rtc->h12.tenhour++;
+            else
+                rtc->h12.tenhour = 0;
+        }
+    } else {
+        // TODO: 24 hour
+    }
+}
+
+// increment minutes
+void ds_minutes_incr(struct ds1302_rtc* rtc) {
+    if (rtc->minutes < 9) {
+        rtc->minutes++;
+    } else {
+        rtc->minutes = 0;
+        if (rtc->tenminutes < 5)
+            rtc->tenminutes++;
+        else
+            rtc->tenminutes = 0;
+    }
+}
+

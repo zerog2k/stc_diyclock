@@ -16,7 +16,8 @@
 
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4) // clear wdt
 
-#define DEBUG   0
+// uncomment for debug - might use too much flash
+//#define DEBUG  
 
 /* ------------------------------------------------------------------------- */
 /* Printing functions */
@@ -148,6 +149,7 @@ uint8_t getkeypress(uint8_t keynum)
     return retval;
 }
 
+
 /*********************************************/
 int main()
 {
@@ -170,6 +172,12 @@ int main()
     // init rtc
     ds_writebyte(DS_ADDR_WP, 0); // clear WP (Write Protect)
     ds_writebyte(DS_ADDR_SECONDS, 0); // clear CH (Clock Halt), start clock
+    
+    
+    // uncomment in order to reset minutes and hours to zero.. Should not need this.
+    // ds_writebyte(DS_ADDR_MINUTES, 0x00);
+    // ds_writebyte(DS_ADDR_HOUR, 0x80);
+    
     
     Timer0Init(); // display refresh
     
@@ -195,6 +203,8 @@ int main()
               flash_hours = !flash_hours;
               if (getkeypress(S2)) {
                 // TODO: incr hour
+                  ds_hours_incr(&rtc);
+                  ds_set_hours(&rtc);
               }
               if (getkeypress(S1))
                   dmode = M_SET_MINUTE;
@@ -205,6 +215,8 @@ int main()
               flash_minutes = !flash_minutes;
               if (getkeypress(S2)) {
                   // TODO: incr minutes
+                  ds_minutes_incr(&rtc);
+                  ds_set_minutes(&rtc);
               }
               if (getkeypress(S1))
                   dmode = M_NORMAL;
