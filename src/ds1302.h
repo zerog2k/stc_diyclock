@@ -103,8 +103,27 @@ void ds_set_hours(struct ds1302_rtc* rtc);
 // set minutes
 void ds_set_minutes(struct ds1302_rtc* rtc);
 
+// set month
+void ds_set_month(struct ds1302_rtc* rtc);
+
+// set day
+void ds_set_day(struct ds1302_rtc* rtc);
+
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc);
 
 // increment minutes
 void ds_minutes_incr(struct ds1302_rtc* rtc);
+
+// increment month
+void ds_month_incr(struct ds1302_rtc* rtc);
+
+// increment day
+void ds_day_incr(struct ds1302_rtc* rtc);
+
+// split bcd to int
+uint8_t ds_split2int(uint8_t tens, uint8_t ones);
+
+// int to bcd
+uint8_t ds_int2bcd(uint8_t integer);
+    

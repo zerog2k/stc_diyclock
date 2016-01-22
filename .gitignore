@@ -2,3 +2,4 @@
 *.ihx
 *.bin
 build/*
+config
