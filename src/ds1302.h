@@ -97,6 +97,12 @@ void ds_readburst(uint8_t time[8]);
 // ds1302 single-byte write
 uint8_t ds_writebyte(uint8_t addr, uint8_t data);
 
+// clear WP, CH
+void ds_init();
+
+// reset date/time to 01/01 00:00
+void ds_reset_clock();
+    
 // set hours
 void ds_set_hours(struct ds1302_rtc* rtc);
 

@@ -182,14 +182,10 @@ int main()
     //BUZZER = 1;
         
     // init rtc
-    ds_writebyte(DS_ADDR_WP, 0); // clear WP (Write Protect)
-    ds_writebyte(DS_ADDR_SECONDS, 0); // clear CH (Clock Halt), start clock
-    
+    ds_init();
     
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
-    // ds_writebyte(DS_ADDR_MINUTES, 0x00);
-    // ds_writebyte(DS_ADDR_HOUR, 0x80);
-    
+    //ds_reset_clock();    
     
     Timer0Init(); // display refresh
     
@@ -297,7 +293,10 @@ int main()
               if (getkeypress(S1))
                   dmode = M_SET_HOUR;
               if (getkeypress(S2))
-                  dmode = M_DATE_DISP;         
+                  dmode = M_DATE_DISP;
+              
+              if (getkeypress(S1) == 2 && getkeypress(S2) == 2)
+                  ds_reset_clock();         
       };
 
       if (display_time) {

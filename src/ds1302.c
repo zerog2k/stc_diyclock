@@ -94,7 +94,21 @@ uint8_t ds_writebyte(uint8_t addr, uint8_t data) {
     return b;
 }
 
+void ds_init() {
+    uint8_t b = ds_readbyte(DS_ADDR_SECONDS);
+    ds_writebyte(DS_ADDR_WP, 0); // clear WP
+    b &= ~(0b10000000);
+    ds_writebyte(DS_ADDR_SECONDS, b); // clear CH
+}
 
+// reset date, time
+void ds_reset_clock() {
+    ds_writebyte(DS_ADDR_MINUTES, 0x00);
+    ds_writebyte(DS_ADDR_HOUR, 0x81);
+    ds_writebyte(DS_ADDR_MONTH, 0x01);
+    ds_writebyte(DS_ADDR_DAY, 0x01);
+}
+    
 // set hours
 void ds_set_hours(struct ds1302_rtc* rtc) {
     uint8_t b = ds_readbyte(DS_ADDR_HOUR);
@@ -123,7 +137,6 @@ void ds_set_day(struct ds1302_rtc* rtc) {
     b = (b & 0b11000000) | rtc->tenday << 4 | rtc->day;
     ds_writebyte(DS_ADDR_DAY, b);
 }
-
 
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc) {
