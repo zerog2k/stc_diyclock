@@ -4,9 +4,9 @@
 
 #include "ds1302.h"
 
-void ds_writebit(__bit bit) {
+void ds_writebit(__bit b) {
     _nop_; _nop_;
-    DS_IO = bit;
+    DS_IO = b;
     DS_SCLK = 1;
     _nop_; _nop_;
     DS_SCLK = 0;
@@ -121,97 +121,111 @@ void ds_set_hours(struct ds1302_rtc* rtc) {
 
 // set minutes
 void ds_set_minutes(struct ds1302_rtc* rtc) {
-    uint8_t b = ds_readbyte(DS_ADDR_MINUTES);
-    b = (b & 0b10000000) | rtc->tenminutes << 4 | rtc->minutes;
-    ds_writebyte(DS_ADDR_MINUTES, b);
+    //uint8_t b = ds_readbyte(DS_ADDR_MINUTES);
+    //b = (b & 0b10000000) | rtc->tenminutes << 4 | rtc->minutes;
+    ds_writebyte(DS_ADDR_MINUTES, rtc->tenminutes << 4 | rtc->minutes);
 }
 
 
 // set month
 void ds_set_month(struct ds1302_rtc* rtc) {
-    uint8_t b = ds_readbyte(DS_ADDR_MONTH);
-    b = (b & 0b11100000) | rtc->tenmonth << 4 | rtc->month;
-    ds_writebyte(DS_ADDR_MONTH, b);
+    //uint8_t b = ds_readbyte(DS_ADDR_MONTH);
+    //b = (b & 0b11100000) | rtc->tenmonth << 4 | rtc->month;
+    ds_writebyte(DS_ADDR_MONTH, rtc->tenmonth << 4 | rtc->month);
 }
 
 // set day
 void ds_set_day(struct ds1302_rtc* rtc) {
-    uint8_t b = ds_readbyte(DS_ADDR_DAY);
-    b = (b & 0b11000000) | rtc->tenday << 4 | rtc->day;
-    ds_writebyte(DS_ADDR_DAY, b);
+    //uint8_t b = ds_readbyte(DS_ADDR_DAY);
+    //b = (b & 0b11000000) | rtc->tenday << 4 | rtc->day;
+    ds_writebyte(DS_ADDR_DAY, rtc->tenday << 4 | rtc->day);
 }
 
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc) {
-    if (rtc->h12.hour_12_24) {
-        // 12 hour
-        if (rtc->h12.hour < 2 || (rtc->h12.tenhour < 1 && rtc->h12.hour < 9)) {
-            rtc->h12.hour++;
-        } else {
-            rtc->h12.hour = 0;
-            if (rtc->h12.tenhour < 1)
-                rtc->h12.tenhour++;
-            else {
-                rtc->h12.tenhour = 0;
-                rtc->h12.hour = 1;
-                rtc->h12.pm = !rtc->h12.pm;
-            }
-        }
-    } else {
-        // TODO: 24 hour
+    // TODO: handle 24 hr
+    uint8_t hours;    
+    hours = ds_split2int(rtc->h12.tenhour, rtc->h12.hour);
+    if (hours < 12)
+        hours++;
+    else {
+        hours = 1;
+        rtc->h12.pm = !rtc->h12.pm;
     }
+    rtc->h12.tenhour = ds_int2bcd_tens(hours);
+    rtc->h12.hour = ds_int2bcd_ones(hours);
+    ds_set_hours(rtc);
 }
 
 // increment minutes
 void ds_minutes_incr(struct ds1302_rtc* rtc) {
-    if (rtc->minutes < 9) {
-        rtc->minutes++;
-    } else {
-        rtc->minutes = 0;
-        if (rtc->tenminutes < 5)
-            rtc->tenminutes++;
-        else
-            rtc->tenminutes = 0;
-    }
+    uint8_t minutes = ds_split2int(rtc->tenminutes, rtc->minutes);
+    if (minutes < 59)
+        minutes++;
+    else
+        minutes = 1;
+    ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
+    /*
+    rtc->tenminutes = ds_int2bcd_tens(minutes);
+    rtc->minutes = ds_int2bcd_ones(minutes);
+    ds_set_minutes(rtc);
+    */
 }
 
 // increment month
 void ds_month_incr(struct ds1302_rtc* rtc) {
-    if (rtc->month < 2 || (rtc->tenmonth < 1 && rtc->month < 9)) {
-        rtc->month++;
-    } else {
-        if (rtc->month == 9)
-            rtc->month = 0;
-        else
-            rtc->month = 1;
-        if (rtc->tenmonth < 1)
-            rtc->tenmonth++;
-        else
-            rtc->tenmonth = 0;
-    }
+    uint8_t month = ds_split2int(rtc->tenmonth, rtc->month);
+    if (month < 12)
+        month++;
+    else
+        month = 1;
+    ds_writebyte(DS_ADDR_MONTH, ds_int2bcd(month));
+    /*
+    rtc->tenmonth = ds_int2bcd_tens(month);
+    rtc->month = ds_int2bcd_ones(month);
+    ds_set_month(rtc);
+    */
 }
 
 // increment day
 void ds_day_incr(struct ds1302_rtc* rtc) {
-    
-    if ((rtc->tenday <= 2 && rtc->day < 9) || (rtc->tenday <= 3 && rtc->day < 1)) {
-        rtc->day++;
-    } else  {
-        if (rtc->day == 9) 
-            rtc->day = 0;
-        else
-            rtc->day = 1;
-        if (rtc->tenday < 3)
-            rtc->tenday++;
-        else
-            rtc->tenday = 0;
-    }
+    uint8_t day = ds_split2int(rtc->tenday, rtc->day);
+    if (day < 31)
+        day++;
+    else
+        day = 1;
+    ds_writebyte(DS_ADDR_DAY, ds_int2bcd(day));
+    /*
+    rtc->tenday = ds_int2bcd_tens(day);
+    rtc->day = ds_int2bcd_ones(day);
+    ds_set_day(rtc);
+    */
 }
 
+void ds_weekday_incr(struct ds1302_rtc* rtc) {
+    if (rtc->weekday < 7)
+        rtc->weekday++;
+    else
+        rtc->weekday = 1;
+    ds_writebyte(DS_ADDR_WEEKDAY, rtc->weekday);
+}
+    
 uint8_t ds_split2int(uint8_t tens, uint8_t ones) {
     return tens * 10 + ones;
 }
 
+
+//#pragma callee_saves ds_int2bcd, ds_int2bcd_tens, ds_int2bcd_ones
+
+// return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer) {
     return integer / 10 << 4 | integer % 10;
+}
+
+uint8_t ds_int2bcd_tens(uint8_t integer) {
+    return integer / 10;
+}
+
+uint8_t ds_int2bcd_ones(uint8_t integer) {
+    return integer % 10;
 }

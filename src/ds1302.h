@@ -84,7 +84,7 @@ typedef struct ds1302_rtc {
 };
 
 
-void ds_writebit(__bit bit);
+void ds_writebit(__bit b);
 
 __bit ds_readbit();
 
@@ -127,9 +127,15 @@ void ds_month_incr(struct ds1302_rtc* rtc);
 // increment day
 void ds_day_incr(struct ds1302_rtc* rtc);
 
+void ds_weekday_incr(struct ds1302_rtc* rtc);
+    
 // split bcd to int
 uint8_t ds_split2int(uint8_t tens, uint8_t ones);
 
-// int to bcd
+// return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer);
+    
+// convert integer to bcd parts (high = tens, low = ones)
+uint8_t ds_int2bcd_tens(uint8_t integer);
+uint8_t ds_int2bcd_ones(uint8_t integer);
     

@@ -15,19 +15,6 @@
 
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4) // clear wdt
 
-// uncomment for debug - uses too much flash; must leave off for now
-//#define DEBUG  
-
-#ifdef DEBUG
-#include "./soft_serial/serial.h"
-#define printf printf_tiny     // see sdcc user guide
-#endif
-
-/* ------------------------------------------------------------------------- */
-/* Printing functions */
-/* ------------------------------------------------------------------------- */
-
-
 #define RELAY   P1_4
 #define BUZZER  P1_5
     
@@ -55,8 +42,7 @@ enum {
     M_DATE_DISP,
     M_SET_MONTH,
     M_SET_DAY,
-    M_WEEKDAY_DISP,
-    M_SET_WEEKDAY
+    M_WEEKDAY_DISP
 } display_mode;
 
 /* ------------------------------------------------------------------------- */
@@ -80,7 +66,6 @@ void _delay_ms(uint8_t ms)
 // GLOBALS
 uint8_t i;
 int count = 0;
-const char* startstring = "DIY Clock starting.\n";
 unsigned int tempval = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
 volatile uint8_t displaycounter = 0;
@@ -173,13 +158,6 @@ int main()
     
 	_delay_ms(100);
       
-#ifdef DEBUG      
-    /* init the software uart */
-    UART_INIT();
-
-    /* simple greeting message */
-    printf("%s", startstring);
-#endif
     
     RELAY = 1;
     //BUZZER = 1;
@@ -218,7 +196,6 @@ int main()
               flash_hours = !flash_hours;
               if (getkeypress(S2)) {
                   ds_hours_incr(&rtc);
-                  ds_set_hours(&rtc);
               }
               if (getkeypress(S1))
                   dmode = M_SET_MINUTE;
@@ -230,7 +207,6 @@ int main()
               flash_minutes = !flash_minutes;
               if (getkeypress(S2)) {
                   ds_minutes_incr(&rtc);
-                  ds_set_minutes(&rtc);
               }
               if (getkeypress(S1))
                   dmode = M_NORMAL;
@@ -245,22 +221,18 @@ int main()
               break;
               
           case M_DATE_DISP:
-              // TODO: display date
               display_time = 0;
               display_date = 1;
               if (getkeypress(S1))
                   dmode = M_SET_MONTH;
               if (getkeypress(S2))
-                  dmode = M_NORMAL;                        
+                  dmode = M_WEEKDAY_DISP;                        
               break;
               
           case M_SET_MONTH:
-              // TODO: set month
               flash_month = !flash_month;
               if (getkeypress(S2)) {
-                  // TODO: incr month
                   ds_month_incr(&rtc);
-                  ds_set_month(&rtc);
               }
               if (getkeypress(S1)) {
                   flash_month = 0;
@@ -269,12 +241,9 @@ int main()
               break;
               
           case M_SET_DAY:
-              // TODO: set day of month
               flash_day = !flash_day;
               if (getkeypress(S2)) {
-                  // TODO: incr month
                   ds_day_incr(&rtc);
-                  ds_set_day(&rtc);
               }
               if (getkeypress(S1)) {
                   flash_day = 0;
@@ -283,11 +252,13 @@ int main()
               break;
               
           case M_WEEKDAY_DISP:
-              // TODO: display day of week
-              break;
-              
-          case M_SET_WEEKDAY:
-              // TODO: set day of week
+              display_time = 0;
+              display_date = 0;
+              display_weekday = 1;
+              if (getkeypress(S1))
+                  ds_weekday_incr(&rtc);
+              if (getkeypress(S2))
+                  dmode = M_NORMAL;            
               break;
               
           case M_NORMAL:          
@@ -296,6 +267,7 @@ int main()
               flash_minutes = 0;
               display_time = 1;
               display_date = 0;
+              display_weekday = 0;
               if (count % 4 == 0)
                   display_colon = 1; // flashing colon
               else
@@ -340,24 +312,13 @@ int main()
               filldisplay(display, 2, rtc.tenday, 0);
               filldisplay(display, 3, rtc.day, 0);              
           }          
+      } else if (display_weekday) {
+          filldisplay(display, 0, LED_BLANK, 0);
+          filldisplay(display, 1, LED_DASH, 0);
+          filldisplay(display, 2, rtc.weekday, 0);
+          filldisplay(display, 3, LED_DASH, 0);
       }
-      
-#ifdef DEBUG
-      if (display_colon) {
-          // only print every second
-          // format: rawlightval rawtempval
-          printf("%d %d\n", lightval, tempval);
-          // format: yy mm dd hh mm ss am/pm 24/12 ww   
-          /*
-          printf("%d%d %d%d %d%d %d%d %d%d %d%d %d %d %d\n",
-              rtc.tenyear, rtc.year, rtc.tenmonth, rtc.month, rtc.tenday, rtc.day, rtc.h12.tenhour, rtc.h12.hour, 
-              rtc.tenminutes, rtc.minutes, rtc.tenseconds, rtc.seconds, rtc.h12.pm, rtc.h12.hour_12_24, rtc.weekday);
-          */
-      //printf("switch, count: %d, %d - %d, %d\n", S1, getkeypress(S1), S2, getkeypress(S2));      
-      }
-#endif
-      
-            
+                  
       _delay_ms(100);
       count++;
       WDT_CLEAR();
