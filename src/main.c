@@ -34,6 +34,9 @@
 #define ADC_LIGHT 6
 #define ADC_TEMP  7
 
+#define DIM_HI  100
+#define DIM_LO  200
+
 #define SW2     P3_0
 #define S2      1
 #define SW1     P3_1
@@ -109,7 +112,7 @@ void tm0_isr() __interrupt 1 __using 1
     P3 |= 0x3C;
 
     // auto dimming, skip lighting for some cycles
-    if (displaycounter > 247  || displaycounter > lightval) {
+    if (displaycounter % lightval < 4 ) {
         // fill digits
         P2 = display[digit];
         // turn on selected digit, set low
@@ -197,6 +200,13 @@ int main()
 
       RELAY = 1;
       lightval = getADCResult8(ADC_LIGHT);
+      if (lightval < DIM_HI)
+          lightval = 4;
+      else if (lightval < DIM_LO)
+          lightval = 16;
+      else
+          lightval = 64;
+      
       tempval = getADCResult(ADC_TEMP);
       
       ds_readburst((uint8_t *) &rtc); // read rtc
@@ -304,16 +314,16 @@ int main()
               filldisplay(display, 0, LED_BLANK, 0);
               filldisplay(display, 1, LED_BLANK, display_colon);
           } else {
-              filldisplay(display, 0, rtc.h12.tenhour, 0);
+              filldisplay(display, 0, (rtc.h12.hour_12_24) ? rtc.h12.tenhour : rtc.h12.hour_12_24, 0);
               filldisplay(display, 1, rtc.h12.hour, display_colon);      
           }
   
           if (flash_minutes) {
               filldisplay(display, 2, LED_BLANK, display_colon);
-              filldisplay(display, 3, LED_BLANK, 0);  
+              filldisplay(display, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
           } else {
               filldisplay(display, 2, rtc.tenminutes, display_colon);
-              filldisplay(display, 3, rtc.minutes, 0);  
+              filldisplay(display, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
           }
       } else if (display_date) {
           if (flash_month) {
@@ -338,10 +348,11 @@ int main()
           // format: rawlightval rawtempval
           printf("%d %d\n", lightval, tempval);
           // format: yy mm dd hh mm ss am/pm 24/12 ww   
+          /*
           printf("%d%d %d%d %d%d %d%d %d%d %d%d %d %d %d\n",
               rtc.tenyear, rtc.year, rtc.tenmonth, rtc.month, rtc.tenday, rtc.day, rtc.h12.tenhour, rtc.h12.hour, 
               rtc.tenminutes, rtc.minutes, rtc.tenseconds, rtc.seconds, rtc.h12.pm, rtc.h12.hour_12_24, rtc.weekday);
-
+          */
       //printf("switch, count: %d, %d - %d, %d\n", S1, getkeypress(S1), S2, getkeypress(S2));      
       }
 #endif

@@ -48,7 +48,7 @@ typedef struct ds1302_rtc {
             // 1-12
             uint8_t hour:4;         
             uint8_t tenhour:2;       
-            uint8_t reserved2:1;
+            uint8_t reserved2a:1;
             uint8_t hour_12_24:1;    // 0=24h
         } h24;
         struct {
@@ -56,7 +56,7 @@ typedef struct ds1302_rtc {
             uint8_t hour:4;      
             uint8_t tenhour:1;
             uint8_t pm:1;           // 0=am, 1=pm;
-            uint8_t reserved2:1;
+            uint8_t reserved2b:1;
             uint8_t hour_12_24:1;   // 1=12h
         } h12;
     };

@@ -112,7 +112,10 @@ void ds_reset_clock() {
 // set hours
 void ds_set_hours(struct ds1302_rtc* rtc) {
     uint8_t b = ds_readbyte(DS_ADDR_HOUR);
-    b = (b & 0b11000000) | rtc->h12.tenhour << 4 | rtc->h12.hour;
+    if (rtc->h12.hour_12_24)
+        b = rtc->h12.hour_12_24 << 7 | rtc->h12.pm << 5| rtc->h12.tenhour << 4 | rtc->h12.hour;
+    else
+        b = rtc->h12.hour_12_24 << 7 | rtc->h12.tenhour << 4 | rtc->h12.hour;
     ds_writebyte(DS_ADDR_HOUR, b);
 }
 
@@ -148,8 +151,11 @@ void ds_hours_incr(struct ds1302_rtc* rtc) {
             rtc->h12.hour = 0;
             if (rtc->h12.tenhour < 1)
                 rtc->h12.tenhour++;
-            else
+            else {
                 rtc->h12.tenhour = 0;
+                rtc->h12.hour = 1;
+                rtc->h12.pm = !rtc->h12.pm;
+            }
         }
     } else {
         // TODO: 24 hour
