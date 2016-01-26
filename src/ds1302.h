@@ -106,15 +106,6 @@ void ds_reset_clock();
 // set hours
 void ds_set_hours(struct ds1302_rtc* rtc);
 
-// set minutes
-void ds_set_minutes(struct ds1302_rtc* rtc);
-
-// set month
-void ds_set_month(struct ds1302_rtc* rtc);
-
-// set day
-void ds_set_day(struct ds1302_rtc* rtc);
-
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc);
 

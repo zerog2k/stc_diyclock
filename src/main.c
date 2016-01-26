@@ -65,13 +65,14 @@ void _delay_ms(uint8_t ms)
 
 // GLOBALS
 uint8_t i;
-int count = 0;
-unsigned int tempval = 0;    // temperature sensor value
+uint16_t count = 0;
+uint16_t tempval = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
-volatile uint8_t displaycounter = 0;
 struct ds1302_rtc rtc;
 
+volatile uint8_t displaycounter = 0;
 uint8_t display[4] = {0,0,0,0};     // led display buffer
+uint8_t dmode = M_NORMAL;   // display mode state
 __bit  display_colon = 0;         // flash colon
 __bit  display_time = 1;
 __bit  display_date = 0;
@@ -81,16 +82,14 @@ __bit  flash_minutes = 0;
 __bit  flash_month = 0;
 __bit  flash_day = 0;
 
-uint8_t dmode = M_NORMAL;   // display mode state
-
-volatile uint8_t debounce[2] = {0xFF,0xFF};      // switch debounce buffer
-volatile uint8_t switchcount[2] = {0,0};
+volatile uint8_t debounce[2] = {0xFF, 0xFF};      // switch debounce buffer
+volatile uint8_t switchcount[2] = {0, 0};
 
 /* Timer0 ISR */
 void tm0_isr() __interrupt 1 __using 1
 {
-    // led display refresh cycle
-    // select one of four digits
+    // display refresh ISR
+    // cycle thru digits one at a time
     uint8_t digit = displaycounter % 4; 
 
     // turn off all digits, set high    
@@ -105,25 +104,45 @@ void tm0_isr() __interrupt 1 __using 1
     }
     displaycounter++;
     // done    
-    
-    // debouncing stuff
-    if (displaycounter == 0) {
-        if (debounce[0] == 0)
-            switchcount[0]++;
-        if (debounce[1] == 0)
-            switchcount[1]++;
-    }
-    // read sw
-    debounce[0] = (debounce[0] << 1) | SW1;
-    debounce[1] = (debounce[1] << 1) | SW2;  
-
 }
 
-void Timer0Init(void)		//10ms@11.0592MHz
+void tm1_isr() __interrupt 3 __using 1 {
+    // debounce ISR
+    
+    // debouncing stuff
+    // keep resetting halfway if held long
+    if (switchcount[0] > 250)
+        switchcount[0] = 100;
+    if (switchcount[1] > 250)
+        switchcount[1] = 100;
+
+    // increment count if settled closed
+    if (debounce[0] == 0x00)    
+        switchcount[0]++;
+    else
+        switchcount[0] = 0;
+    
+    if (debounce[1] == 0x00)
+        switchcount[1]++;
+    else
+        switchcount[1] = 0;
+
+    /*
+    // reset count if settled open
+    if (debounce[0] == 0xFF)    
+        switchcount[0] = 0;
+    
+    if (debounce[1] == 0xFF)
+        switchcount[1] = 0;
+    */
+    // read switch positions into sliding 8-bit window
+    debounce[0] = (debounce[0] << 1) | SW1;
+    debounce[1] = (debounce[1] << 1) | SW2;  
+}
+
+void Timer0Init(void)		//100us @ 11.0592MHz
 {
-    AUXR &= 0x7F;		//Timer clock is 12T mode
-    TMOD &= 0xF0;		//Set timer work mode
-    TL0 = 0xB0;		//Initial timer value
+    TL0 = 0xA3;		//Initial timer value
     TH0 = 0xFF;		//Initial timer value
     TF0 = 0;		//Clear TF0 flag
     TR0 = 1;		//Timer0 start run
@@ -131,20 +150,23 @@ void Timer0Init(void)		//10ms@11.0592MHz
     EA = 1;         // global interrupt enable
 }
 
+void Timer1Init(void)		//10ms @ 11.0592MHz
+{
+	TL1 = 0xD5;		//Initial timer value
+	TH1 = 0xDB;		//Initial timer value
+	TF1 = 0;		//Clear TF1 flag
+	TR1 = 1;		//Timer1 start run
+    ET1 = 1;    // enable Timer1 interrupt
+    EA = 1;     // global interrupt enable
+}
+
 uint8_t getkeypress(uint8_t keynum)
 {
-    uint8_t retval = PRESS_NONE;
-    if (switchcount[keynum] > 3)
-        if (switchcount[keynum] > 128)
-            retval = PRESS_LONG;
-        else
-            retval = PRESS_SHORT;
-    if (debounce[keynum] != 0)
-        // reset switch count only when released
-        switchcount[keynum] = 0;
-    else
-        retval = PRESS_NONE; // dont register keypress yet
-    return retval;
+    if (switchcount[keynum] > 150)
+        return PRESS_LONG;  // ~1.5 sec
+    if (switchcount[keynum] > 2) 
+        return PRESS_SHORT; // ~100 msec
+    return PRESS_NONE;
 }
 
 
@@ -169,24 +191,28 @@ int main()
     //ds_reset_clock();    
     
     Timer0Init(); // display refresh
+    Timer1Init(); // switch debounce
     
     // LOOP
     while(1)
     {             
       RELAY = 0;
-      _delay_ms(150);
+      _delay_ms(100);
 
       RELAY = 1;
-      lightval = getADCResult8(ADC_LIGHT);
-      if (lightval < DIM_HI)
-          lightval = 4;
-      else if (lightval < DIM_LO)
-          lightval = 16;
-      else
-          lightval = 64;
-      
-      tempval = getADCResult(ADC_TEMP);
-      
+
+      if (count % 8 == 0) {
+          lightval = getADCResult8(ADC_LIGHT);
+          tempval = getADCResult(ADC_TEMP);
+
+          if (lightval < DIM_HI)
+              lightval = 4;
+          else if (lightval < DIM_LO)
+              lightval = 8;
+          else
+              lightval = 32;
+      }   
+
       ds_readburst((uint8_t *) &rtc); // read rtc
 
       switch (dmode) {
@@ -194,22 +220,28 @@ int main()
           case M_SET_HOUR:
               display_colon = 1;
               flash_hours = !flash_hours;
-              if (getkeypress(S2)) {
-                  ds_hours_incr(&rtc);
+              if (! flash_hours) {
+                  if (getkeypress(S2)) {
+                      ds_hours_incr(&rtc);
+                  }
+                  if (getkeypress(S1))
+                      dmode = M_SET_MINUTE;
               }
-              if (getkeypress(S1))
-                  dmode = M_SET_MINUTE;
+              _delay_ms(20);
               break;
               
           case M_SET_MINUTE:
               flash_hours = 0;
               display_colon = 1;
               flash_minutes = !flash_minutes;
-              if (getkeypress(S2)) {
-                  ds_minutes_incr(&rtc);
+              if (! flash_minutes) {
+                  if (getkeypress(S2)) {
+                      ds_minutes_incr(&rtc);
+                  }
+                  if (getkeypress(S1))
+                      dmode = M_NORMAL;
               }
-              if (getkeypress(S1))
-                  dmode = M_NORMAL;
+              _delay_ms(20);              
               break;
               
           case M_TEMP_DISP:
@@ -227,28 +259,35 @@ int main()
                   dmode = M_SET_MONTH;
               if (getkeypress(S2))
                   dmode = M_WEEKDAY_DISP;                        
+              _delay_ms(50);              
               break;
               
           case M_SET_MONTH:
               flash_month = !flash_month;
-              if (getkeypress(S2)) {
-                  ds_month_incr(&rtc);
+              if (! flash_month) {
+                  if (getkeypress(S2)) {
+                      ds_month_incr(&rtc);
+                  }
+                  if (getkeypress(S1)) {
+                      flash_month = 0;
+                      dmode = M_SET_DAY;
+                  }
               }
-              if (getkeypress(S1)) {
-                  flash_month = 0;
-                  dmode = M_SET_DAY;
-              }
+              _delay_ms(20);              
               break;
               
           case M_SET_DAY:
               flash_day = !flash_day;
-              if (getkeypress(S2)) {
-                  ds_day_incr(&rtc);
+              if (! flash_day) {
+                  if (getkeypress(S2)) {
+                      ds_day_incr(&rtc);
+                  }
+                  if (getkeypress(S1)) {
+                      flash_day = 0;
+                      dmode = M_DATE_DISP;
+                  }
               }
-              if (getkeypress(S1)) {
-                  flash_day = 0;
-                  dmode = M_DATE_DISP;
-              }
+              _delay_ms(20);              
               break;
               
           case M_WEEKDAY_DISP:
@@ -258,7 +297,8 @@ int main()
               if (getkeypress(S1))
                   ds_weekday_incr(&rtc);
               if (getkeypress(S2))
-                  dmode = M_NORMAL;            
+                  dmode = M_NORMAL;
+              _delay_ms(50);                          
               break;
               
           case M_NORMAL:          
@@ -268,17 +308,23 @@ int main()
               display_time = 1;
               display_date = 0;
               display_weekday = 0;
-              if (count % 4 == 0)
+              if (count % 8 < 2)
                   display_colon = 1; // flashing colon
               else
                   display_colon = 0;
-              if (getkeypress(S1))
-                  dmode = M_SET_HOUR;
-              if (getkeypress(S2))
-                  dmode = M_DATE_DISP;
+
+              if (getkeypress(S1) == PRESS_LONG && getkeypress(S2) == PRESS_LONG)
+                  ds_reset_clock();   
               
-              if (getkeypress(S1) == 2 && getkeypress(S2) == 2)
-                  ds_reset_clock();         
+              if (getkeypress(S1 == PRESS_SHORT)) {
+                  dmode = M_SET_HOUR;
+                  _delay_ms(20);                  
+              }
+              if (getkeypress(S2 == PRESS_SHORT)) {
+                  dmode = M_DATE_DISP;
+                  _delay_ms(20);                  
+              }
+      
       };
 
       if (display_time) {
@@ -286,7 +332,7 @@ int main()
               filldisplay(display, 0, LED_BLANK, 0);
               filldisplay(display, 1, LED_BLANK, display_colon);
           } else {
-              filldisplay(display, 0, (rtc.h12.hour_12_24) ? rtc.h12.tenhour : rtc.h12.hour_12_24, 0);
+              filldisplay(display, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
               filldisplay(display, 1, rtc.h12.hour, display_colon);      
           }
   
@@ -319,7 +365,7 @@ int main()
           filldisplay(display, 3, LED_DASH, 0);
       }
                   
-      _delay_ms(100);
+      _delay_ms(40);
       count++;
       WDT_CLEAR();
     }

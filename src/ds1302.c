@@ -119,28 +119,6 @@ void ds_set_hours(struct ds1302_rtc* rtc) {
     ds_writebyte(DS_ADDR_HOUR, b);
 }
 
-// set minutes
-void ds_set_minutes(struct ds1302_rtc* rtc) {
-    //uint8_t b = ds_readbyte(DS_ADDR_MINUTES);
-    //b = (b & 0b10000000) | rtc->tenminutes << 4 | rtc->minutes;
-    ds_writebyte(DS_ADDR_MINUTES, rtc->tenminutes << 4 | rtc->minutes);
-}
-
-
-// set month
-void ds_set_month(struct ds1302_rtc* rtc) {
-    //uint8_t b = ds_readbyte(DS_ADDR_MONTH);
-    //b = (b & 0b11100000) | rtc->tenmonth << 4 | rtc->month;
-    ds_writebyte(DS_ADDR_MONTH, rtc->tenmonth << 4 | rtc->month);
-}
-
-// set day
-void ds_set_day(struct ds1302_rtc* rtc) {
-    //uint8_t b = ds_readbyte(DS_ADDR_DAY);
-    //b = (b & 0b11000000) | rtc->tenday << 4 | rtc->day;
-    ds_writebyte(DS_ADDR_DAY, rtc->tenday << 4 | rtc->day);
-}
-
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc) {
     // TODO: handle 24 hr
@@ -165,11 +143,6 @@ void ds_minutes_incr(struct ds1302_rtc* rtc) {
     else
         minutes = 1;
     ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
-    /*
-    rtc->tenminutes = ds_int2bcd_tens(minutes);
-    rtc->minutes = ds_int2bcd_ones(minutes);
-    ds_set_minutes(rtc);
-    */
 }
 
 // increment month
@@ -180,11 +153,6 @@ void ds_month_incr(struct ds1302_rtc* rtc) {
     else
         month = 1;
     ds_writebyte(DS_ADDR_MONTH, ds_int2bcd(month));
-    /*
-    rtc->tenmonth = ds_int2bcd_tens(month);
-    rtc->month = ds_int2bcd_ones(month);
-    ds_set_month(rtc);
-    */
 }
 
 // increment day
@@ -195,11 +163,6 @@ void ds_day_incr(struct ds1302_rtc* rtc) {
     else
         day = 1;
     ds_writebyte(DS_ADDR_DAY, ds_int2bcd(day));
-    /*
-    rtc->tenday = ds_int2bcd_tens(day);
-    rtc->day = ds_int2bcd_ones(day);
-    ds_set_day(rtc);
-    */
 }
 
 void ds_weekday_incr(struct ds1302_rtc* rtc) {
@@ -213,9 +176,6 @@ void ds_weekday_incr(struct ds1302_rtc* rtc) {
 uint8_t ds_split2int(uint8_t tens, uint8_t ones) {
     return tens * 10 + ones;
 }
-
-
-//#pragma callee_saves ds_int2bcd, ds_int2bcd_tens, ds_int2bcd_ones
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer) {
