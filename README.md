@@ -3,7 +3,7 @@ Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available fr
 
 ## features
 Basic functionality is working:
-* time display/set (only 12 hr for now)
+* time display/set (currently only 12 hr display)
 * date display/set
 * display auto-dim
 
@@ -12,12 +12,12 @@ Basic functionality is working:
 ## TODOs
 Open items:
 * 24 hour display/set
-* temperature display and calibration.
-* alarm/chime functionality
+* temperature display and calibration. Handle C/F display.
+* alarm and chime functionality
 
 ## hardware
 * DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
-* uC connected to PC via cheap USB-UART adapter, e.g. CP2102.
+* connected to PC via cheap USB-UART adapter, e.g. CP2102, CH340G.
 
 ## requirements
 * linux or mac (windows untested)
