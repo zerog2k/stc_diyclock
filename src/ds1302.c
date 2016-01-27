@@ -109,20 +109,10 @@ void ds_reset_clock() {
     ds_writebyte(DS_ADDR_DAY, 0x01);
 }
     
-// set hours
-void ds_set_hours(struct ds1302_rtc* rtc) {
-    uint8_t b = ds_readbyte(DS_ADDR_HOUR);
-    if (rtc->h12.hour_12_24)
-        b = rtc->h12.hour_12_24 << 7 | rtc->h12.pm << 5| rtc->h12.tenhour << 4 | rtc->h12.hour;
-    else
-        b = rtc->h12.hour_12_24 << 7 | rtc->h12.tenhour << 4 | rtc->h12.hour;
-    ds_writebyte(DS_ADDR_HOUR, b);
-}
-
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc) {
     // TODO: handle 24 hr
-    uint8_t hours;    
+    uint8_t hours, b;    
     hours = ds_split2int(rtc->h12.tenhour, rtc->h12.hour);
     if (hours < 12)
         hours++;
@@ -130,9 +120,8 @@ void ds_hours_incr(struct ds1302_rtc* rtc) {
         hours = 1;
         rtc->h12.pm = !rtc->h12.pm;
     }
-    rtc->h12.tenhour = ds_int2bcd_tens(hours);
-    rtc->h12.hour = ds_int2bcd_ones(hours);
-    ds_set_hours(rtc);
+    b = rtc->h12.hour_12_24 << 7 | rtc->h12.pm << 5 | ds_int2bcd(hours);
+    ds_writebyte(DS_ADDR_HOUR, b);
 }
 
 // increment minutes

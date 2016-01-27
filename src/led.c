@@ -29,9 +29,7 @@ const uint8_t ledtable[] = {
 void filldisplay(uint8_t dbuf[4], uint8_t pos, uint8_t val, __bit dp) {
     // store display bytes
     // logic is inverted due to bjt pnp drive, i.e. low = on, high = off
-    dbuf[pos] = ~(ledtable[val]);
-    if (dp)
-        dbuf[pos] &= ~(0x80);  // set dp    
+    dbuf[pos] = ~(dp << 7 | ledtable[val]);
     if (pos == 2) {
         // rotate third digit, by swapping bits fed with cba
         dbuf[pos] = dbuf[pos] & 0b11000000 | (dbuf[pos] & 0b00111000) >> 3 | (dbuf[pos] & 0b00000111) << 3;

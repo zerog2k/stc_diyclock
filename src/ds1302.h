@@ -102,9 +102,6 @@ void ds_init();
 
 // reset date/time to 01/01 00:00
 void ds_reset_clock();
-    
-// set hours
-void ds_set_hours(struct ds1302_rtc* rtc);
 
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc);
