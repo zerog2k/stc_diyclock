@@ -1,7 +1,6 @@
 //
-// STC15F204EA blinky example
-// inspired by http://jjmz.free.fr/?p=179 http://jjmz.free.fr/?p=191
-// and stc15f204ea datasheet
+// STC15F204EA DIY LED Clock
+// Copyright 2016, Jens Jensen
 //
 
 #include <stc12.h>
@@ -127,14 +126,6 @@ void tm1_isr() __interrupt 3 __using 1 {
     else
         switchcount[1] = 0;
 
-    /*
-    // reset count if settled open
-    if (debounce[0] == 0xFF)    
-        switchcount[0] = 0;
-    
-    if (debounce[1] == 0xFF)
-        switchcount[1] = 0;
-    */
     // read switch positions into sliding 8-bit window
     debounce[0] = (debounce[0] << 1) | SW1;
     debounce[1] = (debounce[1] << 1) | SW2;  
