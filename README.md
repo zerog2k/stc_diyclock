@@ -1,5 +1,5 @@
 # STC DIY Clock Kit firmware
-Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available from banggood.com, aliexpress.com, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
+Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood.com, aliexpress.com, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
 
 ## features
 Basic functionality is working:
@@ -7,7 +7,7 @@ Basic functionality is working:
 * date display/set
 * display auto-dim
 
-**note this project work-in-progress in early development stages**
+**note this project in development and a work-in-progress**
 
 ## TODOs
 Open items:
