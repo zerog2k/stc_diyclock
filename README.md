@@ -3,7 +3,7 @@ Firmware reconstruction attempt for STC15F mcu-based DIY Clock Kit (available fr
 
 ## features
 Basic functionality is working:
-* time display/set
+* time display/set (only 12 hr for now)
 * date display/set
 * display auto-dim
 
@@ -11,7 +11,7 @@ Basic functionality is working:
 
 ## TODOs
 Open items:
-* weekday display/set
+* 24 hour display/set
 * temperature display and calibration.
 * alarm/chime functionality
 
@@ -44,7 +44,7 @@ A windows app, but also works fine for me under mac and linux with wine.
 
 ## clock assumptions
 Some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
-Specifically, the soft serial code (src/soft_serial/serial.c, SYSCLK) and delay routines would need to be adjusted if this is different.
+For example, delay routines would need to be adjusted if this is different.
 
 ## disclaimers
 This code is provided as-is, with NO guarantees or liabilities.
@@ -65,5 +65,9 @@ http://jjmz.free.fr/?tag=stc15l204
 Maxim DS1302 datasheet:
 http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 
+VE3LNY's adaptation of this hardware to AVR (he has some interesting AVR projects there):
+http://www.qsl.net/v/ve3lny/travel_clock.html
+
+[original firmware operation flow state diagram](docs/DIY_LED_Clock_operation_original.png)
 [kit instructions w/ schematic](docs/DIY_LED_Clock.png)
 
