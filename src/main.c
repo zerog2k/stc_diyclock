@@ -12,26 +12,33 @@
     
 #define FOSC    11059200
 
-#define WDT_CLEAR()    (WDT_CONTR |= 1 << 4) // clear wdt
+// clear wdt
+#define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
 
+// alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
 #define RELAY   P1_4
 #define BUZZER  P1_5
     
+// adc channels for sensors
 #define ADC_LIGHT 6
 #define ADC_TEMP  7
 
+// three steps of dimming. Photoresistor adc value is 0-255. Lower values = brighter.
 #define DIM_HI  100
 #define DIM_LO  200
 
+// button switch aliases
 #define SW2     P3_0
 #define S2      1
 #define SW1     P3_1
 #define S1      0
 
+// button press states
 #define PRESS_NONE   0
 #define PRESS_SHORT  1
 #define PRESS_LONG   2
 
+// display mode states
 enum {
     M_NORMAL,
     M_SET_HOUR,
@@ -84,8 +91,7 @@ __bit  flash_day = 0;
 volatile uint8_t debounce[2] = {0xFF, 0xFF};      // switch debounce buffer
 volatile uint8_t switchcount[2] = {0, 0};
 
-/* Timer0 ISR */
-void tm0_isr() __interrupt 1 __using 1
+void timer0_isr() __interrupt 1 __using 1
 {
     // display refresh ISR
     // cycle thru digits one at a time
@@ -105,7 +111,7 @@ void tm0_isr() __interrupt 1 __using 1
     // done    
 }
 
-void tm1_isr() __interrupt 3 __using 1 {
+void timer1_isr() __interrupt 3 __using 1 {
     // debounce ISR
     
     // debouncing stuff
@@ -153,10 +159,14 @@ void Timer1Init(void)		//10ms @ 11.0592MHz
 
 uint8_t getkeypress(uint8_t keynum)
 {
-    if (switchcount[keynum] > 150)
+    if (switchcount[keynum] > 150) {
+        _delay_ms(30);
         return PRESS_LONG;  // ~1.5 sec
-    if (switchcount[keynum] > 2) 
+    }
+    if (switchcount[keynum] > 1) {
+        _delay_ms(50);
         return PRESS_SHORT; // ~100 msec
+    }
     return PRESS_NONE;
 }
 
@@ -196,12 +206,13 @@ int main()
           lightval = getADCResult8(ADC_LIGHT);
           tempval = getADCResult(ADC_TEMP);
 
+          // dimming modulus selection
           if (lightval < DIM_HI)
               lightval = 4;
           else if (lightval < DIM_LO)
               lightval = 8;
           else
-              lightval = 32;
+              lightval = 64;
       }   
 
       ds_readburst((uint8_t *) &rtc); // read rtc
@@ -218,7 +229,6 @@ int main()
                   if (getkeypress(S1))
                       dmode = M_SET_MINUTE;
               }
-              _delay_ms(20);
               break;
               
           case M_SET_MINUTE:
@@ -232,11 +242,12 @@ int main()
                   if (getkeypress(S1))
                       dmode = M_NORMAL;
               }
-              _delay_ms(20);              
               break;
               
           case M_TEMP_DISP:
               // TODO: display temp
+              // for now, display raw temp
+              dmode = M_DATE_DISP;
               break;
               
           case M_TEMP_ADJUST:
@@ -250,7 +261,6 @@ int main()
                   dmode = M_SET_MONTH;
               if (getkeypress(S2))
                   dmode = M_WEEKDAY_DISP;                        
-              _delay_ms(50);              
               break;
               
           case M_SET_MONTH:
@@ -264,7 +274,6 @@ int main()
                       dmode = M_SET_DAY;
                   }
               }
-              _delay_ms(20);              
               break;
               
           case M_SET_DAY:
@@ -278,7 +287,6 @@ int main()
                       dmode = M_DATE_DISP;
                   }
               }
-              _delay_ms(20);              
               break;
               
           case M_WEEKDAY_DISP:
@@ -289,7 +297,6 @@ int main()
                   ds_weekday_incr(&rtc);
               if (getkeypress(S2))
                   dmode = M_NORMAL;
-              _delay_ms(50);                          
               break;
               
           case M_NORMAL:          
@@ -309,11 +316,9 @@ int main()
               
               if (getkeypress(S1 == PRESS_SHORT)) {
                   dmode = M_SET_HOUR;
-                  _delay_ms(20);                  
               }
               if (getkeypress(S2 == PRESS_SHORT)) {
-                  dmode = M_DATE_DISP;
-                  _delay_ms(20);                  
+                  dmode = M_TEMP_DISP;
               }
       
       };
