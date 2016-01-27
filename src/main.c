@@ -83,6 +83,7 @@ __bit  display_colon = 0;         // flash colon
 __bit  display_time = 1;
 __bit  display_date = 0;
 __bit  display_weekday = 0;
+__bit  display_temp = 0;
 __bit  flash_hours = 0;
 __bit  flash_minutes = 0;
 __bit  flash_month = 0;
@@ -217,6 +218,7 @@ int main()
 
       ds_readburst((uint8_t *) &rtc); // read rtc
 
+      // display decision tree
       switch (dmode) {
           
           case M_SET_HOUR:
@@ -247,7 +249,11 @@ int main()
           case M_TEMP_DISP:
               // TODO: display temp
               // for now, display raw temp
-              dmode = M_DATE_DISP;
+              display_time = 0;
+              display_date = 0;
+              display_temp = 1;
+              if (getkeypress(S2))
+                  dmode = M_DATE_DISP;
               break;
               
           case M_TEMP_ADJUST:
@@ -256,6 +262,7 @@ int main()
               
           case M_DATE_DISP:
               display_time = 0;
+              display_temp = 0;
               display_date = 1;
               if (getkeypress(S1))
                   dmode = M_SET_MONTH;
@@ -323,6 +330,7 @@ int main()
       
       };
 
+      // display execution tree
       if (display_time) {
           if (flash_hours) {
               filldisplay(display, 0, LED_BLANK, 0);
@@ -359,6 +367,11 @@ int main()
           filldisplay(display, 1, LED_DASH, 0);
           filldisplay(display, 2, rtc.weekday, 0);
           filldisplay(display, 3, LED_DASH, 0);
+      } else if (display_temp) {
+          filldisplay(display, 0, tempval / 1000 % 10, 0);
+          filldisplay(display, 1, tempval /  100 % 10, 0);
+          filldisplay(display, 2, tempval /   10 % 10, 0);
+          filldisplay(display, 3, tempval        % 10, 0);                    
       }
                   
       _delay_ms(40);
