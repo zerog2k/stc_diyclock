@@ -81,10 +81,6 @@ volatile uint8_t displaycounter = 0;
 uint8_t display[4] = {0,0,0,0};     // led display buffer
 uint8_t dmode = M_NORMAL;   // display mode state
 __bit  display_colon = 0;         // flash colon
-__bit  display_time = 1;
-__bit  display_date = 0;
-__bit  display_weekday = 0;
-__bit  display_temp = 0;
 __bit  flash_hours = 0;
 __bit  flash_minutes = 0;
 __bit  flash_month = 0;
@@ -238,7 +234,6 @@ int main()
               
           case M_SET_MINUTE:
               flash_hours = 0;
-              display_colon = 1;
               flash_minutes = !flash_minutes;
               if (! flash_minutes) {
                   if (getkeypress(S2)) {
@@ -252,9 +247,6 @@ int main()
           case M_TEMP_DISP:
               // TODO: display temp
               // for now, display raw temp
-              display_time = 0;
-              display_date = 0;
-              display_temp = 1;
               if (getkeypress(S2))
                   dmode = M_DATE_DISP;
               break;
@@ -264,9 +256,6 @@ int main()
               break;
               
           case M_DATE_DISP:
-              display_time = 0;
-              display_temp = 0;
-              display_date = 1;
               if (getkeypress(S1))
                   dmode = M_SET_MONTH;
               if (getkeypress(S2))
@@ -300,9 +289,6 @@ int main()
               break;
               
           case M_WEEKDAY_DISP:
-              display_time = 0;
-              display_date = 0;
-              display_weekday = 1;
               if (getkeypress(S1))
                   ds_weekday_incr(&rtc);
               if (getkeypress(S2))
@@ -313,9 +299,6 @@ int main()
           default:
               flash_hours = 0;
               flash_minutes = 0;
-              display_time = 1;
-              display_date = 0;
-              display_weekday = 0;
               if (count % 8 < 2)
                   display_colon = 1; // flashing colon
               else
@@ -334,47 +317,61 @@ int main()
       };
 
       // display execution tree
-      if (display_time) {
-          if (flash_hours) {
-              filldisplay(display, 0, LED_BLANK, 0);
-              filldisplay(display, 1, LED_BLANK, display_colon);
-          } else {
-              filldisplay(display, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
-              filldisplay(display, 1, rtc.h12.hour, display_colon);      
-          }
+      
+      switch (dmode) {
+          case M_NORMAL:
+          case M_SET_HOUR:
+          case M_SET_MINUTE:
+              if (flash_hours) {
+                  filldisplay(display, 0, LED_BLANK, 0);
+                  filldisplay(display, 1, LED_BLANK, display_colon);
+              } else {
+                  filldisplay(display, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
+                  filldisplay(display, 1, rtc.h12.hour, display_colon);      
+              }
   
-          if (flash_minutes) {
-              filldisplay(display, 2, LED_BLANK, display_colon);
-              filldisplay(display, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-          } else {
-              filldisplay(display, 2, rtc.tenminutes, display_colon);
-              filldisplay(display, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-          }
-      } else if (display_date) {
-          if (flash_month) {
+              if (flash_minutes) {
+                  filldisplay(display, 2, LED_BLANK, display_colon);
+                  filldisplay(display, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+              } else {
+                  filldisplay(display, 2, rtc.tenminutes, display_colon);
+                  filldisplay(display, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+              }
+              break;
+              
+          case M_DATE_DISP:
+          case M_SET_MONTH:
+          case M_SET_DAY:
+              if (flash_month) {
+                  filldisplay(display, 0, LED_BLANK, 0);
+                  filldisplay(display, 1, LED_BLANK, 1);
+              } else {
+                  filldisplay(display, 0, rtc.tenmonth, 0);
+                  filldisplay(display, 1, rtc.month, 1);          
+              }
+              if (flash_day) {
+                  filldisplay(display, 2, LED_BLANK, 0);
+                  filldisplay(display, 3, LED_BLANK, 0);              
+              } else {
+                  filldisplay(display, 2, rtc.tenday, 0);
+                  filldisplay(display, 3, rtc.day, 0);              
+              }     
+              break;
+                   
+          case M_WEEKDAY_DISP:
               filldisplay(display, 0, LED_BLANK, 0);
-              filldisplay(display, 1, LED_BLANK, 1);
-          } else {
-              filldisplay(display, 0, rtc.tenmonth, 0);
-              filldisplay(display, 1, rtc.month, 1);          
-          }
-          if (flash_day) {
-              filldisplay(display, 2, LED_BLANK, 0);
-              filldisplay(display, 3, LED_BLANK, 0);              
-          } else {
-              filldisplay(display, 2, rtc.tenday, 0);
-              filldisplay(display, 3, rtc.day, 0);              
-          }          
-      } else if (display_weekday) {
-          filldisplay(display, 0, LED_BLANK, 0);
-          filldisplay(display, 1, LED_DASH, 0);
-          filldisplay(display, 2, rtc.weekday, 0);
-          filldisplay(display, 3, LED_DASH, 0);
-      } else if (display_temp) {
-          filldisplay(display, 0, tempval / 1000 % 10, 0);
-          filldisplay(display, 1, tempval /  100 % 10, 0);
-          filldisplay(display, 2, tempval /   10 % 10, 0);
-          filldisplay(display, 3, tempval        % 10, 0);                    
+              filldisplay(display, 1, LED_DASH, 0);
+              filldisplay(display, 2, rtc.weekday, 0);
+              filldisplay(display, 3, LED_DASH, 0);
+              break;
+              
+          case M_TEMP_DISP:
+          case M_TEMP_ADJUST:
+              filldisplay(display, 0, tempval / 1000 % 10, 0);
+              filldisplay(display, 1, tempval /  100 % 10, 0);
+              filldisplay(display, 2, tempval /   10 % 10, 0);
+              filldisplay(display, 3, tempval        % 10, 0);  
+              break;                  
       }
                   
       _delay_ms(40);
