@@ -31,7 +31,7 @@
 
 typedef struct ds1302_rtc {
     // inspiration from http://playground.arduino.cc/Main/DS1302
-    // 8 bytes. data fields are bcd
+    // 8 bytes, must keep aligned to rtc structure. Data fields are bcd
     
     // 00-59
     uint8_t seconds:4;      
@@ -82,6 +82,30 @@ typedef struct ds1302_rtc {
     uint8_t reserved:7;    
     uint8_t write_protect:1;
 };
+
+typedef struct ram_config {
+    // ram config stored in rtc
+    // must keep these fields 4 bytes, aligned
+    
+    uint8_t   hour_12_24:1;    // 0 = 12 hr, 1 = 24 hr
+    uint8_t   temp_F_C:1;      // 0 = Fahrenheit, 1 = Celcius
+    uint8_t   alarm_on:1;
+    uint8_t   alarm_hour:5;
+    
+    uint8_t   alarm_minute:6;
+    uint8_t   reserved1:2;
+
+    uint8_t   reserved2:2;
+    uint8_t   chime_on:1;
+    uint8_t   chime_hour_start:5;
+
+    uint8_t   chime_hour_stop:5;
+    uint8_t   temp_cal:3;   // temperature calibration
+};
+
+void ds_ram_config_init(uint8_t config[4]);
+
+void ds_ram_config_write(uint8_t config[4]);
 
 
 void ds_writebit(__bit b);

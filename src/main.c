@@ -25,7 +25,7 @@
 
 // three steps of dimming. Photoresistor adc value is 0-255. Lower values = brighter.
 #define DIM_HI  100
-#define DIM_LO  200
+#define DIM_LO  190
 
 // button switch aliases
 #define SW2     P3_0
@@ -75,6 +75,7 @@ uint16_t count = 0;
 uint16_t tempval = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
 struct ds1302_rtc rtc;
+struct ram_config config;
 
 volatile uint8_t displaycounter = 0;
 uint8_t display[4] = {0,0,0,0};     // led display buffer
@@ -188,6 +189,8 @@ int main()
         
     // init rtc
     ds_init();
+    // init/read ram config
+    ds_ram_config_init((uint8_t *) &config);    
     
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();    
