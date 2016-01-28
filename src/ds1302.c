@@ -199,7 +199,7 @@ uint8_t ds_int2bcd(uint8_t integer) {
 }
 
 uint8_t ds_int2bcd_tens(uint8_t integer) {
-    return integer / 10;
+    return integer / 10 % 10;
 }
 
 uint8_t ds_int2bcd_ones(uint8_t integer) {
