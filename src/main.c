@@ -25,7 +25,7 @@
 
 // three steps of dimming. Photoresistor adc value is 0-255. Lower values = brighter.
 #define DIM_HI  100
-#define DIM_LO  200
+#define DIM_LO  190
 
 // button switch aliases
 #define SW2     P3_0
@@ -44,7 +44,6 @@ enum {
     M_SET_HOUR,
     M_SET_MINUTE,
     M_TEMP_DISP,
-    M_TEMP_ADJUST,
     M_DATE_DISP,
     M_SET_MONTH,
     M_SET_DAY,
@@ -72,18 +71,15 @@ void _delay_ms(uint8_t ms)
 // GLOBALS
 uint8_t i;
 uint16_t count = 0;
-uint16_t tempval = 0;    // temperature sensor value
+uint16_t temp = 0;    // temperature sensor value
 uint8_t lightval = 0;   // light sensor value
 struct ds1302_rtc rtc;
+struct ram_config config;
 
 volatile uint8_t displaycounter = 0;
-uint8_t display[4] = {0,0,0,0};     // led display buffer
+uint8_t dbuf[4] = {0,0,0,0};     // led display buffer
 uint8_t dmode = M_NORMAL;   // display mode state
 __bit  display_colon = 0;         // flash colon
-__bit  display_time = 1;
-__bit  display_date = 0;
-__bit  display_weekday = 0;
-__bit  display_temp = 0;
 __bit  flash_hours = 0;
 __bit  flash_minutes = 0;
 __bit  flash_month = 0;
@@ -104,7 +100,7 @@ void timer0_isr() __interrupt 1 __using 1
     // auto dimming, skip lighting for some cycles
     if (displaycounter % lightval < 4 ) {
         // fill digits
-        P2 = display[digit];
+        P2 = dbuf[digit];
         // turn on selected digit, set low
         P3 &= ~((0x1 << digit) << 2);  
     }
@@ -164,13 +160,17 @@ uint8_t getkeypress(uint8_t keynum)
         _delay_ms(30);
         return PRESS_LONG;  // ~1.5 sec
     }
-    if (switchcount[keynum] > 1) {
+    if (switchcount[keynum]) {
         _delay_ms(50);
         return PRESS_SHORT; // ~100 msec
     }
     return PRESS_NONE;
 }
 
+int8_t gettemp(uint16_t raw) {
+    // formula for ntc adc value to approx C
+    return 76 - raw * 64 / 637;
+}
 
 /*********************************************/
 int main()
@@ -188,6 +188,8 @@ int main()
         
     // init rtc
     ds_init();
+    // init/read ram config
+    ds_ram_config_init((uint8_t *) &config);    
     
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();    
@@ -203,9 +205,10 @@ int main()
 
       RELAY = 1;
 
-      if (count % 8 == 0) {
+      // run every ~2 secs
+      if (count % 16 == 0) {
           lightval = getADCResult8(ADC_LIGHT);
-          tempval = getADCResult(ADC_TEMP);
+          temp = gettemp( getADCResult(ADC_TEMP) );
 
           // dimming modulus selection
           if (lightval < DIM_HI)
@@ -235,7 +238,6 @@ int main()
               
           case M_SET_MINUTE:
               flash_hours = 0;
-              display_colon = 1;
               flash_minutes = !flash_minutes;
               if (! flash_minutes) {
                   if (getkeypress(S2)) {
@@ -248,22 +250,11 @@ int main()
               
           case M_TEMP_DISP:
               // TODO: display temp
-              // for now, display raw temp
-              display_time = 0;
-              display_date = 0;
-              display_temp = 1;
-              if (getkeypress(S2))
+          if (getkeypress(S2))
                   dmode = M_DATE_DISP;
               break;
-              
-          case M_TEMP_ADJUST:
-              // TODO: adjust temp
-              break;
-              
+                        
           case M_DATE_DISP:
-              display_time = 0;
-              display_temp = 0;
-              display_date = 1;
               if (getkeypress(S1))
                   dmode = M_SET_MONTH;
               if (getkeypress(S2))
@@ -297,9 +288,6 @@ int main()
               break;
               
           case M_WEEKDAY_DISP:
-              display_time = 0;
-              display_date = 0;
-              display_weekday = 1;
               if (getkeypress(S1))
                   ds_weekday_incr(&rtc);
               if (getkeypress(S2))
@@ -310,9 +298,6 @@ int main()
           default:
               flash_hours = 0;
               flash_minutes = 0;
-              display_time = 1;
-              display_date = 0;
-              display_weekday = 0;
               if (count % 8 < 2)
                   display_colon = 1; // flashing colon
               else
@@ -331,47 +316,60 @@ int main()
       };
 
       // display execution tree
-      if (display_time) {
-          if (flash_hours) {
-              filldisplay(display, 0, LED_BLANK, 0);
-              filldisplay(display, 1, LED_BLANK, display_colon);
-          } else {
-              filldisplay(display, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
-              filldisplay(display, 1, rtc.h12.hour, display_colon);      
-          }
+      
+      switch (dmode) {
+          case M_NORMAL:
+          case M_SET_HOUR:
+          case M_SET_MINUTE:
+              if (flash_hours) {
+                  filldisplay(dbuf, 0, LED_BLANK, 0);
+                  filldisplay(dbuf, 1, LED_BLANK, display_colon);
+              } else {
+                  filldisplay(dbuf, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
+                  filldisplay(dbuf, 1, rtc.h12.hour, display_colon);      
+              }
   
-          if (flash_minutes) {
-              filldisplay(display, 2, LED_BLANK, display_colon);
-              filldisplay(display, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-          } else {
-              filldisplay(display, 2, rtc.tenminutes, display_colon);
-              filldisplay(display, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-          }
-      } else if (display_date) {
-          if (flash_month) {
-              filldisplay(display, 0, LED_BLANK, 0);
-              filldisplay(display, 1, LED_BLANK, 1);
-          } else {
-              filldisplay(display, 0, rtc.tenmonth, 0);
-              filldisplay(display, 1, rtc.month, 1);          
-          }
-          if (flash_day) {
-              filldisplay(display, 2, LED_BLANK, 0);
-              filldisplay(display, 3, LED_BLANK, 0);              
-          } else {
-              filldisplay(display, 2, rtc.tenday, 0);
-              filldisplay(display, 3, rtc.day, 0);              
-          }          
-      } else if (display_weekday) {
-          filldisplay(display, 0, LED_BLANK, 0);
-          filldisplay(display, 1, LED_DASH, 0);
-          filldisplay(display, 2, rtc.weekday, 0);
-          filldisplay(display, 3, LED_DASH, 0);
-      } else if (display_temp) {
-          filldisplay(display, 0, tempval / 1000 % 10, 0);
-          filldisplay(display, 1, tempval /  100 % 10, 0);
-          filldisplay(display, 2, tempval /   10 % 10, 0);
-          filldisplay(display, 3, tempval        % 10, 0);                    
+              if (flash_minutes) {
+                  filldisplay(dbuf, 2, LED_BLANK, display_colon);
+                  filldisplay(dbuf, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+              } else {
+                  filldisplay(dbuf, 2, rtc.tenminutes, display_colon);
+                  filldisplay(dbuf, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+              }
+              break;
+              
+          case M_DATE_DISP:
+          case M_SET_MONTH:
+          case M_SET_DAY:
+              if (flash_month) {
+                  filldisplay(dbuf, 0, LED_BLANK, 0);
+                  filldisplay(dbuf, 1, LED_BLANK, 1);
+              } else {
+                  filldisplay(dbuf, 0, rtc.tenmonth, 0);
+                  filldisplay(dbuf, 1, rtc.month, 1);          
+              }
+              if (flash_day) {
+                  filldisplay(dbuf, 2, LED_BLANK, 0);
+                  filldisplay(dbuf, 3, LED_BLANK, 0);              
+              } else {
+                  filldisplay(dbuf, 2, rtc.tenday, 0);
+                  filldisplay(dbuf, 3, rtc.day, 0);              
+              }     
+              break;
+                   
+          case M_WEEKDAY_DISP:
+              filldisplay(dbuf, 0, LED_BLANK, 0);
+              filldisplay(dbuf, 1, LED_DASH, 0);
+              filldisplay(dbuf, 2, rtc.weekday, 0);
+              filldisplay(dbuf, 3, LED_DASH, 0);
+              break;
+              
+          case M_TEMP_DISP:
+              filldisplay(dbuf, 0, ds_int2bcd_tens(temp), 0);
+              filldisplay(dbuf, 1, ds_int2bcd_ones(temp), 0);
+              filldisplay(dbuf, 2, LED_c, 1);
+              filldisplay(dbuf, 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
+              break;                  
       }
                   
       _delay_ms(40);
