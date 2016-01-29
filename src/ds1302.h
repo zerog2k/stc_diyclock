@@ -29,6 +29,9 @@
 
 #define DS_BURST_MODE       31
 
+#define HOUR_24      0
+#define HOUR_12      1
+
 typedef struct ds1302_rtc {
     // inspiration from http://playground.arduino.cc/Main/DS1302
     // 8 bytes, must keep aligned to rtc structure. Data fields are bcd
@@ -83,24 +86,26 @@ typedef struct ds1302_rtc {
     uint8_t write_protect:1;
 };
 
+#define TEMP_C       0
+#define TEMP_F       1
+
 typedef struct ram_config {
     // ram config stored in rtc
     // must keep these fields 4 bytes, aligned
     
-    uint8_t   hour_12_24:1;    // 0 = 12 hr, 1 = 24 hr
-    uint8_t   temp_F_C:1;      // 0 = Fahrenheit, 1 = Celcius
+    uint8_t   temp_C_F:1;      // 0 = Celcius, 1 = Fahrenheit
     uint8_t   alarm_on:1;
+    uint8_t   chime_on:1;
     uint8_t   alarm_hour:5;
     
     uint8_t   alarm_minute:6;
     uint8_t   reserved1:2;
 
-    uint8_t   reserved2:2;
-    uint8_t   chime_on:1;
+    uint8_t   reserved2:3;
     uint8_t   chime_hour_start:5;
 
     uint8_t   chime_hour_stop:5;
-    uint8_t   temp_cal:3;   // temperature calibration
+    uint8_t   reserved3:3;
 };
 
 void ds_ram_config_init(uint8_t config[4]);
@@ -127,6 +132,9 @@ void ds_init();
 // reset date/time to 01/01 00:00
 void ds_reset_clock();
 
+// toggle 12/24 hour mode
+void ds_hours_12_24_toggle(struct ds1302_rtc* rtc);
+    
 // increment hours
 void ds_hours_incr(struct ds1302_rtc* rtc);
 
