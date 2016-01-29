@@ -43,6 +43,7 @@ enum {
     M_NORMAL,
     M_SET_HOUR,
     M_SET_MINUTE,
+    M_SET_HOUR_12_24,
     M_TEMP_DISP,
     M_DATE_DISP,
     M_SET_MONTH,
@@ -244,8 +245,15 @@ int main()
                       ds_minutes_incr(&rtc);
                   }
                   if (getkeypress(S1))
-                      dmode = M_NORMAL;
+                      dmode = M_SET_HOUR_12_24;
               }
+              break;
+
+          case M_SET_HOUR_12_24:
+              if (getkeypress(S2))
+                  ds_hours_12_24_toggle(&rtc);
+              if (getkeypress(S1))
+                  dmode = M_NORMAL;
               break;
               
           case M_TEMP_DISP:
@@ -325,7 +333,11 @@ int main()
                   filldisplay(dbuf, 0, LED_BLANK, 0);
                   filldisplay(dbuf, 1, LED_BLANK, display_colon);
               } else {
-                  filldisplay(dbuf, 0, (rtc.h12.hour_12_24) ? (rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK) : rtc.h12.hour_12_24, 0);
+                  if (rtc.h24.hour_12_24 == HOUR_24) {
+                      filldisplay(dbuf, 0, rtc.h24.tenhour, 0);
+                  } else {
+                      filldisplay(dbuf, 0, rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK, 0);
+                  }                  
                   filldisplay(dbuf, 1, rtc.h12.hour, display_colon);      
               }
   
@@ -336,6 +348,18 @@ int main()
                   filldisplay(dbuf, 2, rtc.tenminutes, display_colon);
                   filldisplay(dbuf, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
               }
+              break;
+
+          case M_SET_HOUR_12_24:
+              filldisplay(dbuf, 0, LED_BLANK, 0);
+              if (rtc.h24.hour_12_24 == HOUR_24) {
+                  filldisplay(dbuf, 1, 2, 0);
+                  filldisplay(dbuf, 2, 4, 0);
+              } else {
+                  filldisplay(dbuf, 1, 1, 0);
+                  filldisplay(dbuf, 2, 2, 0);                  
+              }
+              filldisplay(dbuf, 3, LED_h, 0);
               break;
               
           case M_DATE_DISP:
