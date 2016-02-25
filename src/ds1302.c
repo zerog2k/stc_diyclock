@@ -3,13 +3,15 @@
 //
 
 #include "ds1302.h"
+#define MAGIC_HI  0x5A
+#define MAGIC_LO  0xA5
 
 void ds_ram_config_init(uint8_t config[4]) {
     // check magic bytes to see if ram has been written before
-    if ( (ds_readbyte( DS_CMD_RAM >> 1 | 0x00) != 0xA5 || ds_readbyte( DS_CMD_RAM >> 1 | 0x01) != 0x5A) ) {
+    if ( (ds_readbyte( DS_CMD_RAM >> 1 | 0x00) != MAGIC_LO || ds_readbyte( DS_CMD_RAM >> 1 | 0x01) != MAGIC_HI) ) {
         // if not, must init ram config to defaults
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x00, 0xA5);
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x01, 0x5A);
+        ds_writebyte( DS_CMD_RAM >> 1 | 0x00, MAGIC_LO);
+        ds_writebyte( DS_CMD_RAM >> 1 | 0x01, MAGIC_HI  );
 
         ds_writebyte( DS_CMD_RAM >> 1 | 0x02, 0x00);
         ds_writebyte( DS_CMD_RAM >> 1 | 0x03, 0x00);
