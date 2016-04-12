@@ -9,11 +9,15 @@ Basic functionality is working:
 * temperature display in C
 
 **note this project in development and a work-in-progress**
+*Pull requests are welcome.*
 
 ## TODOs
+These are open items as I have run out of the limited (4k) code space. Items will likely need to be refactored, i.e. to assembly, and/or broken out as build-time selectable features using preprocessor macros rather than run-time options.
+
 Open items:
 * temperature display in C/F selectable
 * alarm and chime functionality
+
 
 ## hardware
 * DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
@@ -22,7 +26,7 @@ Open items:
 ## requirements
 * linux or mac (windows untested)
 * sdcc installed and in the path
-* stcgal (or optionally stc-isp)
+* stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
 
 ## usage
 ```
