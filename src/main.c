@@ -39,7 +39,7 @@
 #define PRESS_LONG   2
 
 // display mode states
-enum {
+enum display_mode {
     M_NORMAL,
     M_SET_HOUR,
     M_SET_MINUTE,
@@ -49,7 +49,7 @@ enum {
     M_SET_MONTH,
     M_SET_DAY,
     M_WEEKDAY_DISP
-} display_mode;
+};
 
 /* ------------------------------------------------------------------------- */
 

@@ -3,35 +3,33 @@
 //
 
 #include "ds1302.h"
+
 #define MAGIC_HI  0x5A
 #define MAGIC_LO  0xA5
 
 void ds_ram_config_init(uint8_t config[4]) {
+    uint8_t i;
     // check magic bytes to see if ram has been written before
     if ( (ds_readbyte( DS_CMD_RAM >> 1 | 0x00) != MAGIC_LO || ds_readbyte( DS_CMD_RAM >> 1 | 0x01) != MAGIC_HI) ) {
         // if not, must init ram config to defaults
         ds_writebyte( DS_CMD_RAM >> 1 | 0x00, MAGIC_LO);
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x01, MAGIC_HI  );
+        ds_writebyte( DS_CMD_RAM >> 1 | 0x01, MAGIC_HI);
 
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x02, 0x00);
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x03, 0x00);
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x04, 0x00);
-        ds_writebyte( DS_CMD_RAM >> 1 | 0x05, 0x00);
+        for (i=0; i<4; i++)
+            ds_writebyte( DS_CMD_RAM >> 1 | (i+2), 0x00);
     }
     
     // read ram config
-    config[0] = ds_readbyte(DS_CMD_RAM >> 1 | 0x02);
-    config[1] = ds_readbyte(DS_CMD_RAM >> 1 | 0x03);
-    config[2] = ds_readbyte(DS_CMD_RAM >> 1 | 0x04);
-    config[3] = ds_readbyte(DS_CMD_RAM >> 1 | 0x05);
+    for (i=0; i<4; i++)
+        config[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
 }
 
 void ds_ram_config_write(uint8_t config[4]) {
-    ds_writebyte( DS_CMD_RAM >> 1 | 0x02, config[0]);
-    ds_writebyte( DS_CMD_RAM >> 1 | 0x03, config[1]);
-    ds_writebyte( DS_CMD_RAM >> 1 | 0x04, config[2]);
-    ds_writebyte( DS_CMD_RAM >> 1 | 0x05, config[3]);
+    uint8_t i;
+    for (i=0; i<4; i++)
+        ds_writebyte( DS_CMD_RAM >> 1 | (i+2), config[i]);
 }
+
 
 void ds_writebit(__bit b) {
     _nop_; _nop_;
