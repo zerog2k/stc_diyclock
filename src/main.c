@@ -206,8 +206,8 @@ int main()
 
       RELAY = 1;
 
-      // run every ~2 secs
-      if (count % 16 == 0) {
+      // run every ~1 secs
+      if (count % 8 == 0) {
           lightval = getADCResult8(ADC_LIGHT);
           temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
 
