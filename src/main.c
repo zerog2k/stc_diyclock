@@ -209,7 +209,7 @@ int main()
       // run every ~2 secs
       if (count % 16 == 0) {
           lightval = getADCResult8(ADC_LIGHT);
-          temp = gettemp( getADCResult(ADC_TEMP) );
+          temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
 
           // dimming modulus selection
           if (lightval < DIM_HI)
@@ -257,8 +257,9 @@ int main()
               break;
               
           case M_TEMP_DISP:
-              // TODO: display temp
-          if (getkeypress(S2))
+              if (getkeypress(S1))
+                  config.temp_offset++;
+              if (getkeypress(S2))
                   dmode = M_DATE_DISP;
               break;
                         
@@ -391,7 +392,7 @@ int main()
           case M_TEMP_DISP:
               filldisplay(dbuf, 0, ds_int2bcd_tens(temp), 0);
               filldisplay(dbuf, 1, ds_int2bcd_ones(temp), 0);
-              filldisplay(dbuf, 2, LED_c, 1);
+              filldisplay(dbuf, 2, config.temp_C_F == 0 ? LED_c : LED_f, 1);
               filldisplay(dbuf, 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
               break;                  
       }

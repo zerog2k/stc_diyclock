@@ -101,7 +101,7 @@ typedef struct ram_config {
     uint8_t   alarm_minute:6;
     uint8_t   reserved1:2;
 
-    uint8_t   reserved2:3;
+     int8_t   temp_offset:3;
     uint8_t   chime_hour_start:5;
 
     uint8_t   chime_hour_stop:5;
