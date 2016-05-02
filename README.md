@@ -42,6 +42,10 @@ make flash
 * add other options:
 `STCGALOPTS="-l 9600 -b 9600" make flash`
 
+## pre-compiled binaries
+If you like, you can try pre-compiled binaries here:
+https://github.com/zerog2k/stc_diyclock/releases
+
 ## use STC-ISP flash tool
 Instead of stcgal, you could alternatively use the official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.
 A windows app, but also works fine for me under mac and linux with wine.
