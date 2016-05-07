@@ -1,5 +1,9 @@
 # STC DIY Clock Kit firmware
-Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood.com, aliexpress.com, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
+Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
+
+![Image of Banggood SKU972289](http://img.banggood.com/thumb/large/2014/xiemeijuan/03/SKU203096/A3.jpg?p=WX0407753399201409DA)
+
+[link to Banggood product page for SKU 972289](http://www.banggood.com/DIY-4-Digit-LED-Electronic-Clock-Kit-Temperature-Light-Control-Version-p-972289.html?p=WX0407753399201409DA)
 
 ## features
 Basic functionality is working:
@@ -12,19 +16,17 @@ Basic functionality is working:
 *Pull requests are welcome.*
 
 ## TODOs
-These are open items as I have run out of the limited (4k) code space. Items will likely need to be refactored, i.e. to assembly, and/or broken out as build-time selectable features using preprocessor macros rather than run-time options.
-
-Open items:
-* temperature display in C/F selectable
+* temperature display in C/F selectable (either build or run-time)
 * alarm and chime functionality
-
+* possibly: make 12/24 hr a build option (to save precious code space)
 
 ## hardware
-* DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. Banggood sku 972289
-* connected to PC via cheap USB-UART adapter, e.g. CP2102, CH340G.
+
+* DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. [Banggood SKU 972289](http://www.banggood.com/DIY-4-Digit-LED-Electronic-Clock-Kit-Temperature-Light-Control-Version-p-972289.html?p=WX0407753399201409DA)
+* connected to PC via cheap USB-UART adapter, e.g. CP2102, CH340G. [Banggood: CP2102 USB-UART adapter](http://www.banggood.com/CJMCU-CP2102-USB-To-TTLSerial-Module-UART-STC-Downloader-p-970993.html?p=WX0407753399201409DA)
 
 ## requirements
-* linux or mac (windows untested)
+* linux or mac (windows untested, but should work)
 * sdcc installed and in the path
 * stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
 
