@@ -71,23 +71,23 @@ void _delay_ms(uint8_t ms)
 
 // GLOBALS
 uint8_t i;
-uint16_t count = 0;
-uint16_t temp = 0;    // temperature sensor value
-uint8_t lightval = 0;   // light sensor value
+uint16_t count;
+uint16_t temp;    // temperature sensor value
+uint8_t lightval;   // light sensor value
 struct ds1302_rtc rtc;
 struct ram_config config;
 
-volatile uint8_t displaycounter = 0;
-uint8_t dbuf[4] = {0,0,0,0};     // led display buffer
+volatile uint8_t displaycounter;
+uint8_t dbuf[4];     // led display buffer
 uint8_t dmode = M_NORMAL;   // display mode state
-__bit  display_colon = 0;         // flash colon
-__bit  flash_hours = 0;
-__bit  flash_minutes = 0;
-__bit  flash_month = 0;
-__bit  flash_day = 0;
+__bit  display_colon;         // flash colon
+__bit  flash_hours;
+__bit  flash_minutes;
+__bit  flash_month;
+__bit  flash_day;
 
-volatile uint8_t debounce[2] = {0xFF, 0xFF};      // switch debounce buffer
-volatile uint8_t switchcount[2] = {0, 0};
+volatile uint8_t debounce[2];      // switch debounce buffer
+volatile uint8_t switchcount[2];
 
 void timer0_isr() __interrupt 1 __using 1
 {
