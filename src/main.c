@@ -74,6 +74,8 @@ uint8_t i;
 uint16_t count;
 uint16_t temp;    // temperature sensor value
 uint8_t lightval;   // light sensor value
+__bit  beep = 1;
+
 struct ds1302_rtc rtc;
 struct ram_config config;
 
@@ -120,12 +122,12 @@ void timer1_isr() __interrupt 3 __using 1 {
         switchcount[1] = 100;
 
     // increment count if settled closed
-    if (debounce[0] == 0x00)    
+    if ((debounce[0] & 0x0F) == 0x00)    
         switchcount[0]++;
     else
         switchcount[0] = 0;
     
-    if (debounce[1] == 0x00)
+    if ((debounce[1] & 0x0F) == 0x00)
         switchcount[1]++;
     else
         switchcount[1] = 0;
@@ -162,7 +164,7 @@ uint8_t getkeypress(uint8_t keynum)
         return PRESS_LONG;  // ~1.5 sec
     }
     if (switchcount[keynum]) {
-        _delay_ms(50);
+        _delay_ms(60);
         return PRESS_SHORT; // ~100 msec
     }
     return PRESS_NONE;
@@ -180,13 +182,7 @@ int main()
     // set ds1302, photoresistor, & ntc pins to open-drain output, already have strong pullups
     P1M1 |= (1 << 0) | (1 << 1) | (1 << 2) | (1<<6) | (1<<7);
     P1M0 |= (1 << 0) | (1 << 1) | (1 << 2) | (1<<6) | (1<<7);
-    
-	_delay_ms(100);
-      
-    
-    RELAY = 1;
-    //BUZZER = 1;
-        
+            
     // init rtc
     ds_init();
     // init/read ram config
@@ -200,14 +196,15 @@ int main()
     
     // LOOP
     while(1)
-    {             
+    {   
+            
       RELAY = 0;
-      _delay_ms(100);
+      _delay_ms(60);
 
       RELAY = 1;
 
       // run every ~1 secs
-      if (count % 8 == 0) {
+      if (count % 4 == 0) {
           lightval = getADCResult8(ADC_LIGHT);
           temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
 
@@ -307,7 +304,7 @@ int main()
           default:
               flash_hours = 0;
               flash_minutes = 0;
-              if (count % 8 < 2)
+              if (count % 10 < 4)
                   display_colon = 1; // flashing colon
               else
                   display_colon = 0;
@@ -397,6 +394,8 @@ int main()
               break;                  
       }
                   
+      // save ram config
+      ds_ram_config_write((uint8_t *) &config); 
       _delay_ms(40);
       count++;
       WDT_CLEAR();
