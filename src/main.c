@@ -205,17 +205,14 @@ int main()
 
       // run every ~1 secs
       if (count % 4 == 0) {
-          lightval = getADCResult8(ADC_LIGHT);
+          lightval = getADCResult8(ADC_LIGHT) >> 3;
           temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
 
-          // dimming modulus selection
-          if (lightval < DIM_HI)
+          // constrain dimming range
+          if (lightval < 4) 
               lightval = 4;
-          else if (lightval < DIM_LO)
-              lightval = 8;
-          else
-              lightval = 64;
-      }   
+
+      }       
 
       ds_readburst((uint8_t *) &rtc); // read rtc
 
