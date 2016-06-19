@@ -76,9 +76,6 @@ uint16_t temp;    // temperature sensor value
 uint8_t lightval;   // light sensor value
 __bit  beep = 1;
 
-struct ds1302_rtc rtc;
-struct ram_config config;
-
 volatile uint8_t displaycounter;
 uint8_t dbuf[4];     // led display buffer
 uint8_t dmode = M_NORMAL;   // display mode state
@@ -224,7 +221,7 @@ int main()
               flash_hours = !flash_hours;
               if (! flash_hours) {
                   if (getkeypress(S2)) {
-                      ds_hours_incr(&rtc);
+                      ds_hours_incr();
                   }
                   if (getkeypress(S1))
                       dmode = M_SET_MINUTE;
@@ -236,7 +233,7 @@ int main()
               flash_minutes = !flash_minutes;
               if (! flash_minutes) {
                   if (getkeypress(S2)) {
-                      ds_minutes_incr(&rtc);
+                      ds_minutes_incr();
                   }
                   if (getkeypress(S1))
                       dmode = M_SET_HOUR_12_24;
@@ -245,7 +242,7 @@ int main()
 
           case M_SET_HOUR_12_24:
               if (getkeypress(S2))
-                  ds_hours_12_24_toggle(&rtc);
+                  ds_hours_12_24_toggle();
               if (getkeypress(S1))
                   dmode = M_NORMAL;
               break;
@@ -268,7 +265,7 @@ int main()
               flash_month = !flash_month;
               if (! flash_month) {
                   if (getkeypress(S2)) {
-                      ds_month_incr(&rtc);
+                      ds_month_incr();
                   }
                   if (getkeypress(S1)) {
                       flash_month = 0;
@@ -281,7 +278,7 @@ int main()
               flash_day = !flash_day;
               if (! flash_day) {
                   if (getkeypress(S2)) {
-                      ds_day_incr(&rtc);
+                      ds_day_incr();
                   }
                   if (getkeypress(S1)) {
                       flash_day = 0;
@@ -292,7 +289,7 @@ int main()
               
           case M_WEEKDAY_DISP:
               if (getkeypress(S1))
-                  ds_weekday_incr(&rtc);
+                  ds_weekday_incr();
               if (getkeypress(S2))
                   dmode = M_NORMAL;
               break;
@@ -325,69 +322,69 @@ int main()
           case M_SET_HOUR:
           case M_SET_MINUTE:
               if (flash_hours) {
-                  filldisplay(dbuf, 0, LED_BLANK, 0);
-                  filldisplay(dbuf, 1, LED_BLANK, display_colon);
+                  filldisplay( 0, LED_BLANK, 0);
+                  filldisplay( 1, LED_BLANK, display_colon);
               } else {
                   if (rtc.h24.hour_12_24 == HOUR_24) {
-                      filldisplay(dbuf, 0, rtc.h24.tenhour, 0);
+                      filldisplay( 0, rtc.h24.tenhour, 0);
                   } else {
-                      filldisplay(dbuf, 0, rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK, 0);
+                      filldisplay( 0, rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK, 0);
                   }                  
-                  filldisplay(dbuf, 1, rtc.h12.hour, display_colon);      
+                  filldisplay( 1, rtc.h12.hour, display_colon);      
               }
   
               if (flash_minutes) {
-                  filldisplay(dbuf, 2, LED_BLANK, display_colon);
-                  filldisplay(dbuf, 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  filldisplay( 2, LED_BLANK, display_colon);
+                  filldisplay( 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
               } else {
-                  filldisplay(dbuf, 2, rtc.tenminutes, display_colon);
-                  filldisplay(dbuf, 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  filldisplay( 2, rtc.tenminutes, display_colon);
+                  filldisplay( 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
               }
               break;
 
           case M_SET_HOUR_12_24:
-              filldisplay(dbuf, 0, LED_BLANK, 0);
+              filldisplay( 0, LED_BLANK, 0);
               if (rtc.h24.hour_12_24 == HOUR_24) {
-                  filldisplay(dbuf, 1, 2, 0);
-                  filldisplay(dbuf, 2, 4, 0);
+                  filldisplay( 1, 2, 0);
+                  filldisplay( 2, 4, 0);
               } else {
-                  filldisplay(dbuf, 1, 1, 0);
-                  filldisplay(dbuf, 2, 2, 0);                  
+                  filldisplay( 1, 1, 0);
+                  filldisplay( 2, 2, 0);                  
               }
-              filldisplay(dbuf, 3, LED_h, 0);
+              filldisplay( 3, LED_h, 0);
               break;
               
           case M_DATE_DISP:
           case M_SET_MONTH:
           case M_SET_DAY:
               if (flash_month) {
-                  filldisplay(dbuf, 0, LED_BLANK, 0);
-                  filldisplay(dbuf, 1, LED_BLANK, 1);
+                  filldisplay( 0, LED_BLANK, 0);
+                  filldisplay( 1, LED_BLANK, 1);
               } else {
-                  filldisplay(dbuf, 0, rtc.tenmonth, 0);
-                  filldisplay(dbuf, 1, rtc.month, 1);          
+                  filldisplay( 0, rtc.tenmonth, 0);
+                  filldisplay( 1, rtc.month, 1);          
               }
               if (flash_day) {
-                  filldisplay(dbuf, 2, LED_BLANK, 0);
-                  filldisplay(dbuf, 3, LED_BLANK, 0);              
+                  filldisplay( 2, LED_BLANK, 0);
+                  filldisplay( 3, LED_BLANK, 0);              
               } else {
-                  filldisplay(dbuf, 2, rtc.tenday, 0);
-                  filldisplay(dbuf, 3, rtc.day, 0);              
+                  filldisplay( 2, rtc.tenday, 0);
+                  filldisplay( 3, rtc.day, 0);              
               }     
               break;
                    
           case M_WEEKDAY_DISP:
-              filldisplay(dbuf, 0, LED_BLANK, 0);
-              filldisplay(dbuf, 1, LED_DASH, 0);
-              filldisplay(dbuf, 2, rtc.weekday, 0);
-              filldisplay(dbuf, 3, LED_DASH, 0);
+              filldisplay( 0, LED_BLANK, 0);
+              filldisplay( 1, LED_DASH, 0);
+              filldisplay( 2, rtc.weekday, 0);
+              filldisplay( 3, LED_DASH, 0);
               break;
               
           case M_TEMP_DISP:
-              filldisplay(dbuf, 0, ds_int2bcd_tens(temp), 0);
-              filldisplay(dbuf, 1, ds_int2bcd_ones(temp), 0);
-              filldisplay(dbuf, 2, config.temp_C_F == 0 ? LED_c : LED_f, 1);
-              filldisplay(dbuf, 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
+              filldisplay( 0, ds_int2bcd_tens(temp), 0);
+              filldisplay( 1, ds_int2bcd_ones(temp), 0);
+              filldisplay( 2, config.temp_C_F == 0 ? LED_c : LED_f, 1);
+              filldisplay( 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
               break;                  
       }
                   
