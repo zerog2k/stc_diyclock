@@ -1,4 +1,4 @@
-SDCCOPTS ?= --iram-size 256 --code-size 4089 --xram-size 0
+SDCCOPTS ?= --iram-size 256 --code-size 4089 --xram-size 0 --data-loc 0x30
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0

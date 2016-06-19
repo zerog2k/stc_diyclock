@@ -48,14 +48,14 @@ typedef struct ds1302_rtc {
     
     union {
         struct {
-            // 1-12
+            // 0-23
             uint8_t hour:4;         
             uint8_t tenhour:2;       
             uint8_t reserved2a:1;
             uint8_t hour_12_24:1;    // 0=24h
         } h24;
         struct {
-            // 0-23
+            // 1-12
             uint8_t hour:4;      
             uint8_t tenhour:1;
             uint8_t pm:1;           // 0=am, 1=pm;
@@ -108,6 +108,9 @@ typedef struct ram_config {
     uint8_t   reserved3:3;
 };
 
+struct ds1302_rtc __at (0x24) rtc;
+struct ram_config __at (0x2c) config;
+
 void ds_ram_config_init(uint8_t config[4]);
 
 void ds_ram_config_write(uint8_t config[4]);
@@ -133,21 +136,21 @@ void ds_init();
 void ds_reset_clock();
 
 // toggle 12/24 hour mode
-void ds_hours_12_24_toggle(struct ds1302_rtc* rtc);
+void ds_hours_12_24_toggle();
     
 // increment hours
-void ds_hours_incr(struct ds1302_rtc* rtc);
+void ds_hours_incr();
 
 // increment minutes
-void ds_minutes_incr(struct ds1302_rtc* rtc);
+void ds_minutes_incr();
 
 // increment month
-void ds_month_incr(struct ds1302_rtc* rtc);
+void ds_month_incr();
 
 // increment day
-void ds_day_incr(struct ds1302_rtc* rtc);
+void ds_day_incr();
 
-void ds_weekday_incr(struct ds1302_rtc* rtc);
+void ds_weekday_incr();
     
 // split bcd to int
 uint8_t ds_split2int(uint8_t tens, uint8_t ones);

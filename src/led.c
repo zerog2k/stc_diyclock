@@ -27,7 +27,9 @@ const uint8_t ledtable[] = {
     0b10000000, // 0x13 - '.'
 };
 
-void filldisplay (uint8_t dbuf[4], uint8_t pos, uint8_t val, __bit dp) __critical {
+extern uint8_t dbuf[4];
+
+void filldisplay (uint8_t pos, uint8_t val, __bit dp) __critical {
     // store display bytes
     // logic is inverted due to bjt pnp drive, i.e. low = on, high = off
     dbuf[pos] = ~(dp << 7 | ledtable[val]);
