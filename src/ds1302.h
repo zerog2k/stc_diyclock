@@ -116,10 +116,6 @@ void ds_ram_config_init(uint8_t config[4]);
 void ds_ram_config_write(uint8_t config[4]);
 
 
-void ds_writebit(__bit b);
-
-__bit ds_readbit();
-
 // ds1302 single-byte read
 uint8_t ds_readbyte(uint8_t addr);
 
@@ -127,7 +123,7 @@ uint8_t ds_readbyte(uint8_t addr);
 void ds_readburst(uint8_t time[8]);
 
 // ds1302 single-byte write
-uint8_t ds_writebyte(uint8_t addr, uint8_t data);
+void ds_writebyte(uint8_t addr, uint8_t data);
 
 // clear WP, CH
 void ds_init();
