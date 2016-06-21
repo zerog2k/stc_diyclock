@@ -1,4 +1,4 @@
-SDCCOPTS ?= --iram-size 256 --code-size 4089 --xram-size 0 --data-loc 0x30
+SDCCOPTS ?= --iram-size 256 --code-size 4089 --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0
@@ -20,7 +20,7 @@ main: $(OBJ)
 	cp build/$@.ihx $@.hex
 	
 flash:
-	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
+	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE) src/eeprom.hex
 
 clean:
 	rm -f *.ihx *.hex *.bin
