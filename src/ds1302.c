@@ -11,7 +11,7 @@
 #define MAGIC_LO  0xA5
 
 
-void ds_ram_config_init(uint8_t config[4]) {
+void ds_ram_config_init() {
     uint8_t i;
     // check magic bytes to see if ram has been written before
     if ( (ds_readbyte( DS_CMD_RAM >> 1 | 0x00) != MAGIC_LO || ds_readbyte( DS_CMD_RAM >> 1 | 0x01) != MAGIC_HI) ) {
@@ -19,21 +19,19 @@ void ds_ram_config_init(uint8_t config[4]) {
         ds_writebyte( DS_CMD_RAM >> 1 | 0x00, MAGIC_LO);
         ds_writebyte( DS_CMD_RAM >> 1 | 0x01, MAGIC_HI);
 
-        //for (i=0; i<4; i++)
-            //ds_writebyte( DS_CMD_RAM >> 1 | (i+2), 0x00);
-	ds_ram_config_write(config);
+	ds_ram_config_write();
 	return;
     }
     
     // read ram config
     for (i=0; i<4; i++)
-        config[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
+        config_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
 }
 
-void ds_ram_config_write(uint8_t config[4]) {
+void ds_ram_config_write() {
     uint8_t i;
     for (i=0; i<4; i++)
-        ds_writebyte( DS_CMD_RAM >> 1 | (i+2), config[i]);
+        ds_writebyte( DS_CMD_RAM >> 1 | (i+2), config_table[i]);
 }
 
 void sendbyte(uint8_t b)
@@ -139,22 +137,23 @@ void ds_reset_clock() {
 }
     
 void ds_hours_12_24_toggle() {
-    uint8_t b = 0;
-    b = (! rtc.h24.hour_12_24) << 7;    // toggle 12/24 bit
+    uint8_t b = H12_24?0x00:0x80; // (! rtc.h24.hour_12_24) << 7;    // toggle 12/24 bit
     ds_writebyte(DS_ADDR_HOUR, b);
 }
 
 // increment hours
 void ds_hours_incr() {
     uint8_t hours, b = 0;
-    if (rtc.h24.hour_12_24 == HOUR_24) {
+    //if (rtc.h24.hour_12_24 == HOUR_24) {   => if bit==0
+    if (!H12_24) {
         hours = ds_split2int(rtc.h24.tenhour, rtc.h24.hour);
         if (hours < 23)
             hours++;
         else {
             hours = 00;
         }
-        b = rtc.h24.hour_12_24 << 7 | ds_int2bcd(hours);
+        //b = rtc.h24.hour_12_24 << 7 | ds_int2bcd(hours);
+        b = ds_int2bcd(hours);
     } else {
         hours = ds_split2int(rtc.h12.tenhour, rtc.h12.hour);
         if (hours < 12)
@@ -163,7 +162,8 @@ void ds_hours_incr() {
             hours = 1;
             rtc.h12.pm = !rtc.h12.pm;
         }
-        b = rtc.h12.hour_12_24 << 7 | rtc.h12.pm << 5 | ds_int2bcd(hours);        
+        //b = rtc.h12.hour_12_24 << 7 | rtc.h12.pm << 5 | ds_int2bcd(hours);        
+        b = 0x80 | rtc.h12.pm << 5 | ds_int2bcd(hours);        
     }
     
     ds_writebyte(DS_ADDR_HOUR, b);

@@ -109,11 +109,17 @@ typedef struct ram_config {
 };
 
 struct ds1302_rtc __at (0x24) rtc;
+uint8_t __at (0x24) rtc_table[8];
+
+// hour_12_24 in RTC is at address 0x26, bit 7 -> => 0x26-0x20 => 0x6*8+7 => 55 => 0x37
+__bit __at (0x37) H12_24;
+
 struct ram_config __at (0x2c) config;
+uint8_t __at (0x2c) config_table[4];
 
-void ds_ram_config_init(uint8_t config[4]);
+void ds_ram_config_init();
 
-void ds_ram_config_write(uint8_t config[4]);
+void ds_ram_config_write();
 
 
 // ds1302 single-byte read

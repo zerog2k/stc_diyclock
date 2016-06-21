@@ -5,7 +5,7 @@ STCGALPORT ?= /dev/ttyUSB0
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 
-SRC = src/adc.c src/ds1302.c src/led.c
+SRC = src/adc.c src/ds1302.c
 
 OBJ=$(patsubst src%.c,build%.rel, $(SRC))
 

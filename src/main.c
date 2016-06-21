@@ -74,16 +74,16 @@ uint8_t i;
 uint16_t count;
 uint16_t temp;    // temperature sensor value
 uint8_t lightval;   // light sensor value
-__bit  beep = 1;
 
 volatile uint8_t displaycounter;
-uint8_t dbuf[4];     // led display buffer
+// uint8_t dbuf[4];     // led display buffer
 uint8_t dmode = M_NORMAL;   // display mode state
 __bit  display_colon;         // flash colon
 __bit  flash_hours;
 __bit  flash_minutes;
 __bit  flash_month;
 __bit  flash_day;
+__bit  beep = 1;
 
 volatile uint8_t debounce[2];      // switch debounce buffer
 volatile uint8_t switchcount[2];
@@ -183,7 +183,7 @@ int main()
     // init rtc
     ds_init();
     // init/read ram config
-    ds_ram_config_init((uint8_t *) &config);    
+    ds_ram_config_init();
     
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();    
@@ -306,10 +306,10 @@ int main()
               if (getkeypress(S1) == PRESS_LONG && getkeypress(S2) == PRESS_LONG)
                   ds_reset_clock();   
               
-              if (getkeypress(S1 == PRESS_SHORT)) {
+              if (getkeypress(S1) == PRESS_SHORT) {
                   dmode = M_SET_HOUR;
               }
-              if (getkeypress(S2 == PRESS_SHORT)) {
+              if (getkeypress(S2) == PRESS_SHORT) {
                   dmode = M_TEMP_DISP;
               }
       
@@ -325,7 +325,8 @@ int main()
                   filldisplay( 0, LED_BLANK, 0);
                   filldisplay( 1, LED_BLANK, display_colon);
               } else {
-                  if (rtc.h24.hour_12_24 == HOUR_24) {
+                  //if (rtc.h24.hour_12_24 == HOUR_24) {
+		  if (!H12_24) {
                       filldisplay( 0, rtc.h24.tenhour, 0);
                   } else {
                       filldisplay( 0, rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK, 0);
@@ -335,16 +336,19 @@ int main()
   
               if (flash_minutes) {
                   filldisplay( 2, LED_BLANK, display_colon);
-                  filldisplay( 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  //filldisplay( 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  filldisplay( 3, LED_BLANK, H12_24 ? rtc.h12.pm : 0);  
               } else {
                   filldisplay( 2, rtc.tenminutes, display_colon);
-                  filldisplay( 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  //filldisplay( 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
+                  filldisplay( 3, rtc.minutes, H12_24 ? rtc.h12.pm : 0);  
               }
               break;
 
           case M_SET_HOUR_12_24:
               filldisplay( 0, LED_BLANK, 0);
-              if (rtc.h24.hour_12_24 == HOUR_24) {
+              //if (rtc.h24.hour_12_24 == HOUR_24) {
+              if (!H12_24) {
                   filldisplay( 1, 2, 0);
                   filldisplay( 2, 4, 0);
               } else {
@@ -389,7 +393,7 @@ int main()
       }
                   
       // save ram config
-      ds_ram_config_write((uint8_t *) &config); 
+      ds_ram_config_write(); 
       _delay_ms(40);
       count++;
       WDT_CLEAR();
