@@ -126,7 +126,7 @@ void ds_ram_config_write();
 uint8_t ds_readbyte(uint8_t addr);
 
 // ds1302 burst-read 8 bytes into struct
-void ds_readburst(uint8_t time[8]);
+void ds_readburst();
 
 // ds1302 single-byte write
 void ds_writebyte(uint8_t addr, uint8_t data);

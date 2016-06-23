@@ -24,13 +24,13 @@ void ds_ram_config_init() {
     }
     
     // read ram config
-    for (i=0; i<4; i++)
+    for (i=0; i!=4; i++)
         config_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
 }
 
 void ds_ram_config_write() {
     uint8_t i;
-    for (i=0; i<4; i++)
+    for (i=0; i!=4; i++)
         ds_writebyte( DS_CMD_RAM >> 1 | (i+2), config_table[i]);
 }
 
@@ -91,7 +91,7 @@ uint8_t ds_readbyte(uint8_t addr) {
     return b;
 }
 
-void ds_readburst(uint8_t time[8]) {
+void ds_readburst() {
     // ds1302 burst-read 8 bytes into struct
     uint8_t j, b;
     b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
@@ -101,8 +101,8 @@ void ds_readburst(uint8_t time[8]) {
     // send cmd byte
     sendbyte(b);
     // read bytes
-    for (j=0; j < 8; j++) 
-        time[j] = readbyte();
+    for (j=0; j!=8; j++) 
+        rtc_table[j] = readbyte();
     DS_CE = 0;
 }
 

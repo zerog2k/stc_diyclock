@@ -211,7 +211,7 @@ int main()
 
       }       
 
-      ds_readburst((uint8_t *) &rtc); // read rtc
+      ds_readburst(); // read rtc
 
       // display decision tree
       switch (dmode) {
