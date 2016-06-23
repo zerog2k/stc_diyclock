@@ -71,7 +71,7 @@ uint8_t readbyte()
 	nop
 	clr	_P1_2
 	djnz	r7,00002$
-	mov	_i,a
+	mov	dpl,a
 	pop	ar7
   __endasm;
 }
@@ -137,14 +137,19 @@ void ds_reset_clock() {
 }
     
 void ds_hours_12_24_toggle() {
+
     // Simplified version => loosing hour setting
-    // uint8_t b = H12_24?0x00:0x80; // (! rtc.h24.hour_12_24) << 7;    // toggle 12/24 bit
+    // uint8_t b = H12_24?0x00:0x80; // was b=(! rtc.h24.hour_12_24) << 7;    // toggle 12/24 bit
     // ds_writebyte(DS_ADDR_HOUR, b);
+
     uint8_t hours,b;
     if (H12_24)
     { // 12h->24h
-      hours=ds_split2int(rtc.h12.tenhour, rtc.h12.hour); //12h format
-      if (rtc.h12.pm) hours+=12;			 // to 24h format
+      hours=ds_split2int(rtc.h12.tenhour, rtc.h12.hour); //12h format (1-11am 12pm 1-11pm 12am)
+      if (hours==12) 
+       {if (!rtc.h12.pm) hours=0;}
+      else
+       {if (rtc.h12.pm) hours+=12;}			 // to 24h format
       b = ds_int2bcd(hours);				 // clear hour_12_24 bit
     }
     else
@@ -152,7 +157,7 @@ void ds_hours_12_24_toggle() {
       hours = ds_split2int(rtc.h24.tenhour, rtc.h24.hour); //24h format (0-23, 0-11=>am , 12-23=>pm)
       b = 0x80; 
       if (hours >= 12) { hours-=12; b|=0x20; }	// pm
-      if (hours == 0) { hours=12; }
+      if (hours == 0) { hours=12; } //12am
       b |= ds_int2bcd(hours);
     }
 
@@ -219,7 +224,7 @@ void ds_day_incr() {
 
 void ds_weekday_incr() {
     uint8_t day = rtc.weekday;
-    if (day <= 7)
+    if (day < 7)
         day++;
     else
         day=1;

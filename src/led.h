@@ -55,5 +55,5 @@ uint8_t dbuf[4];
 uint8_t lval(uint8_t val) { uint8_t dg=~ledtable[val]; return dg; }
 uint8_t l2val(uint8_t val) { uint8_t dg=ledtable[val]; dg=~((dg&0x40)|(dg&0x38)>>3|(dg&0x07)<<3); return dg; }
 
-#define filldisplay(pos,val,dp) { if (pos!=2) dbuf[pos]=dp?lval(val)&0x7F:lval(val); else dbuf[pos]=dp?l2val(val)&0x7f:l2val(val); }
+#define filldisplay(pos,val,dp) { if (pos!=2) dbuf[pos]=(dp)?lval(val)&0x7F:lval(val); else dbuf[pos]=(dp)?l2val(val)&0x7f:l2val(val); }
 
