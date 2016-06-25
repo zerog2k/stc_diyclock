@@ -71,7 +71,7 @@ void _delay_ms(uint8_t ms)
 
 // GLOBALS
 uint8_t i;
-uint16_t count;
+uint8_t count;     // was uint16 - 8 seems to be enough
 uint16_t temp;    // temperature sensor value
 uint8_t lightval;   // light sensor value
 
