@@ -14,8 +14,7 @@
 #define LED_h   0x12
 #define LED_dp  0x13
 
-const uint8_t __at (0x1000) ledtable[];
-/*
+const uint8_t __at (0x1000) ledtable[]
  = {
     // digit to led digit lookup table
     // dp,g,f,e,d,c,b,a
@@ -40,15 +39,6 @@ const uint8_t __at (0x1000) ledtable[];
     0b01110100, // 0x12 - 'h'
     0b10000000, // 0x13 - '.'
 };
-*/
-
-// void filldisplay(uint8_t pos, uint8_t val, __bit dp);
-
-    // store display bytes
-    // logic is inverted due to bjt pnp drive, i.e. low = on, high = off
-        // if pos==2 => rotate third digit, by swapping bits fed with cba
-
-// { dbuf[pos]= (pos!=2)?((dp)?ledtable[val]&0x7F:ledtable[val]):((dp)?ledtable2[val]&0x7F:ledtable2[val]); }
 
 uint8_t dbuf[4];
 

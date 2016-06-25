@@ -92,7 +92,7 @@ void timer0_isr() __interrupt 1 __using 1
 {
     // display refresh ISR
     // cycle thru digits one at a time
-    uint8_t digit = displaycounter % 4; 
+    uint8_t digit = displaycounter & 3; 
 
     // turn off all digits, set high    
     P3 |= 0x3C;
@@ -201,7 +201,7 @@ int main()
       RELAY = 1;
 
       // run every ~1 secs
-      if (count % 4 == 0) {
+      if ((count & 3) == 0) {
           lightval = getADCResult8(ADC_LIGHT) >> 3;
           temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
 

@@ -20,7 +20,7 @@ main: $(OBJ)
 	cp build/$@.ihx $@.hex
 	
 flash:
-	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE) src/eeprom.hex
+	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
 
 clean:
 	rm -f *.ihx *.hex *.bin
