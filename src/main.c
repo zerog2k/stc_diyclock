@@ -70,20 +70,23 @@ void _delay_ms(uint8_t ms)
 }
 
 // GLOBALS
-uint8_t i;
 uint8_t count;     // was uint16 - 8 seems to be enough
-uint16_t temp;    // temperature sensor value
-uint8_t lightval;   // light sensor value
+uint16_t temp;     // temperature sensor value
+uint8_t lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
-// uint8_t dbuf[4];     // led display buffer
-uint8_t dmode = M_NORMAL;   // display mode state
+uint8_t dmode = M_NORMAL;     // display mode state
 __bit  display_colon;         // flash colon
 __bit  flash_hours;
 __bit  flash_minutes;
 __bit  flash_month;
 __bit  flash_day;
 __bit  beep = 1;
+
+__bit  S1_LONG;
+__bit  S1_SHORT;
+__bit  S2_LONG;
+__bit  S2_SHORT;
 
 volatile uint8_t debounce[2];      // switch debounce buffer
 volatile uint8_t switchcount[2];
@@ -114,20 +117,20 @@ void timer1_isr() __interrupt 3 __using 1 {
     // debouncing stuff
     // keep resetting halfway if held long
     if (switchcount[0] > 250)
-        switchcount[0] = 100;
+        {switchcount[0] = 250; S1_LONG=1;}
     if (switchcount[1] > 250)
-        switchcount[1] = 100;
+        {switchcount[1] = 250; S2_LONG=1;}
 
     // increment count if settled closed
     if ((debounce[0] & 0x0F) == 0x00)    
-        switchcount[0]++;
+        {switchcount[0]++; S1_SHORT=1;}
     else
-        switchcount[0] = 0;
+        {switchcount[0] = 0; S1_LONG=0; S1_SHORT=0;}
     
     if ((debounce[1] & 0x0F) == 0x00)
-        switchcount[1]++;
+        {switchcount[1]++; S2_SHORT=1;}
     else
-        switchcount[1] = 0;
+        {switchcount[1] = 0; S2_LONG=0; S2_SHORT=0;}
 
     // read switch positions into sliding 8-bit window
     debounce[0] = (debounce[0] << 1) | SW1;
@@ -154,6 +157,7 @@ void Timer1Init(void)		//10ms @ 11.0592MHz
     EA = 1;     // global interrupt enable
 }
 
+#if 0
 uint8_t getkeypress(uint8_t keynum)
 {
     if (switchcount[keynum] > 150) {
@@ -166,6 +170,9 @@ uint8_t getkeypress(uint8_t keynum)
     }
     return PRESS_NONE;
 }
+#else
+ #define getkeypress(a) a##_SHORT
+#endif
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
@@ -303,20 +310,22 @@ int main()
               else
                   display_colon = 0;
 
-              if (getkeypress(S1) == PRESS_LONG && getkeypress(S2) == PRESS_LONG)
-                  ds_reset_clock();   
+              //if (getkeypress(S1) == PRESS_LONG && getkeypress(S2) == PRESS_LONG)
+              //    ds_reset_clock();   
               
-              if (getkeypress(S1) == PRESS_SHORT) {
+              if (getkeypress(S1)) {
                   dmode = M_SET_HOUR;
               }
-              if (getkeypress(S2) == PRESS_SHORT) {
+              if (getkeypress(S2)) {
                   dmode = M_TEMP_DISP;
               }
       
       };
 
       // display execution tree
-      
+     
+      clearTmpDisplay();
+
       switch (dmode) {
           case M_NORMAL:
           case M_SET_HOUR:
@@ -325,29 +334,25 @@ int main()
                   filldisplay( 0, LED_BLANK, 0);
                   filldisplay( 1, LED_BLANK, display_colon);
               } else {
-                  //if (rtc.h24.hour_12_24 == HOUR_24) {
-		  if (!H12_24) {
+		  if (!H12_24) { 
                       filldisplay( 0, rtc.h24.tenhour, 0);
                   } else {
-                      filldisplay( 0, rtc.h12.tenhour ? rtc.h12.tenhour : LED_BLANK, 0);
+                      filldisplay( 0, H12_TH ? rtc.h12.tenhour : LED_BLANK, 0);
                   }                  
                   filldisplay( 1, rtc.h12.hour, display_colon);      
               }
   
               if (flash_minutes) {
                   filldisplay( 2, LED_BLANK, display_colon);
-                  //filldisplay( 3, LED_BLANK, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-                  filldisplay( 3, LED_BLANK, H12_24 ? rtc.h12.pm : 0);  
+                  filldisplay( 3, LED_BLANK, H12_24 & H12_PM);  
               } else {
                   filldisplay( 2, rtc.tenminutes, display_colon);
-                  //filldisplay( 3, rtc.minutes, (rtc.h12.hour_12_24) ? rtc.h12.pm : 0);  
-                  filldisplay( 3, rtc.minutes, H12_24 ? rtc.h12.pm : 0);  
+                  filldisplay( 3, rtc.minutes, H12_24 & H12_PM);  
               }
               break;
 
           case M_SET_HOUR_12_24:
               filldisplay( 0, LED_BLANK, 0);
-              //if (rtc.h24.hour_12_24 == HOUR_24) {
               if (!H12_24) {
                   filldisplay( 1, 2, 0);
                   filldisplay( 2, 4, 0);
@@ -387,10 +392,12 @@ int main()
           case M_TEMP_DISP:
               filldisplay( 0, ds_int2bcd_tens(temp), 0);
               filldisplay( 1, ds_int2bcd_ones(temp), 0);
-              filldisplay( 2, config.temp_C_F == 0 ? LED_c : LED_f, 1);
+              filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
               filldisplay( 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
               break;                  
       }
+
+      updateTmpDisplay();
                   
       // save ram config
       ds_ram_config_write(); 

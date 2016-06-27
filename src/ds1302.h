@@ -113,14 +113,19 @@ uint8_t __at (0x24) rtc_table[8];
 
 // hour_12_24 in RTC is at address 0x26, bit 7 -> => 0x26-0x20 => 0x6*8+7 => 55 => 0x37
 __bit __at (0x37) H12_24;
+// h12.tenhour in RTC is at address 0x26, bit 4 -> => 0x26-0x20 => 0x6*8+4 => 52 => 0x34
+__bit __at (0x34) H12_TH;
+// h12.pm in RTC is at address 0x26, bit 5 -> => 0x26-0x20 => 0x6*8+5 => 53 => 0x35
+__bit __at (0x35) H12_PM;
 
 struct ram_config __at (0x2c) config;
 uint8_t __at (0x2c) config_table[4];
 
+// temp_C_F in config is at address 0x2c, bit 0 => 0x2c-0x20 => 0xc*8+0 => 96 => 0x60
+__bit __at (0x60) CONF_C_F;
+
 void ds_ram_config_init();
-
 void ds_ram_config_write();
-
 
 // ds1302 single-byte read
 uint8_t ds_readbyte(uint8_t addr);

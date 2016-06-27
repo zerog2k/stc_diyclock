@@ -40,10 +40,26 @@ const uint8_t __at (0x1000) ledtable[]
     0b10000000, // 0x13 - '.'
 };
 
+uint8_t tmpbuf[4];
+__bit   dot0;
+__bit   dot1;
+__bit   dot2;
+__bit   dot3;
+
 uint8_t dbuf[4];
 
 uint8_t lval(uint8_t val) { uint8_t dg=~ledtable[val]; return dg; }
 uint8_t l2val(uint8_t val) { uint8_t dg=ledtable[val]; dg=~((dg&0x40)|(dg&0x38)>>3|(dg&0x07)<<3); return dg; }
 
-#define filldisplay(pos,val,dp) { if (pos!=2) dbuf[pos]=(dp)?lval(val)&0x7F:lval(val); else dbuf[pos]=(dp)?l2val(val)&0x7f:l2val(val); }
+//#define filldisplay(pos,val,dp) { if (pos!=2) dbuf[pos]=(dp)?lval(val)&0x7F:lval(val); else dbuf[pos]=(dp)?l2val(val)&0x7f:l2val(val); }
 
+#define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; }
+
+#define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
+
+#define updateTmpDisplay() { uint8_t val; \
+                        val=tmpbuf[0]; dbuf[0]=dot0?lval(val)&0x7F:lval(val); \
+                        val=tmpbuf[1]; dbuf[1]=dot1?lval(val)&0x7F:lval(val); \
+                        val=tmpbuf[3]; dbuf[3]=dot3?lval(val)&0x7F:lval(val); \
+                        val=tmpbuf[2]; dbuf[2]=dot2?l2val(val)&0x7F:l2val(val); }
+                        

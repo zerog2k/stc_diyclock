@@ -10,7 +10,6 @@
 #define MAGIC_HI  0x5A
 #define MAGIC_LO  0xA5
 
-
 void ds_ram_config_init() {
     uint8_t i;
     // check magic bytes to see if ram has been written before
