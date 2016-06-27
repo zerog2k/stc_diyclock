@@ -331,28 +331,31 @@ int main()
           case M_SET_HOUR:
           case M_SET_MINUTE:
               if (flash_hours) {
-                  filldisplay( 0, LED_BLANK, 0);
-                  filldisplay( 1, LED_BLANK, display_colon);
+                  //filldisplay( 0, LED_BLANK, 0);
+                  //filldisplay( 1, LED_BLANK, display_colon);
+		  dotdisplay(1,display_colon);
               } else {
 		  if (!H12_24) { 
-                      filldisplay( 0, rtc.h24.tenhour, 0);
+                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&1, 0);	// tenhour 
                   } else {
-                      filldisplay( 0, H12_TH ? rtc.h12.tenhour : LED_BLANK, 0);
+                      if (H12_TH) filldisplay( 0, 1, 0);
                   }                  
-                  filldisplay( 1, rtc.h12.hour, display_colon);      
+                  filldisplay( 1, rtc_table[DS_ADDR_HOUR]&0xF, display_colon);      
               }
   
               if (flash_minutes) {
-                  filldisplay( 2, LED_BLANK, display_colon);
-                  filldisplay( 3, LED_BLANK, H12_24 & H12_PM);  
+                  //filldisplay( 2, LED_BLANK, display_colon);
+	          dotdisplay(2,display_colon);
+                  //filldisplay( 3, LED_BLANK, H12_24 & H12_PM);  
+                  dotdisplay(3,H12_24&H12_PM);
               } else {
-                  filldisplay( 2, rtc.tenminutes, display_colon);
-                  filldisplay( 3, rtc.minutes, H12_24 & H12_PM);  
+                  filldisplay( 2, (rtc_table[DS_ADDR_MINUTES]>>4)&7, display_colon);	//tenmin
+                  filldisplay( 3, rtc_table[DS_ADDR_MINUTES]&0xF, H12_24 & H12_PM);  	//min
               }
               break;
 
           case M_SET_HOUR_12_24:
-              filldisplay( 0, LED_BLANK, 0);
+              //filldisplay( 0, LED_BLANK, 0);
               if (!H12_24) {
                   filldisplay( 1, 2, 0);
                   filldisplay( 2, 4, 0);
@@ -367,25 +370,23 @@ int main()
           case M_SET_MONTH:
           case M_SET_DAY:
               if (flash_month) {
-                  filldisplay( 0, LED_BLANK, 0);
-                  filldisplay( 1, LED_BLANK, 1);
+                  //filldisplay( 0, LED_BLANK, 0);
+                  //filldisplay( 1, LED_BLANK, 1);
+		  dotdisplay(1,1);
               } else {
-                  filldisplay( 0, rtc.tenmonth, 0);
-                  filldisplay( 1, rtc.month, 1);          
+                  filldisplay( 0, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &0x01 useless, as MSB bits are read as '0')
+                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&0xF, 1);          
               }
-              if (flash_day) {
-                  filldisplay( 2, LED_BLANK, 0);
-                  filldisplay( 3, LED_BLANK, 0);              
-              } else {
-                  filldisplay( 2, rtc.tenday, 0);
-                  filldisplay( 3, rtc.day, 0);              
+              if (!flash_day) {
+                  filldisplay( 2, rtc_table[DS_ADDR_DAY]>>4, 0);	// tenday   ( &0x03 useless)
+                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&0xF, 0);       // day       
               }     
               break;
                    
           case M_WEEKDAY_DISP:
-              filldisplay( 0, LED_BLANK, 0);
+              //filldisplay( 0, LED_BLANK, 0);
               filldisplay( 1, LED_DASH, 0);
-              filldisplay( 2, rtc.weekday, 0);
+              filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &0x07 useless)
               filldisplay( 3, LED_DASH, 0);
               break;
               
@@ -393,7 +394,7 @@ int main()
               filldisplay( 0, ds_int2bcd_tens(temp), 0);
               filldisplay( 1, ds_int2bcd_ones(temp), 0);
               filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
-              filldisplay( 3, (temp > 0) ? LED_BLANK : LED_DASH, 0);  
+              // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
               break;                  
       }
 

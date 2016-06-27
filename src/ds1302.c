@@ -137,26 +137,22 @@ void ds_reset_clock() {
     
 void ds_hours_12_24_toggle() {
 
-    // Simplified version => loosing hour setting
-    // uint8_t b = H12_24?0x00:0x80; // was b=(! rtc.h24.hour_12_24) << 7;    // toggle 12/24 bit
-    // ds_writebyte(DS_ADDR_HOUR, b);
-
     uint8_t hours,b;
     if (H12_24)
     { // 12h->24h
-      hours=ds_split2int(rtc.h12.tenhour, rtc.h12.hour); //12h format (1-11am 12pm 1-11pm 12am)
+      hours=ds_split2int(rtc_table[DS_ADDR_HOUR]&0x1F); //12h format (1-11am 12pm 1-11pm 12am)
       if (hours==12) 
-       {if (!rtc.h12.pm) hours=0;}
+       {if (!H12_PM) hours=0;}
       else
-       {if (rtc.h12.pm) hours+=12;}			 // to 24h format
-      b = ds_int2bcd(hours);				 // clear hour_12_24 bit
+       {if (H12_PM) hours+=12;}			 // to 24h format
+      b = ds_int2bcd(hours);			 // clear hour_12_24 bit
     }
     else
     { // 24h->12h 
-      hours = ds_split2int(rtc.h24.tenhour, rtc.h24.hour); //24h format (0-23, 0-11=>am , 12-23=>pm)
+      hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x3F); //24h format (0-23, 0-11=>am , 12-23=>pm)
       b = 0x80; 
       if (hours >= 12) { hours-=12; b|=0x20; }	// pm
-      if (hours == 0) { hours=12; } //12am
+      if (hours == 0) { hours=12; } 		//12am
       b |= ds_int2bcd(hours);
     }
 
@@ -166,26 +162,23 @@ void ds_hours_12_24_toggle() {
 // increment hours
 void ds_hours_incr() {
     uint8_t hours, b = 0;
-    //if (rtc.h24.hour_12_24 == HOUR_24) {   => if bit==0
     if (!H12_24) {
-        hours = ds_split2int(rtc.h24.tenhour, rtc.h24.hour);
+        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x3F);	//24h format 11_1111
         if (hours < 23)
             hours++;
         else {
             hours = 00;
         }
-        //b = rtc.h24.hour_12_24 << 7 | ds_int2bcd(hours);
-        b = ds_int2bcd(hours);
+        b = ds_int2bcd(hours);		// bit 7 = 0
     } else {
-        hours = ds_split2int(rtc.h12.tenhour, rtc.h12.hour);
+        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x1F);	//12h format 1_1111
         if (hours < 12)
             hours++;
         else {
             hours = 1;
-            rtc.h12.pm = !rtc.h12.pm;
+            H12_PM=!H12_PM;
         }
-        //b = rtc.h12.hour_12_24 << 7 | rtc.h12.pm << 5 | ds_int2bcd(hours);        
-        b = 0x80 | rtc.h12.pm << 5 | ds_int2bcd(hours);        
+        b = (H12_PM?0xA0:0x80) | ds_int2bcd(hours);        
     }
     
     ds_writebyte(DS_ADDR_HOUR, b);
@@ -193,7 +186,7 @@ void ds_hours_incr() {
 
 // increment minutes
 void ds_minutes_incr() {
-    uint8_t minutes = ds_split2int(rtc.tenminutes, rtc.minutes);
+    uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES]&0x7F); // 111_1111
     if (minutes < 59)
         minutes++;
     else
@@ -203,7 +196,7 @@ void ds_minutes_incr() {
 
 // increment month
 void ds_month_incr() {
-    uint8_t month = ds_split2int(rtc.tenmonth, rtc.month);
+    uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH]&0x1F);  // 1_1111
     if (month < 12)
         month++;
     else
@@ -213,7 +206,7 @@ void ds_month_incr() {
 
 // increment day
 void ds_day_incr() {
-    uint8_t day = ds_split2int(rtc.tenday, rtc.day);
+    uint8_t day = ds_split2int(rtc_table[DS_ADDR_DAY]&0x3F);	// 11_1111
     if (day < 31)
         day++;
     else
@@ -222,17 +215,17 @@ void ds_day_incr() {
 }
 
 void ds_weekday_incr() {
-    uint8_t day = rtc.weekday;
+    uint8_t day = rtc_table[DS_ADDR_WEEKDAY];
     if (day < 7)
         day++;
     else
         day=1;
     ds_writebyte(DS_ADDR_WEEKDAY, day);
-    rtc.weekday = day;
+    rtc_table[DS_ADDR_WEEKDAY] = day;		// usefull ?
 }
     
-uint8_t ds_split2int(uint8_t tens, uint8_t ones) {
-    return tens * 10 + ones;
+uint8_t ds_split2int(uint8_t tens_ones) {
+    return (tens_ones>>4) * 10 + (tens_ones&0xF);
 }
 
 // return bcd byte from integer

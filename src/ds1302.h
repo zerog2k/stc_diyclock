@@ -160,7 +160,7 @@ void ds_day_incr();
 void ds_weekday_incr();
     
 // split bcd to int
-uint8_t ds_split2int(uint8_t tens, uint8_t ones);
+uint8_t ds_split2int(uint8_t tens_ones);
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer);
