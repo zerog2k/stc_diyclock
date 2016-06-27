@@ -210,7 +210,8 @@ int main()
       // run every ~1 secs
       if ((count & 3) == 0) {
           lightval = getADCResult8(ADC_LIGHT) >> 3;
-          temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
+          //temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
+          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[2]&0x7) - 4;
 
           // constrain dimming range
           if (lightval < 4) 
@@ -256,7 +257,8 @@ int main()
               
           case M_TEMP_DISP:
               if (getkeypress(S1))
-                  config.temp_offset++;
+                  //config.temp_offset++;
+                  { uint8_t offset=config_table[2]&0x7; offset++; offset&=7; config_table[2]=(config_table[2]&0xF8)|offset; }
               if (getkeypress(S2))
                   dmode = M_DATE_DISP;
               break;
