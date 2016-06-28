@@ -95,6 +95,7 @@ void ds_month_incr();
 void ds_day_incr();
 
 void ds_weekday_incr();
+void ds_sec_zero();
     
 // split bcd to int
 uint8_t ds_split2int(uint8_t tens_ones);

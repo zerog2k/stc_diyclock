@@ -223,6 +223,11 @@ void ds_weekday_incr() {
     ds_writebyte(DS_ADDR_WEEKDAY, day);
     rtc_table[DS_ADDR_WEEKDAY] = day;		// usefull ?
 }
+
+void ds_sec_zero() {
+    rtc_table[DS_ADDR_SECONDS]=0;
+    ds_writebyte(DS_ADDR_SECONDS,0);
+}
     
 uint8_t ds_split2int(uint8_t tens_ones) {
     return (tens_ones>>4) * 10 + (tens_ones&0xF);

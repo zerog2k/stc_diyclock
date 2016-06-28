@@ -290,6 +290,7 @@ int main()
               break;
           
 	  case K_DEBUG:
+              dmode=M_DEBUG;
 	      if (count>100) kmode = K_NORMAL;
               if (S1_PRESSED||S2_PRESSED) count=0;
 	      break;
@@ -301,10 +302,11 @@ int main()
               else
                   display_colon = 0;
 	      if (getkeypress(S1) || (count>100)) { kmode = K_NORMAL; }
-	      if (getkeypress(S2)) { rtc_table[DS_ADDR_SECONDS]=0; }
+	      if (getkeypress(S2)) { ds_sec_zero(); }
 	      break;
 
 	  case K_WAIT_S1:
+	      count=0;
 	      if (!S1_PRESSED) {
                if (S1_LONG) {S1_LONG=0;kmode=lmode;}
                       else  {kmode=smode;}
@@ -312,6 +314,7 @@ int main()
 	      break;
 
 	  case K_WAIT_S2:
+	      count=0;
 	      if (!S2_PRESSED) {
                if (S2_LONG) {S2_LONG=0;kmode=lmode;}
                       else  {kmode=smode;}
@@ -330,7 +333,8 @@ int main()
 	      dmode=M_NORMAL;
 
 	      if (S1_PRESSED) { kmode = K_WAIT_S1; lmode=K_SET_HOUR; smode=K_SEC_DISP;  }
-              if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
+              //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
+              if (S2_PRESSED) { kmode = K_TEMP_DISP; }
       
       };
 
