@@ -124,16 +124,11 @@ void timer0_isr() __interrupt 1 __using 1
     // done    
 }
 
+#define SW_CNTMAX 80
+
 void timer1_isr() __interrupt 3 __using 1 {
     // debounce ISR
     
-    // debouncing stuff
-    // keep resetting halfway if held long
-    if (switchcount[0] > 80)
-        {switchcount[0] = 80; S1_LONG=1;}
-    if (switchcount[1] > 80)
-        {switchcount[1] = 80; S2_LONG=1;}
-
     // increment count if settled closed
     if ((debounce[0] & 0x0F) == 0x00)    
         {S1_PRESSED=1; switchcount[0]++;}
@@ -144,6 +139,13 @@ void timer1_isr() __interrupt 3 __using 1 {
         {S2_PRESSED=1; switchcount[1]++;}
     else
         {S2_PRESSED=0; switchcount[1]=0;}
+
+    // debouncing stuff
+    // keep resetting halfway if held long
+    if (switchcount[0] > SW_CNTMAX)
+        {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
+    if (switchcount[1] > SW_CNTMAX)
+        {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
 
     // read switch positions into sliding 8-bit window
     debounce[0] = (debounce[0] << 1) | SW1;
@@ -293,24 +295,25 @@ int main()
 	      break;
 
 	  case K_SEC_DISP:
+	      dmode=M_SEC_DISP;
               if (count % 10 < 4)
                   display_colon = 1; // flashing colon
               else
                   display_colon = 0;
-	      if (getkeypress(S1) || (count>100)) { dmode = M_NORMAL; }
-	      if (getkeypress(S2)) { dmode = M_NORMAL; }
+	      if (getkeypress(S1) || (count>100)) { kmode = K_NORMAL; }
+	      if (getkeypress(S2)) { rtc_table[DS_ADDR_SECONDS]=0; }
 	      break;
 
 	  case K_WAIT_S1:
 	      if (!S1_PRESSED) {
-               if (S1_LONG) {kmode=lmode;}
+               if (S1_LONG) {S1_LONG=0;kmode=lmode;}
                       else  {kmode=smode;}
                }
 	      break;
 
 	  case K_WAIT_S2:
 	      if (!S2_PRESSED) {
-               if (S2_LONG) {kmode=lmode;}
+               if (S2_LONG) {S2_LONG=0;kmode=lmode;}
                       else  {kmode=smode;}
                }
 	      break;
