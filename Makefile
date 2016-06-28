@@ -17,6 +17,7 @@ build/%.rel: src/%.c
 
 main: $(OBJ)
 	sdcc -o build/ src/$@.c $(SDCCOPTS) $^
+	tail -n 1 build/main.mem
 	cp build/$@.ihx $@.hex
 	
 flash:
