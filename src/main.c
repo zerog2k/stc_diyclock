@@ -44,11 +44,13 @@ enum display_mode {
     M_SET_HOUR,
     M_SET_MINUTE,
     M_SET_HOUR_12_24,
+    M_SEC_DISP,
     M_TEMP_DISP,
     M_DATE_DISP,
     M_SET_MONTH,
     M_SET_DAY,
-    M_WEEKDAY_DISP
+    M_WEEKDAY_DISP,
+    M_DEBUG
 };
 
 /* ------------------------------------------------------------------------- */
@@ -116,21 +118,25 @@ void timer1_isr() __interrupt 3 __using 1 {
     
     // debouncing stuff
     // keep resetting halfway if held long
-    if (switchcount[0] > 250)
-        {switchcount[0] = 250; S1_LONG=1;}
-    if (switchcount[1] > 250)
-        {switchcount[1] = 250; S2_LONG=1;}
+    if (switchcount[0] > 80)
+        {switchcount[0] = 80; S1_LONG=1;}
+    if (switchcount[1] > 80)
+        {switchcount[1] = 80; S2_LONG=1;}
 
     // increment count if settled closed
     if ((debounce[0] & 0x0F) == 0x00)    
-        {switchcount[0]++; S1_SHORT=1;}
+        {S1_SHORT=0;
+         switchcount[0]++;}
     else
-        {switchcount[0] = 0; S1_LONG=0; S1_SHORT=0;}
+        {if ((switchcount[0]>10)&&(switchcount[0]<80)) {S1_SHORT=1;}
+         switchcount[0] = 0; S1_LONG=0;}
     
     if ((debounce[1] & 0x0F) == 0x00)
-        {switchcount[1]++; S2_SHORT=1;}
+        {S2_SHORT=0;
+         switchcount[1]++;}
     else
-        {switchcount[1] = 0; S2_LONG=0; S2_SHORT=0;}
+        {if ((switchcount[1]>10)&&(switchcount[1]<80)) {S2_SHORT=1;}
+         switchcount[1] = 0; S2_LONG=0;}
 
     // read switch positions into sliding 8-bit window
     debounce[0] = (debounce[0] << 1) | SW1;
@@ -171,7 +177,13 @@ uint8_t getkeypress(uint8_t keynum)
     return PRESS_NONE;
 }
 #else
- #define getkeypress(a) a##_SHORT
+ //#define getkeypress(a) a##_SHORT
+ uint8_t getkeypress(uint8_t keynum)
+ {
+  if ((keynum==S1)&&(S1_SHORT||S1_LONG)) {S1_SHORT=0; return PRESS_SHORT;}
+  if ((keynum==S2)&&(S2_SHORT||S2_LONG)) {S2_SHORT=0; return PRESS_SHORT;}
+  return PRESS_NONE;
+ }
 #endif
 
 int8_t gettemp(uint16_t raw) {
@@ -264,10 +276,9 @@ int main()
               break;
                         
           case M_DATE_DISP:
-              if (getkeypress(S1))
-                  dmode = M_SET_MONTH;
-              if (getkeypress(S2))
-                  dmode = M_WEEKDAY_DISP;                        
+              if (getkeypress(S1)) CONF_SW_MMDD=!CONF_SW_MMDD;
+              if (getkeypress(S2)) dmode = M_WEEKDAY_DISP;                        
+              if (S1_LONG) dmode = CONF_SW_MMDD?M_SET_DAY:M_SET_MONTH;
               break;
               
           case M_SET_MONTH:
@@ -278,7 +289,7 @@ int main()
                   }
                   if (getkeypress(S1)) {
                       flash_month = 0;
-                      dmode = M_SET_DAY;
+                      dmode = CONF_SW_MMDD?M_DATE_DISP:M_SET_DAY;
                   }
               }
               break;
@@ -291,7 +302,7 @@ int main()
                   }
                   if (getkeypress(S1)) {
                       flash_day = 0;
-                      dmode = M_DATE_DISP;
+                      dmode = CONF_SW_MMDD?M_SET_MONTH:M_DATE_DISP;
                   }
               }
               break;
@@ -302,7 +313,21 @@ int main()
               if (getkeypress(S2))
                   dmode = M_NORMAL;
               break;
-              
+          
+	  case M_DEBUG:
+	      if (count>100) dmode = M_NORMAL;
+              if (S1_SHORT||S2_SHORT||S1_LONG||S2_LONG) count=0;
+	      break;
+
+	  case M_SEC_DISP:
+              if (count % 10 < 4)
+                  display_colon = 1; // flashing colon
+              else
+                  display_colon = 0;
+	      if (getkeypress(S1) || (count>100)) { dmode = M_NORMAL; }
+	      if (getkeypress(S2)) { dmode = M_NORMAL; }
+	      break;
+
           case M_NORMAL:          
           default:
               flash_hours = 0;
@@ -314,13 +339,11 @@ int main()
 
               //if (getkeypress(S1) == PRESS_LONG && getkeypress(S2) == PRESS_LONG)
               //    ds_reset_clock();   
-              
-              if (getkeypress(S1)) {
-                  dmode = M_SET_HOUR;
-              }
-              if (getkeypress(S2)) {
-                  dmode = M_TEMP_DISP;
-              }
+
+	      if (S1_LONG) { S1_LONG=0; dmode = M_SET_HOUR; }
+	      if (S1_LONG && S2_LONG) { dmode = M_DEBUG; count=0; }
+              if (getkeypress(S1)) { dmode = M_SEC_DISP; count=0; }
+              if (getkeypress(S2)) { dmode = M_TEMP_DISP; }
       
       };
 
@@ -338,7 +361,7 @@ int main()
 		  dotdisplay(1,display_colon);
               } else {
 		  if (!H12_24) { 
-                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&1, 0);	// tenhour 
+                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&3, 0);	// tenhour 
                   } else {
                       if (H12_TH) filldisplay( 0, 1, 0);
                   }                  
@@ -367,6 +390,13 @@ int main()
               }
               filldisplay( 3, LED_h, 0);
               break;
+
+	  case M_SEC_DISP:
+	      dotdisplay(0,display_colon);
+	      dotdisplay(1,display_colon);
+	      filldisplay(2,(rtc_table[DS_ADDR_SECONDS]>>4)&7,0);
+	      filldisplay(3,rtc_table[DS_ADDR_SECONDS]&15,0);
+	      break;
               
           case M_DATE_DISP:
           case M_SET_MONTH:
@@ -376,12 +406,20 @@ int main()
                   //filldisplay( 1, LED_BLANK, 1);
 		  dotdisplay(1,1);
               } else {
+                 if (!CONF_SW_MMDD) {
                   filldisplay( 0, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &0x01 useless, as MSB bits are read as '0')
-                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&0xF, 1);          
+                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&0xF, 1); }         
+                 else {
+                  filldisplay( 2, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &0x01 useless, as MSB bits are read as '0')
+                  filldisplay( 3, rtc_table[DS_ADDR_MONTH]&0xF, 0); }         
               }
               if (!flash_day) {
+                 if (!CONF_SW_MMDD) {
                   filldisplay( 2, rtc_table[DS_ADDR_DAY]>>4, 0);	// tenday   ( &0x03 useless)
-                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&0xF, 0);       // day       
+                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&0xF, 0); }     // day       
+                 else {
+                  filldisplay( 0, rtc_table[DS_ADDR_DAY]>>4, 0);	// tenday   ( &0x03 useless)
+                  filldisplay( 1, rtc_table[DS_ADDR_DAY]&0xF, 1); }     // day       
               }     
               break;
                    
@@ -398,6 +436,13 @@ int main()
               filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
               // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
               break;                  
+
+	  case M_DEBUG:
+              filldisplay( 0, switchcount[0]>>4, S1_LONG);
+              filldisplay( 1, switchcount[0]&15, S1_SHORT);
+              filldisplay( 2, switchcount[1]>>4, S2_LONG);
+              filldisplay( 3, switchcount[1]&15, S2_SHORT);
+	      break;
       }
 
       updateTmpDisplay();

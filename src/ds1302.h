@@ -51,13 +51,13 @@ __bit __at (0x37) H12_24;
 uint8_t __at (0x2c) config_table[4];
 
 // Offset 0 => alarm_hour (7..3) / chime_on (2) / alarm_on (1) / temp_C_F (0)
-// Offset 1 => (7)&(6) not used / alarm_minute (5..0)
+// Offset 1 => (7) not used / (6) sw_mmdd / alarm_minute (5..0)
 // Offset 2 => chime_hour_start (7..3) / temp_offset (2..0), signed -4 / +3
 // Offset 3 => (7),(6)&(5) not used / chime_hour_stop (4..0)
 
 // temp_C_F in config is at address 0x2c, bit 0 => 0x2c-0x20 => 0xc*8+0 => 96 => 0x60
 __bit __at (0x60) CONF_C_F;
-
+__bit __at (0x6E) CONF_SW_MMDD;
 
 // DS1302 Functions
 
