@@ -95,6 +95,7 @@ __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
 __bit  beep = 1;
+__bit  config_modified;
 
 __bit  S1_LONG;
 __bit  S1_PRESSED;
@@ -201,14 +202,15 @@ int main()
     // LOOP
     while(1)
     {   
-            
+      config_modified = 0;
+        
       RELAY = 0;
       _delay_ms(60);
 
       RELAY = 1;
 
       // run every ~1 secs
-      if ((count & 3) == 0) {
+      if ((count % 4) == 0) {
           lightval = getADCResult8(ADC_LIGHT) >> 3;
           temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
 
@@ -253,6 +255,7 @@ int main()
                   { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
                     offset++; offset&=CONFIG_TEMP_MASK;
                     config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
+		    config_modified = 1;
                   }
               if (getkeypress(S2)) kmode = K_DATE_DISP;
               break;
@@ -266,6 +269,7 @@ int main()
 	  case K_DATE_SWDISP:
 	      CONF_SW_MMDD=!CONF_SW_MMDD;
               kmode=K_DATE_DISP;
+	      config_modified = 1;
 	      break;
               
           case K_SET_MONTH:
@@ -427,7 +431,7 @@ int main()
       updateTmpDisplay();
                   
       // save ram config
-      ds_ram_config_write(); 
+      if (config_modified) ds_ram_config_write(); 
       _delay_ms(40);
       count++;
       WDT_CLEAR();
