@@ -108,7 +108,7 @@ void timer0_isr() __interrupt 1 __using 1
 {
     // display refresh ISR
     // cycle thru digits one at a time
-    uint8_t digit = displaycounter & 3; 
+    uint8_t digit = displaycounter % 4;
 
     // turn off all digits, set high    
     P3 |= 0x3C;

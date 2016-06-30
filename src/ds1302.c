@@ -11,26 +11,31 @@
 #define MAGIC_LO  0xA5
 
 void ds_ram_config_init() {
-    uint8_t i;
+    uint8_t i,j;
     // check magic bytes to see if ram has been written before
     if ( (ds_readbyte( DS_CMD_RAM >> 1 | 0x00) != MAGIC_LO || ds_readbyte( DS_CMD_RAM >> 1 | 0x01) != MAGIC_HI) ) {
         // if not, must init ram config to defaults
         ds_writebyte( DS_CMD_RAM >> 1 | 0x00, MAGIC_LO);
         ds_writebyte( DS_CMD_RAM >> 1 | 0x01, MAGIC_HI);
 
-	ds_ram_config_write();
+	ds_ram_config_write();	// OPTIMISE : Will generate a ljmp to ds_ram_config_write
 	return;
     }
     
     // read ram config
+    // OPTIMISE : end condition of loop !=4 will generate less code than <4 
+    // OPTIMISE : was config_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
+    //            using a second variable instead of DS_CMD_RAM>>1 | (i+2) generates less code
+    j=DS_CMD_RAM>>1|2;
     for (i=0; i!=4; i++)
-        config_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
+        config_table[i] = ds_readbyte(j++);
 }
 
 void ds_ram_config_write() {
-    uint8_t i;
+    uint8_t i,j;
+    j=DS_CMD_RAM>>1|2;
     for (i=0; i!=4; i++)
-        ds_writebyte( DS_CMD_RAM >> 1 | (i+2), config_table[i]);
+        ds_writebyte( j++, config_table[i]);
 }
 
 void sendbyte(uint8_t b)
@@ -130,9 +135,9 @@ void ds_init() {
 // reset date, time
 void ds_reset_clock() {
     ds_writebyte(DS_ADDR_MINUTES, 0x00);
-    ds_writebyte(DS_ADDR_HOUR, 0x87);
+    ds_writebyte(DS_ADDR_HOUR,  DS_MASK_AMPM_MODE|0x07);
     ds_writebyte(DS_ADDR_MONTH, 0x01);
-    ds_writebyte(DS_ADDR_DAY, 0x01);
+    ds_writebyte(DS_ADDR_DAY,   0x01);
 }
     
 void ds_hours_12_24_toggle() {
@@ -140,7 +145,7 @@ void ds_hours_12_24_toggle() {
     uint8_t hours,b;
     if (H12_24)
     { // 12h->24h
-      hours=ds_split2int(rtc_table[DS_ADDR_HOUR]&0x1F); //12h format (1-11am 12pm 1-11pm 12am)
+      hours=ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
       if (hours==12) 
        {if (!H12_PM) hours=0;}
       else
@@ -149,8 +154,8 @@ void ds_hours_12_24_toggle() {
     }
     else
     { // 24h->12h 
-      hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x3F); //24h format (0-23, 0-11=>am , 12-23=>pm)
-      b = 0x80; 
+      hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
+      b = DS_MASK_AMPM_MODE; 
       if (hours >= 12) { hours-=12; b|=0x20; }	// pm
       if (hours == 0) { hours=12; } 		//12am
       b |= ds_int2bcd(hours);
@@ -163,7 +168,7 @@ void ds_hours_12_24_toggle() {
 void ds_hours_incr() {
     uint8_t hours, b = 0;
     if (!H12_24) {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x3F);	//24h format 11_1111
+        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR24);	//24h format
         if (hours < 23)
             hours++;
         else {
@@ -171,14 +176,14 @@ void ds_hours_incr() {
         }
         b = ds_int2bcd(hours);		// bit 7 = 0
     } else {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&0x1F);	//12h format 1_1111
+        hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR12);	//12h format
         if (hours < 12)
             hours++;
         else {
             hours = 1;
             H12_PM=!H12_PM;
         }
-        b = (H12_PM?0xA0:0x80) | ds_int2bcd(hours);        
+        b = (H12_PM?(DS_MASK_AMPM_MODE|DS_MASK_PM):DS_MASK_AMPM_MODE) | ds_int2bcd(hours);        
     }
     
     ds_writebyte(DS_ADDR_HOUR, b);
@@ -186,7 +191,7 @@ void ds_hours_incr() {
 
 // increment minutes
 void ds_minutes_incr() {
-    uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES]&0x7F); // 111_1111
+    uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES);
     if (minutes < 59)
         minutes++;
     else
@@ -196,7 +201,7 @@ void ds_minutes_incr() {
 
 // increment month
 void ds_month_incr() {
-    uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH]&0x1F);  // 1_1111
+    uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH]&DS_MASK_MONTH);
     if (month < 12)
         month++;
     else
@@ -206,7 +211,7 @@ void ds_month_incr() {
 
 // increment day
 void ds_day_incr() {
-    uint8_t day = ds_split2int(rtc_table[DS_ADDR_DAY]&0x3F);	// 11_1111
+    uint8_t day = ds_split2int(rtc_table[DS_ADDR_DAY]&DS_MASK_DAY);
     if (day < 31)
         day++;
     else

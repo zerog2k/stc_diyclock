@@ -37,6 +37,33 @@
 // DS_ADDR_WEEKDAY      0000_0111	0_1-0_7
 // DS_ADDR_YEAR		1111_1111	0_0-9_9 
 
+#define DS_MASK_SECONDS       0b01111111
+#define DS_MASK_SECONDS_TENTH 0b01110000
+#define DS_MASK_SECONDS_UNITS 0b00001111
+#define DS_MASK_MINUTES       0b01111111
+#define DS_MASK_MINUTES_TENTH 0b01110000
+#define DS_MASK_MINUTES_UNITS 0b00001111
+#define DS_MASK_AMPM_MODE     0b10000000
+#define DS_MASK_PM            0b00100000
+#define DS_MASK_HOUR12        0b00011111
+#define DS_MASK_HOUR12_TENTH  0b00010000
+#define DS_MASK_HOUR24        0b00111111
+#define DS_MASK_HOUR24_TENTH  0b00110000
+#define DS_MASK_HOUR_UNITS    0b00001111
+#define DS_MASK_DAY           0b00111111
+#define DS_MASK_DAY_TENTH     0b00110000
+#define DS_MASK_DAY_UNITS     0b00001111
+#define DS_MASK_MONTH         0b00011111
+#define DS_MASK_MONTH_TENTH   0b00010000
+#define DS_MASK_MONTH_UNITS   0b00010000
+#define DS_MASK_WEEKDAY       0b00000111
+#define DS_MASK_YEAR          0b11111111
+#define DS_MASK_YEAR_TENTH    0b11110000
+#define DS_MASK_YEAR          0b00001111
+
+// 8051 zone from 0x20 and 0x2F in IRAM can be accessed as bit (between 0x00 and 0x7F)
+// 0x20, bit 0 is __bit __at (0x00), bit 7 is __bit __at (0x07) etc...
+
 uint8_t __at (0x24) rtc_table[8];
 
 // h12.tenhour in RTC is at address 0x26, bit 4 -> => 0x26-0x20 => 0x6*8+4 => 52 => 0x34
