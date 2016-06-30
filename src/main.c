@@ -210,8 +210,7 @@ int main()
       // run every ~1 secs
       if ((count & 3) == 0) {
           lightval = getADCResult8(ADC_LIGHT) >> 3;
-          //temp = gettemp(getADCResult(ADC_TEMP)) + config.temp_offset;
-          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[2]&0x7) - 4;
+          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
 
           // constrain dimming range
           if (lightval < 4) 
@@ -251,7 +250,10 @@ int main()
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
               if (getkeypress(S1))
-                  { uint8_t offset=config_table[2]&0x7; offset++; offset&=7; config_table[2]=(config_table[2]&0xF8)|offset; }
+                  { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
+                    offset++; offset&=CONFIG_TEMP_MASK;
+                    config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
+                  }
               if (getkeypress(S2)) kmode = K_DATE_DISP;
               break;
                         
@@ -348,19 +350,19 @@ int main()
 		  dotdisplay(1,display_colon);
               } else {
 		  if (!H12_24) { 
-                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&3, 0);	// tenhour 
+                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&(DS_MASK_HOUR24_TENS>>4), 0);	// tenhour 
                   } else {
-                      if (H12_TH) filldisplay( 0, 1, 0);
+                      if (H12_TH) filldisplay( 0, 1, 0);	// tenhour in case AMPM mode is on, then '1' only is H12_TH is on
                   }                  
-                  filldisplay( 1, rtc_table[DS_ADDR_HOUR]&0xF, display_colon);      
+                  filldisplay( 1, rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR_UNITS, display_colon);      
               }
   
               if (flash_23) {
 	          dotdisplay(2,display_colon);
-                  dotdisplay(3,H12_24&H12_PM);
+                  dotdisplay(3,H12_24&H12_PM);	// dot3 if AMPM mode and PM=1
               } else {
-                  filldisplay( 2, (rtc_table[DS_ADDR_MINUTES]>>4)&7, display_colon);	//tenmin
-                  filldisplay( 3, rtc_table[DS_ADDR_MINUTES]&0xF, H12_24 & H12_PM);  	//min
+                  filldisplay( 2, (rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4), display_colon);	//tenmin
+                  filldisplay( 3, rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
               }
               break;
 
@@ -376,8 +378,8 @@ int main()
 	  case M_SEC_DISP:
 	      dotdisplay(0,display_colon);
 	      dotdisplay(1,display_colon);
-	      filldisplay(2,(rtc_table[DS_ADDR_SECONDS]>>4)&7,0);
-	      filldisplay(3,rtc_table[DS_ADDR_SECONDS]&15,0);
+	      filldisplay(2,(rtc_table[DS_ADDR_SECONDS]>>4)&(DS_MASK_SECONDS_TENS>>4),0);
+	      filldisplay(3,rtc_table[DS_ADDR_SECONDS]&DS_MASK_SECONDS_UNITS,0);
 	      break;
               
           case M_DATE_DISP:
@@ -385,25 +387,25 @@ int main()
 		  dotdisplay(1,1);
               } else {
                  if (!CONF_SW_MMDD) {
-                  filldisplay( 0, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &0x01 useless, as MSB bits are read as '0')
-                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&0xF, 1); }         
+                  filldisplay( 0, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&DS_MASK_MONTH_UNITS, 1); }         
                  else {
-                  filldisplay( 2, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &0x01 useless, as MSB bits are read as '0')
-                  filldisplay( 3, rtc_table[DS_ADDR_MONTH]&0xF, 0); }         
+                  filldisplay( 2, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                  filldisplay( 3, rtc_table[DS_ADDR_MONTH]&DS_MASK_MONTH_UNITS, 0); }         
               }
               if (!flash_23) {
                  if (!CONF_SW_MMDD) {
-                  filldisplay( 2, rtc_table[DS_ADDR_DAY]>>4, 0);	// tenday   ( &0x03 useless)
-                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&0xF, 0); }     // day       
+                  filldisplay( 2, rtc_table[DS_ADDR_DAY]>>4, 0);		      // tenday   ( &MASK_TENS useless)
+                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&DS_MASK_DAY_UNITS, 0); }     // day       
                  else {
-                  filldisplay( 0, rtc_table[DS_ADDR_DAY]>>4, 0);	// tenday   ( &0x03 useless)
-                  filldisplay( 1, rtc_table[DS_ADDR_DAY]&0xF, 1); }     // day       
+                  filldisplay( 0, rtc_table[DS_ADDR_DAY]>>4, 0);		      // tenday   ( &MASK_TENS useless)
+                  filldisplay( 1, rtc_table[DS_ADDR_DAY]&DS_MASK_DAY_UNITS, 1); }     // day       
               }     
               break;
                    
           case M_WEEKDAY_DISP:
               filldisplay( 1, LED_DASH, 0);
-              filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &0x07 useless)
+              filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &MASK_UNITS useless, all MSBs are '0')
               filldisplay( 3, LED_DASH, 0);
               break;
               

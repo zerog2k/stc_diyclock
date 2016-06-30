@@ -38,28 +38,28 @@
 // DS_ADDR_YEAR		1111_1111	0_0-9_9 
 
 #define DS_MASK_SECONDS       0b01111111
-#define DS_MASK_SECONDS_TENTH 0b01110000
+#define DS_MASK_SECONDS_TENS  0b01110000
 #define DS_MASK_SECONDS_UNITS 0b00001111
 #define DS_MASK_MINUTES       0b01111111
-#define DS_MASK_MINUTES_TENTH 0b01110000
+#define DS_MASK_MINUTES_TENS  0b01110000
 #define DS_MASK_MINUTES_UNITS 0b00001111
 #define DS_MASK_AMPM_MODE     0b10000000
 #define DS_MASK_PM            0b00100000
 #define DS_MASK_HOUR12        0b00011111
-#define DS_MASK_HOUR12_TENTH  0b00010000
+#define DS_MASK_HOUR12_TENS   0b00010000
 #define DS_MASK_HOUR24        0b00111111
-#define DS_MASK_HOUR24_TENTH  0b00110000
+#define DS_MASK_HOUR24_TENS   0b00110000
 #define DS_MASK_HOUR_UNITS    0b00001111
 #define DS_MASK_DAY           0b00111111
-#define DS_MASK_DAY_TENTH     0b00110000
+#define DS_MASK_DAY_TENS      0b00110000
 #define DS_MASK_DAY_UNITS     0b00001111
 #define DS_MASK_MONTH         0b00011111
-#define DS_MASK_MONTH_TENTH   0b00010000
-#define DS_MASK_MONTH_UNITS   0b00010000
+#define DS_MASK_MONTH_TENS    0b00010000
+#define DS_MASK_MONTH_UNITS   0b00001111
 #define DS_MASK_WEEKDAY       0b00000111
 #define DS_MASK_YEAR          0b11111111
-#define DS_MASK_YEAR_TENTH    0b11110000
-#define DS_MASK_YEAR          0b00001111
+#define DS_MASK_YEAR_TENS     0b11110000
+#define DS_MASK_YEAR_UNITS    0b00001111
 
 // 8051 zone from 0x20 and 0x2F in IRAM can be accessed as bit (between 0x00 and 0x7F)
 // 0x20, bit 0 is __bit __at (0x00), bit 7 is __bit __at (0x07) etc...
@@ -77,6 +77,14 @@ __bit __at (0x37) H12_24;
 
 uint8_t __at (0x2c) config_table[4];
 
+#define CONFIG_ALARM_HOURS_BYTE   0
+#define CONFIG_ALARM_MINUTES_BYTE 1
+#define CONFIG_TEMP_BYTE          2
+
+#define CONFIG_ALARM_HOURS_MASK   0b11111000
+#define CONFIG_ALARM_MINUTES_MASK 0b00111111
+#define CONFIG_TEMP_MASK          0b00000111
+
 // Offset 0 => alarm_hour (7..3) / chime_on (2) / alarm_on (1) / temp_C_F (0)
 // Offset 1 => (7) not used / (6) sw_mmdd / alarm_minute (5..0)
 // Offset 2 => chime_hour_start (7..3) / temp_offset (2..0), signed -4 / +3
@@ -84,6 +92,8 @@ uint8_t __at (0x2c) config_table[4];
 
 // temp_C_F in config is at address 0x2c, bit 0 => 0x2c-0x20 => 0xc*8+0 => 96 => 0x60
 __bit __at (0x60) CONF_C_F;
+__bit __at (0x61) CONF_ALARM_ON;
+__bit __at (0x62) CONF_CHIME_ON;
 __bit __at (0x6E) CONF_SW_MMDD;
 
 // DS1302 Functions
