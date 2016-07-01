@@ -21,6 +21,9 @@ main: $(OBJ)
 	tail -n 1 build/main.mem
 	cp build/$@.ihx $@.hex
 	
+eeprom:
+	sed -ne '/:..1/ { s/1/0/2; p }' main.hex > eeprom.hex
+
 flash:
 	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
 

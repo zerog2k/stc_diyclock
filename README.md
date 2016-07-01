@@ -1,6 +1,5 @@
 # STC DIY Clock Kit firmware
 
-[![Join the chat at https://gitter.im/zerog2k/stc_diyclock](https://badges.gitter.im/zerog2k/stc_diyclock.svg)](https://gitter.im/zerog2k/stc_diyclock?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
 
 ![Image of Banggood SKU972289](http://img.banggood.com/thumb/large/2014/xiemeijuan/03/SKU203096/A3.jpg?p=WX0407753399201409DA)
@@ -29,7 +28,7 @@ Basic functionality is working:
 
 ## requirements
 * linux or mac (windows untested, but should work)
-* sdcc installed and in the path
+* sdcc installed and in the path (recommend sdcc >= 3.5.0)
 * stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
 
 ## usage
@@ -53,6 +52,12 @@ https://github.com/zerog2k/stc_diyclock/releases
 ## use STC-ISP flash tool
 Instead of stcgal, you could alternatively use the official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.
 A windows app, but also works fine for me under mac and linux with wine.
+
+**note** due to optimizations that make use of "eeprom" section for holding lookup tables, if using stc-isp tool, you must flash main.hex (as code file) and eeprom.hex (as eeprom file). (Ignore stc-isp warning about exceeding space when loading code file.)
+To generate eeprom.hex, run:
+```
+make eeprom
+```
 
 ## clock assumptions
 Some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
@@ -82,4 +87,8 @@ http://www.qsl.net/v/ve3lny/travel_clock.html
 
 [original firmware operation flow state diagram](docs/DIY_LED_Clock_operation_original.png)
 [kit instructions w/ schematic](docs/DIY_LED_Clock.png)
+
+
+### chat
+[![Join the chat at https://gitter.im/zerog2k/stc_diyclock](https://badges.gitter.im/zerog2k/stc_diyclock.svg)](https://gitter.im/zerog2k/stc_diyclock?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
