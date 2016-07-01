@@ -8,8 +8,11 @@
 #define _nop_ __asm nop __endasm;
 
 #define DS_CE    P1_0
+#define _DS_CE    _P1_0
 #define DS_IO    P1_1
+#define _DS_IO    _P1_1
 #define DS_SCLK  P1_2
+#define _DS_SCLK  _P1_2
 
 #define DS_CMD        1 << 7
 #define DS_CMD_READ   1

@@ -49,11 +49,11 @@ void sendbyte(uint8_t b)
 	nop
 	nop
         rrc     a
-        mov     _P1_1,c
-	setb	_P1_2
+        mov     _DS_IO,c
+	setb	_DS_SCLK
 	nop
 	nop
-	clr	_P1_2
+	clr	_DS_SCLK
 	djnz	r7,00001$
 	pop	ar7
   __endasm;
@@ -68,12 +68,12 @@ uint8_t readbyte()
 00002$:
 	nop
 	nop
-	mov	c,_P1_1
+	mov	c,_DS_IO
 	rrc	a	
-	setb	_P1_2
+	setb	_DS_SCLK
 	nop
 	nop
-	clr	_P1_2
+	clr	_DS_SCLK
 	djnz	r7,00002$
 	mov	dpl,a
 	pop	ar7
