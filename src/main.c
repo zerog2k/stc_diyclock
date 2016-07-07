@@ -43,6 +43,7 @@ enum keyboard_mode {
     K_SET_HOUR_12_24,
     K_SEC_DISP,
     K_TEMP_DISP,
+    K_TEMP_INC,
     K_DATE_DISP,
     K_DATE_SWDISP,
     K_SET_MONTH,
@@ -251,15 +252,19 @@ int main()
               
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
-              if (getkeypress(S1))
+              if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=K_DEBUG; smode=K_TEMP_INC; }
+              if (getkeypress(S2)) kmode = K_DATE_DISP;
+	      break;
+
+	  case K_TEMP_INC:
                   { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
                     offset++; offset&=CONFIG_TEMP_MASK;
                     config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
 		    config_modified = 1;
                   }
-              if (getkeypress(S2)) kmode = K_DATE_DISP;
+	      kmode=K_TEMP_DISP;
               break;
-                        
+
           case K_DATE_DISP:
               dmode=M_DATE_DISP;
               if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=CONF_SW_MMDD?K_SET_DAY:K_SET_MONTH; smode=K_DATE_SWDISP; }
@@ -297,7 +302,7 @@ int main()
           
 	  case K_DEBUG:
               dmode=M_DEBUG;
-	      if (count>100) kmode = K_NORMAL;
+	      if (count>200) kmode = K_NORMAL;
               if (S1_PRESSED||S2_PRESSED) count=0;
 	      break;
 
@@ -339,7 +344,6 @@ int main()
 	      dmode=M_NORMAL;
 
 	      if (S1_PRESSED) { kmode = K_WAIT_S1; lmode=K_SET_HOUR; smode=K_SEC_DISP;  }
-              //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
               if (S2_PRESSED) { kmode = K_TEMP_DISP; }
       
       };
@@ -421,10 +425,18 @@ int main()
               break;                  
 
 	  case M_DEBUG:
+#if 1
+              temp = getADCResult(ADC_LIGHT);		// temp as 'temporary'
+              filldisplay( 0, temp>>12    , (count>50));
+              filldisplay( 1, (temp>>8)&15, (count>100));
+              filldisplay( 2, (temp>>4)&15, 0);
+              filldisplay( 3, (temp)&15   , (count>150));
+#else
               filldisplay( 0, switchcount[0]>>4, S1_LONG);
               filldisplay( 1, switchcount[0]&15, S1_PRESSED);
               filldisplay( 2, switchcount[1]>>4, S2_LONG);
               filldisplay( 3, switchcount[1]&15, S2_PRESSED);
+#endif
 	      break;
       }
 
