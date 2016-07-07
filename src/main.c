@@ -82,9 +82,9 @@ void _delay_ms(uint8_t ms)
 }
 
 // GLOBALS
-uint8_t  count;     // was uint16 - 8 seems to be enough
-uint16_t temp;      // temperature sensor value
-uint8_t  lightval;  // light sensor value
+uint8_t count;     // was uint16 - 8 seems to be enough
+uint8_t temp;      // temperature sensor value - 8 enough (gettemp returns uint8_t)
+uint8_t lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
 
@@ -120,7 +120,7 @@ void timer0_isr() __interrupt 1 __using 1
         // fill digits
         P2 = dbuf[digit];
         // turn on selected digit, set low
-        P3 &= ~(0x4 << digit);  
+        P3 &= ~(0x04 << digit);
     }
     displaycounter++;
     // done    
@@ -213,12 +213,12 @@ int main()
       // run every ~1 secs
       if ((count % 4) == 0) {
           lightval = getADCResult8(ADC_LIGHT) >> 3;
-          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
 
           // constrain dimming range
           if (lightval < 4) 
               lightval = 4;
 
+          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
       }       
 
       ds_readburst(); // read rtc
@@ -425,18 +425,12 @@ int main()
               break;                  
 
 	  case M_DEBUG:
-#if 1
-              temp = getADCResult(ADC_LIGHT);		// temp as 'temporary'
-              filldisplay( 0, temp>>12    , (count>50));
-              filldisplay( 1, (temp>>8)&15, (count>100));
-              filldisplay( 2, (temp>>4)&15, 0);
-              filldisplay( 3, (temp)&15   , (count>150));
-#else
-              filldisplay( 0, switchcount[0]>>4, S1_LONG);
-              filldisplay( 1, switchcount[0]&15, S1_PRESSED);
-              filldisplay( 2, switchcount[1]>>4, S2_LONG);
-              filldisplay( 3, switchcount[1]&15, S2_PRESSED);
-#endif
+              { uint16_t tmp;
+              tmp = getADCResult(ADC_LIGHT);
+              filldisplay( 0, ((uint8_t)(tmp>>8))>>4  , (count>50));	
+              filldisplay( 1, ((uint8_t)(tmp>>8))&15  , (count>100));
+              filldisplay( 2, ((uint8_t)(tmp&0xFF))>>4, 0);
+              filldisplay( 3, ((uint8_t)(tmp&0xFF))&15, (count>150)); }
 	      break;
       }
 
