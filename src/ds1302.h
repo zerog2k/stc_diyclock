@@ -85,6 +85,7 @@ uint8_t __at (0x2c) config_table[4];
 #define CONFIG_TEMP_BYTE          2
 
 #define CONFIG_ALARM_HOURS_MASK   0b11111000
+#define CONFIG_ALARM_HOURS_SHIFT  3
 #define CONFIG_ALARM_MINUTES_MASK 0b00111111
 #define CONFIG_TEMP_MASK          0b00000111
 

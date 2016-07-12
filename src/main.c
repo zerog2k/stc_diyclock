@@ -49,6 +49,10 @@ enum keyboard_mode {
     K_SET_MONTH,
     K_SET_DAY,
     K_WEEKDAY_DISP,
+    K_ALARM_DISP,
+    K_SET_AH,
+    K_SET_AM,
+    K_SET_AA,
     K_DEBUG
 };
 
@@ -60,6 +64,7 @@ enum display_mode {
     M_TEMP_DISP,
     M_DATE_DISP,
     M_WEEKDAY_DISP,
+    M_ALARM,
     M_DEBUG
 };
 
@@ -297,9 +302,31 @@ int main()
           case K_WEEKDAY_DISP:
               dmode=M_WEEKDAY_DISP;
               if (getkeypress(S1)) ds_weekday_incr();
+              if (getkeypress(S2)) kmode = K_ALARM_DISP;
+              break;
+         
+          case K_ALARM_DISP:
+	      dmode=M_ALARM;
+              if (getkeypress(S1)) kmode = K_SET_AH;
               if (getkeypress(S2)) kmode = K_NORMAL;
               break;
-          
+
+	  case K_SET_AH:
+	      flash_01=!flash_01;
+              if (getkeypress(S2)) kmode = K_SET_AM;
+              break;
+
+	  case K_SET_AM:
+	      flash_01=0;
+              flash_23=!flash_23;
+              if (getkeypress(S2)) kmode = K_SET_AA;
+              break;
+
+	  case K_SET_AA:
+	      flash_23=0;
+              if (getkeypress(S2)) kmode = K_NORMAL;
+              break;
+
 	  case K_DEBUG:
               dmode=M_DEBUG;
 	      if (count>200) kmode = K_NORMAL;
@@ -367,7 +394,7 @@ int main()
   
               if (flash_23) {
 	          dotdisplay(2,display_colon);
-                  dotdisplay(3,H12_24&H12_PM);	// dot3 if AMPM mode and PM=1
+		  dotdisplay(3,H12_24&H12_PM);	// dot3 if AMPM mode and PM=1 - generated code not optimal
               } else {
                   filldisplay( 2, (rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4), display_colon);	//tenmin
                   filldisplay( 3, rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
@@ -411,6 +438,24 @@ int main()
               }     
               break;
                    
+	  case M_ALARM:
+              if (flash_01) {
+		dotdisplay(1,1)
+	      } else {
+                uint8_t ahour=(config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK)>>CONFIG_ALARM_HOURS_SHIFT;
+                if (ahour>9) filldisplay( 0, ahour/10, 0);      
+                filldisplay( 1, ahour%10 , 1);      
+	      }
+	      if (flash_23) {
+                dotdisplay(2,1);
+              } else {
+                uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
+                filldisplay( 2, amin/10, 0);      
+                filldisplay( 3, amin%10, 0);      
+              }
+	      break;
+
+
           case M_WEEKDAY_DISP:
               filldisplay( 1, LED_DASH, 0);
               filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &MASK_UNITS useless, all MSBs are '0')
@@ -421,7 +466,7 @@ int main()
               filldisplay( 0, ds_int2bcd_tens(temp), 0);
               filldisplay( 1, ds_int2bcd_ones(temp), 0);
               filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
-              // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
+              // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uintxx, cannot be <0
               break;                  
 
 	  case M_DEBUG:
