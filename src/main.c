@@ -44,6 +44,7 @@ enum keyboard_mode {
     K_SEC_DISP,
     K_TEMP_DISP,
     K_TEMP_INC,
+    K_TEMP_CFSW,
     K_DATE_DISP,
     K_DATE_SWDISP,
     K_SET_MONTH,
@@ -183,8 +184,10 @@ void Timer1Init(void)		//10ms @ 11.0592MHz
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
+    if (CONF_C_F) return 76 - raw * 64 / 637;
     return 76 - raw * 64 / 637;
 }
+
 
 /*********************************************/
 int main()
@@ -257,16 +260,22 @@ int main()
               
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
-              if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=K_DEBUG; smode=K_TEMP_INC; }
-              if (getkeypress(S2)) kmode = K_DATE_DISP;
+              if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=K_TEMP_CFSW; smode=K_TEMP_INC; }
+              if (getkeypress(S2)) {kmode=K_WAIT_S2; lmode=K_DEBUG; smode=K_DATE_DISP;}
 	      break;
 
 	  case K_TEMP_INC:
                   { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
                     offset++; offset&=CONFIG_TEMP_MASK;
                     config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
-		    config_modified = 1;
                   }
+	      config_modified = 1;
+	      kmode=K_TEMP_DISP;
+              break;
+ 
+          case K_TEMP_CFSW:
+	      CONF_C_F=!CONF_C_F;
+	      config_modified = 1;
 	      kmode=K_TEMP_DISP;
               break;
 
@@ -306,25 +315,36 @@ int main()
               break;
          
           case K_ALARM_DISP:
+	      flash_01=flash_23=0;
 	      dmode=M_ALARM;
-              if (getkeypress(S1)) kmode = K_SET_AH;
+              if (getkeypress(S1)) {kmode=K_WAIT_S1; smode=K_SET_AA; lmode=K_SET_AH;}
               if (getkeypress(S2)) kmode = K_NORMAL;
               break;
 
 	  case K_SET_AH:
 	      flash_01=!flash_01;
-              if (getkeypress(S2)) kmode = K_SET_AM;
+              if (getkeypress(S1)) {
+                uint8_t ahour=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
+                ahour+=(1<<CONFIG_ALARM_HOURS_SHIFT); if (ahour>(23<<CONFIG_ALARM_HOURS_SHIFT)) ahour=0;
+                config_table[CONFIG_ALARM_HOURS_BYTE]=(config_table[CONFIG_ALARM_HOURS_BYTE]&~CONFIG_ALARM_HOURS_MASK)|ahour;
+              }
+              if (getkeypress(S2)) {kmode = K_SET_AM; config_modified=1;}
               break;
 
 	  case K_SET_AM:
 	      flash_01=0;
               flash_23=!flash_23;
-              if (getkeypress(S2)) kmode = K_SET_AA;
+              if (getkeypress(S1)) {
+                uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
+                amin++; if (amin>59) amin=0;
+                config_table[CONFIG_ALARM_MINUTES_BYTE]=(config_table[CONFIG_ALARM_MINUTES_BYTE]&~CONFIG_ALARM_MINUTES_MASK)|amin;
+              }
+              if (getkeypress(S2)) {kmode = K_ALARM_DISP; config_modified=1;}
               break;
 
 	  case K_SET_AA:
-	      flash_23=0;
-              if (getkeypress(S2)) kmode = K_NORMAL;
+              CONF_ALARM_ON=!CONF_ALARM_ON; config_modified=1;
+              kmode=K_ALARM_DISP;
               break;
 
 	  case K_DEBUG:
@@ -451,7 +471,7 @@ int main()
               } else {
                 uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
                 filldisplay( 2, amin/10, 0);      
-                filldisplay( 3, amin%10, 0);      
+                filldisplay( 3, amin%10, CONF_ALARM_ON);      
               }
 	      break;
 
