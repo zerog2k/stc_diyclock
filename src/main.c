@@ -101,7 +101,7 @@ uint8_t smode,lmode;
 __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
-__bit  beep = 1;
+__bit  beep = 0;
 __bit  config_modified;
 
 __bit  S1_LONG;
@@ -192,6 +192,8 @@ int8_t gettemp(uint16_t raw) {
 /*********************************************/
 int main()
 {
+    uint8_t current,alarm;
+
     // SETUP
     // set ds1302, photoresistor, & ntc pins to open-drain output, already have strong pullups
     P1M1 |= (1 << 0) | (1 << 1) | (1 << 2) | (1<<6) | (1<<7);
@@ -215,7 +217,6 @@ int main()
         
       RELAY = 0;
       _delay_ms(60);
-
       RELAY = 1;
 
       // run every ~1 secs
@@ -230,6 +231,23 @@ int main()
       }       
 
       ds_readburst(); // read rtc
+
+      if (CONF_ALARM_ON)
+      {
+       if (rtc_table[DS_ADDR_SECONDS]==0)
+       {
+          alarm=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
+          current=((rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4))*10+(rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS);
+          if (alarm==current)
+          {
+           beep=1;
+          }
+       }
+       else
+        if ( (beep==1) && (rtc_table[DS_ADDR_SECONDS]==10) ) beep=0;
+      }
+
+      if ((beep)&(count%2)) BUZZER=0; else BUZZER=1;
 
       // keyboard decision tree
       switch (kmode) {
@@ -470,7 +488,7 @@ int main()
                 dotdisplay(2,1);
               } else {
                 uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
-                filldisplay( 2, amin/10, 0);      
+                filldisplay( 2, amin/10, 1);      
                 filldisplay( 3, amin%10, CONF_ALARM_ON);      
               }
 	      break;
