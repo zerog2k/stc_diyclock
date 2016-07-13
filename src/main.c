@@ -244,7 +244,7 @@ int main()
           }
        }
        else
-        if ( (beep==1) && (rtc_table[DS_ADDR_SECONDS]==10) ) beep=0;
+        if ( (beep==1) && (rtc_table[DS_ADDR_SECONDS]==0x10) ) beep=0; //!!! Seconds are BCD coded
       }
 
       if ((beep)&(count%2)) BUZZER=0; else BUZZER=1;
