@@ -184,7 +184,7 @@ void Timer1Init(void)		//10ms @ 11.0592MHz
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
-    if (CONF_C_F) return 73 - raw * 32 / 343;
+    if (CONF_C_F) return 73 - raw * 40 / 429;
     return 164 - raw * 24 / 143;
 }
 
