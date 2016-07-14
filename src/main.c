@@ -240,7 +240,16 @@ int main()
           current=((rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4))*10+(rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS);
           if (alarm==current)
           {
-           beep=1;
+           alarm=(config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK)>>CONFIG_ALARM_HOURS_SHIFT;
+           if (H12_24) {
+            current=((rtc_table[DS_ADDR_HOUR]>>4)&(DS_MASK_HOUR12_TENS>>4))*10+(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR_UNITS);
+            current%=12;	// -> 12=0
+            if (H12_PM) current+=12;
+           }
+           else
+            current=((rtc_table[DS_ADDR_HOUR]>>4)&(DS_MASK_HOUR24_TENS>>4))*10+(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR_UNITS);
+           if (alarm==current)
+            beep=1;
           }
        }
        else
@@ -278,7 +287,7 @@ int main()
               
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
-              if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=K_TEMP_CFSW; smode=K_TEMP_INC; }
+              if (getkeypress(S1)) {kmode=K_WAIT_S1; smode=K_TEMP_CFSW; lmode=K_TEMP_INC; }
               if (getkeypress(S2)) {kmode=K_WAIT_S2; lmode=K_DEBUG; smode=K_DATE_DISP;}
 	      break;
 
@@ -341,23 +350,27 @@ int main()
 
 	  case K_SET_AH:
 	      flash_01=!flash_01;
-              if (getkeypress(S1)) {
-                uint8_t ahour=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
-                ahour+=(1<<CONFIG_ALARM_HOURS_SHIFT); if (ahour>(23<<CONFIG_ALARM_HOURS_SHIFT)) ahour=0;
-                config_table[CONFIG_ALARM_HOURS_BYTE]=(config_table[CONFIG_ALARM_HOURS_BYTE]&~CONFIG_ALARM_HOURS_MASK)|ahour;
+              if (! flash_01) {
+                if (getkeypress(S2)) {
+                  uint8_t ahour=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
+                  ahour+=(1<<CONFIG_ALARM_HOURS_SHIFT); if (ahour>(23<<CONFIG_ALARM_HOURS_SHIFT)) ahour=0;
+                  config_table[CONFIG_ALARM_HOURS_BYTE]=(config_table[CONFIG_ALARM_HOURS_BYTE]&~CONFIG_ALARM_HOURS_MASK)|ahour;
+                }
+                if (getkeypress(S1)) {kmode = K_SET_AM; config_modified=1;}
               }
-              if (getkeypress(S2)) {kmode = K_SET_AM; config_modified=1;}
               break;
 
 	  case K_SET_AM:
 	      flash_01=0;
               flash_23=!flash_23;
-              if (getkeypress(S1)) {
-                uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
-                amin++; if (amin>59) amin=0;
-                config_table[CONFIG_ALARM_MINUTES_BYTE]=(config_table[CONFIG_ALARM_MINUTES_BYTE]&~CONFIG_ALARM_MINUTES_MASK)|amin;
+              if (! flash_23) {
+                if (getkeypress(S2)) {
+                  uint8_t amin=config_table[CONFIG_ALARM_MINUTES_BYTE]&CONFIG_ALARM_MINUTES_MASK;
+                  amin++; if (amin>59) amin=0;
+                  config_table[CONFIG_ALARM_MINUTES_BYTE]=(config_table[CONFIG_ALARM_MINUTES_BYTE]&~CONFIG_ALARM_MINUTES_MASK)|amin;
+                }
+                if (getkeypress(S1)) {kmode = K_ALARM_DISP; config_modified=1;}
               }
-              if (getkeypress(S2)) {kmode = K_ALARM_DISP; config_modified=1;}
               break;
 
 	  case K_SET_AA:
@@ -503,7 +516,7 @@ int main()
           case M_TEMP_DISP:
               filldisplay( 0, ds_int2bcd_tens(temp), 0);
               filldisplay( 1, ds_int2bcd_ones(temp), 0);
-              filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
+              filldisplay( 2, CONF_C_F ? LED_c : LED_f, 1);
               // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uintxx, cannot be <0
               break;                  
 

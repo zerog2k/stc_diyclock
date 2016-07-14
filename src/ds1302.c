@@ -141,15 +141,11 @@ void ds_reset_clock() {
 }
     
 void ds_hours_12_24_toggle() {
-
     uint8_t hours,b;
     if (H12_24)
     { // 12h->24h
       hours=ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
-      if (hours==12) 
-       {if (!H12_PM) hours=0;}
-      else
-       {if (H12_PM) hours+=12;}			 // to 24h format
+      hours%=12; if (H12_PM) hours+=12;		 // 12 will be 0 -> 12AM will stay 00 , 12PM will be 12
       b = ds_int2bcd(hours);			 // clear hour_12_24 bit
     }
     else
@@ -157,7 +153,7 @@ void ds_hours_12_24_toggle() {
       hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
       b = DS_MASK_AMPM_MODE; 
       if (hours >= 12) { hours-=12; b|=0x20; }	// pm
-      if (hours == 0) { hours=12; } 		//12am
+      if (hours == 0) { hours=12; } 		// 12am/12pm
       b |= ds_int2bcd(hours);
     }
 
@@ -178,11 +174,9 @@ void ds_hours_incr() {
     } else {
         hours = ds_split2int(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR12);	//12h format
         if (hours < 12)
-            hours++;
-        else {
+            {hours++; if (hours==12) H12_PM=!H12_PM;}	// 1..11AM -> 12PM -> 1..11PM ->12AM
+        else 
             hours = 1;
-            H12_PM=!H12_PM;
-        }
         b = (H12_PM?(DS_MASK_AMPM_MODE|DS_MASK_PM):DS_MASK_AMPM_MODE) | ds_int2bcd(hours);        
     }
     
