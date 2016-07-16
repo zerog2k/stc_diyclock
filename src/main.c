@@ -227,7 +227,7 @@ int main()
           if (lightval < 4) 
               lightval = 4;
 
-          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
+          temp = gettemp(getADCResult(ADC_TEMP)) + ((config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK)>>CONFIG_TEMP_SHIFT) - 4;
       }       
 
       ds_readburst(); // read rtc
@@ -240,7 +240,7 @@ int main()
           current=((rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4))*10+(rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS);
           if (alarm==current)
           {
-           alarm=(config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK)>>CONFIG_ALARM_HOURS_SHIFT;
+           alarm=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
            if (H12_24) {
             current=((rtc_table[DS_ADDR_HOUR]>>4)&(DS_MASK_HOUR12_TENS>>4))*10+(rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR_UNITS);
             current%=12;	// -> 12=0
@@ -292,9 +292,12 @@ int main()
 	      break;
 
 	  case K_TEMP_INC:
-                  { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
-                    offset++; offset&=CONFIG_TEMP_MASK;
-                    config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
+                  { 
+                    //uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
+                    //offset+=(1<<CONFIG_TEMP_SHIFT);
+                    //config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
+                    config_table[CONFIG_TEMP_BYTE]+=(1<<CONFIG_TEMP_SHIFT);  // Add does not modify LSB, 
+                                                                             // and overflow will automatically reset counter to 0
                   }
 	      config_modified = 1;
 	      kmode=K_TEMP_DISP;
@@ -353,7 +356,7 @@ int main()
               if (! flash_01) {
                 if (getkeypress(S2)) {
                   uint8_t ahour=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
-                  ahour+=(1<<CONFIG_ALARM_HOURS_SHIFT); if (ahour>(23<<CONFIG_ALARM_HOURS_SHIFT)) ahour=0;
+                  ahour+=1; if (ahour>23) ahour=0;
                   config_table[CONFIG_ALARM_HOURS_BYTE]=(config_table[CONFIG_ALARM_HOURS_BYTE]&~CONFIG_ALARM_HOURS_MASK)|ahour;
                 }
                 if (getkeypress(S1)) {kmode = K_SET_AM; config_modified=1;}
@@ -493,7 +496,7 @@ int main()
               if (flash_01) {
 		dotdisplay(1,1)
 	      } else {
-                uint8_t ahour=(config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK)>>CONFIG_ALARM_HOURS_SHIFT;
+                uint8_t ahour=config_table[CONFIG_ALARM_HOURS_BYTE]&CONFIG_ALARM_HOURS_MASK;
                 if (ahour>9) filldisplay( 0, ahour/10, 0);      
                 filldisplay( 1, ahour%10 , 1);      
 	      }

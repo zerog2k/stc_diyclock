@@ -8,17 +8,20 @@ Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood
 ## features
 Basic functionality is working:
 * time display/set (12/24 hour modes)
+* 12/24 hr switch at run-time
 * date display/set
+* mm/dd or dd/mm selectable at run-time
 * display auto-dim
-* temperature display in C
+* temperature display in C or F
+* temperature display in C/F selectable (at run-time)
+* alarm - alarm time is 10 seconds
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
 
 ## TODOs
-* temperature display in C/F selectable (either build or run-time)
-* alarm and chime functionality
-* possibly: make 12/24 hr a build option (to save precious code space)
+* chime functionality
+* DCF77 ?
 
 ## hardware
 
