@@ -72,7 +72,7 @@ void _delay_ms(uint8_t ms)
     uint8_t i, j;
     do {
     	i = 4;
-    	j = 200;
+    	j = 240;
     	do
     	{
     		while (--j);
@@ -203,7 +203,7 @@ int main()
     {   
             
       RELAY = 0;
-      _delay_ms(60);
+      _delay_ms(100);
 
       RELAY = 1;
 
@@ -299,7 +299,7 @@ int main()
 
 	  case K_SEC_DISP:
 	      dmode=M_SEC_DISP;
-              if (count % 10 < 4)
+              if (count % 8 < 3)
                   display_colon = 1; // flashing colon
               else
                   display_colon = 0;
@@ -327,7 +327,7 @@ int main()
           default:
               flash_01 = 0;
               flash_23 = 0;
-              if (count % 10 < 4)
+              if (count % 8 < 3)
                   display_colon = 1; // flashing colon
               else
                   display_colon = 0;
@@ -428,7 +428,9 @@ int main()
                   
       // save ram config
       ds_ram_config_write(); 
-      _delay_ms(40);
+      
+      // delays chosen to adjust loop time to 1/8 of a second
+      _delay_ms(25);
       count++;
       WDT_CLEAR();
     }
