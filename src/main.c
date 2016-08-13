@@ -430,6 +430,8 @@ int main()
       ds_ram_config_write(); 
       _delay_ms(40);
       count++;
+      if (count > 200)
+        count -= 200;
       WDT_CLEAR();
     }
 }
