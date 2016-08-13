@@ -183,9 +183,9 @@ int8_t gettemp(uint16_t raw) {
 int main()
 {
     // SETUP
-    // set ds1302, photoresistor, & ntc pins to open-drain output, already have strong pullups
-    P1M1 |= (1 << 0) | (1 << 1) | (1 << 2) | (1<<6) | (1<<7);
-    P1M0 |= (1 << 0) | (1 << 1) | (1 << 2) | (1<<6) | (1<<7);
+    // set photoresistor & ntc pins to open-drain output
+    P1M1 |= (1<<6) | (1<<7);
+    P1M0 |= (1<<6) | (1<<7);
             
     // init rtc
     ds_init();
