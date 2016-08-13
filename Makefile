@@ -1,4 +1,4 @@
-SDCC ?= /usr/local/bin/sdcc
+SDCC ?= sdcc
 SDCCOPTS ?= --iram-size 256 --code-size 4089 --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
