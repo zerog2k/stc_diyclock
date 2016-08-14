@@ -86,6 +86,8 @@ uint16_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
+volatile uint8_t _10mscounter;
+volatile uint8_t _100mscounter;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
@@ -103,6 +105,7 @@ volatile __bit  S2_PRESSED;
 
 volatile uint8_t debounce[2];      // switch debounce buffer
 volatile uint8_t switchcount[2];
+#define SW_CNTMAX 80
 
 void timer0_isr() __interrupt 1 __using 1
 {
@@ -121,35 +124,34 @@ void timer0_isr() __interrupt 1 __using 1
         P3 &= ~(0x4 << digit);  
     }
     displaycounter++;
-    // done    
-}
 
-#define SW_CNTMAX 80
+    // switch read
+    if (++_10mscounter > 100) {
+        _10mscounter = 0;
+        _100mscounter++;
+        // debounce:
+        // increment count if settled closed
+        if ((debounce[0] & 0x0F) == 0x00)    
+            {S1_PRESSED=1; switchcount[0]++;}
+        else
+            {S1_PRESSED=0; switchcount[0]=0;}
 
-void timer1_isr() __interrupt 3 __using 1 {
-    // debounce ISR
-    
-    // increment count if settled closed
-    if ((debounce[0] & 0x0F) == 0x00)    
-        {S1_PRESSED=1; switchcount[0]++;}
-    else
-        {S1_PRESSED=0; switchcount[0]=0;}
-    
-    if ((debounce[1] & 0x0F) == 0x00)
-        {S2_PRESSED=1; switchcount[1]++;}
-    else
-        {S2_PRESSED=0; switchcount[1]=0;}
+        if ((debounce[1] & 0x0F) == 0x00)
+            {S2_PRESSED=1; switchcount[1]++;}
+        else
+            {S2_PRESSED=0; switchcount[1]=0;}
 
-    // debouncing stuff
-    // keep resetting halfway if held long
-    if (switchcount[0] > SW_CNTMAX)
-        {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
-    if (switchcount[1] > SW_CNTMAX)
-        {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
+        // debouncing stuff
+        // keep resetting halfway if held long
+        if (switchcount[0] > SW_CNTMAX)
+            {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
+        if (switchcount[1] > SW_CNTMAX)
+            {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
 
-    // read switch positions into sliding 8-bit window
-    debounce[0] = (debounce[0] << 1) | SW1;
-    debounce[1] = (debounce[1] << 1) | SW2;  
+        // read switch positions into sliding 8-bit window
+        debounce[0] = (debounce[0] << 1) | SW1;
+        debounce[1] = (debounce[1] << 1) | SW2;
+    }
 }
 
 void Timer0Init(void)		//100us @ 11.0592MHz
@@ -160,16 +162,6 @@ void Timer0Init(void)		//100us @ 11.0592MHz
     TR0 = 1;		//Timer0 start run
     ET0 = 1;        // enable timer0 interrupt
     EA = 1;         // global interrupt enable
-}
-
-void Timer1Init(void)		//10ms @ 11.0592MHz
-{
-	TL1 = 0xD5;		//Initial timer value
-	TH1 = 0xDB;		//Initial timer value
-	TF1 = 0;		//Clear TF1 flag
-	TR1 = 1;		//Timer1 start run
-    ET1 = 1;    // enable Timer1 interrupt
-    EA = 1;     // global interrupt enable
 }
 
 #define getkeypress(a) a##_PRESSED
@@ -195,8 +187,7 @@ int main()
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();    
     
-    Timer0Init(); // display refresh
-    Timer1Init(); // switch debounce
+    Timer0Init(); // display refresh & switch read
     
     // LOOP
     while(1)
