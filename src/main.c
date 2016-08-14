@@ -96,10 +96,10 @@ __bit  flash_01;
 __bit  flash_23;
 __bit  beep = 1;
 
-__bit  S1_LONG;
-__bit  S1_PRESSED;
-__bit  S2_LONG;
-__bit  S2_PRESSED;
+volatile __bit  S1_LONG;
+volatile __bit  S1_PRESSED;
+volatile __bit  S2_LONG;
+volatile __bit  S2_PRESSED;
 
 volatile uint8_t debounce[2];      // switch debounce buffer
 volatile uint8_t switchcount[2];
