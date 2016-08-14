@@ -14,7 +14,7 @@
 /* article, please specify in which data and procedures from STC    ---
 */
 /*----------------------------------------------------------------------------------*/
-#include <stc12.h>
+#include "stc15.h"
 #include "adc.h"
 
 /*----------------------------

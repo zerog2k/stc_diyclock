@@ -3,7 +3,7 @@
 // Copyright 2016, Jens Jensen
 //
 
-#include <stc12.h>
+#include "stc15.h"
 #include <stdint.h>
 #include <stdio.h>
 #include "adc.h"
@@ -154,8 +154,8 @@ void timer1_isr() __interrupt 3 __using 1 {
 
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
-    TL0 = 0xA3;		//Initial timer value
-    TH0 = 0xFF;		//Initial timer value
+	TL0 = 0xA4;		//Initial timer value
+	TH0 = 0xFF;		//Initial timer value
     TF0 = 0;		//Clear TF0 flag
     TR0 = 1;		//Timer0 start run
     ET0 = 1;        // enable timer0 interrupt
