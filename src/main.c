@@ -86,14 +86,14 @@ uint16_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
-volatile uint8_t _10mscounter;
-volatile uint8_t _100mscounter;
+volatile uint8_t _100us_count;
+volatile uint8_t _10ms_count;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
 uint8_t smode,lmode;
 
-__bit  display_colon;         // flash colon
+volatile __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
 __bit  beep = 1;
@@ -125,18 +125,25 @@ void timer0_isr() __interrupt 1 __using 1
     }
     displaycounter++;
 
-    // switch read
-    if (++_10mscounter > 100) {
-        _10mscounter = 0;
-        _100mscounter++;
-        // debounce:
+    //  divider: every 10ms
+    if (++_100us_count > 100) {
+        _100us_count = 0;
+        _10ms_count++;
+
+        // colon blink stuff, 500ms
+        if (_10ms_count > 50) {
+            display_colon = !display_colon;
+            _10ms_count = 0;
+        }
+            
+        // switch read, debounce:
         // increment count if settled closed
-        if ((debounce[0] & 0x0F) == 0x00)    
+        if ((debounce[0]) == 0x00)    
             {S1_PRESSED=1; switchcount[0]++;}
         else
             {S1_PRESSED=0; switchcount[0]=0;}
 
-        if ((debounce[1] & 0x0F) == 0x00)
+        if ((debounce[1]) == 0x00)
             {S2_PRESSED=1; switchcount[1]++;}
         else
             {S2_PRESSED=0; switchcount[1]=0;}
@@ -215,7 +222,6 @@ int main()
       switch (kmode) {
           
           case K_SET_HOUR:
-              display_colon = 1;
               flash_01 = !flash_01;
               if (! flash_01) {
                   if (getkeypress(S2)) ds_hours_incr();
@@ -290,10 +296,6 @@ int main()
 
 	  case K_SEC_DISP:
 	      dmode=M_SEC_DISP;
-              if (count % 8 < 3)
-                  display_colon = 1; // flashing colon
-              else
-                  display_colon = 0;
 	      if (getkeypress(S1) || (count>100)) { kmode = K_NORMAL; }
 	      if (getkeypress(S2)) { ds_sec_zero(); }
 	      break;
@@ -318,10 +320,6 @@ int main()
           default:
               flash_01 = 0;
               flash_23 = 0;
-              if (count % 8 < 3)
-                  display_colon = 1; // flashing colon
-              else
-                  display_colon = 0;
 
 	      dmode=M_NORMAL;
 
@@ -415,7 +413,7 @@ int main()
 	      break;
       }
 
-      updateTmpDisplay();
+      __critical { updateTmpDisplay(); }
                   
       // save ram config
       ds_ram_config_write(); 
