@@ -126,12 +126,12 @@ void timer0_isr() __interrupt 1 __using 1
     displaycounter++;
 
     //  divider: every 10ms
-    if (++_100us_count > 100) {
+    if (++_100us_count == 100) {
         _100us_count = 0;
         _10ms_count++;
 
         // colon blink stuff, 500ms
-        if (_10ms_count > 50) {
+        if (_10ms_count == 50) {
             display_colon = !display_colon;
             _10ms_count = 0;
         }
@@ -198,11 +198,10 @@ int main()
     
     // LOOP
     while(1)
-    {   
-            
+    {
+
       RELAY = 0;
       _delay_ms(100);
-
       RELAY = 1;
 
       // run every ~1 secs
