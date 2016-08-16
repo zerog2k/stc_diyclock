@@ -138,15 +138,25 @@ void timer0_isr() __interrupt 1 __using 1
             
         // switch read, debounce:
         // increment count if settled closed
-        if ((debounce[0]) == 0x00)    
-            {S1_PRESSED=1; switchcount[0]++;}
-        else
-            {S1_PRESSED=0; switchcount[0]=0;}
+        if ((debounce[0]) == 0x00) {
+            // down for at least 8 ticks
+            S1_PRESSED = 1;
+            switchcount[0]++;
+        } else {
+            // released or bounced, reset state            
+            S1_PRESSED = 0; 
+            switchcount[0] = 0;
+        }
 
-        if ((debounce[1]) == 0x00)
-            {S2_PRESSED=1; switchcount[1]++;}
-        else
-            {S2_PRESSED=0; switchcount[1]=0;}
+        if ((debounce[1]) == 0x00) {
+            // down for at least 8 ticks            
+            S2_PRESSED = 1;
+            switchcount[1]++;
+        } else {
+            // released or bounced, reset state
+            S2_PRESSED = 0;
+            switchcount[1] = 0;
+        }
 
         // debouncing stuff
         // keep resetting halfway if held long
@@ -302,7 +312,7 @@ int main()
 	  case K_WAIT_S1:
 	      count=0;
 	      if (!S1_PRESSED) {
-               if (S1_LONG) {S1_LONG=0;kmode=lmode;}
+               if (S1_LONG) {S1_LONG=0; kmode=lmode;}
                       else  {kmode=smode;}
                }
 	      break;
@@ -310,7 +320,7 @@ int main()
 	  case K_WAIT_S2:
 	      count=0;
 	      if (!S2_PRESSED) {
-               if (S2_LONG) {S2_LONG=0;kmode=lmode;}
+               if (S2_LONG) {S2_LONG=0; kmode=lmode;}
                       else  {kmode=smode;}
                }
 	      break;
@@ -417,8 +427,19 @@ int main()
       // save ram config
       ds_ram_config_write(); 
       
-      // delays chosen to adjust loop time to 1/8 of a second
-      _delay_ms(25);
+      if (S1_PRESSED || S2_PRESSED && ! (S1_LONG || S2_LONG)) {
+          // try to dampen button over-response
+          _delay_ms(100);
+      }
+
+      // reset long presses when button released
+      if (! S1_PRESSED && S1_LONG) {
+          S1_LONG = 0;
+      }
+      if (! S2_PRESSED && S2_LONG) {
+          S2_LONG = 0;
+      }
+        
       count++;
       WDT_CLEAR();
     }
