@@ -2,7 +2,7 @@
 // http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 //
 
-#include <stc12.h>
+#include "stc15.h"
 #include <stdint.h>
 
 #define _nop_ __asm nop __endasm;

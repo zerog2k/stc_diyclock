@@ -3,7 +3,7 @@
 // Copyright 2016, Jens Jensen
 //
 
-#include <stc12.h>
+#include "stc15.h"
 #include <stdint.h>
 #include <stdio.h>
 #include "adc.h"
@@ -86,12 +86,14 @@ uint16_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
+volatile uint8_t _100us_count;
+volatile uint8_t _10ms_count;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
 uint8_t smode,lmode;
 
-__bit  display_colon;         // flash colon
+volatile __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
 __bit  beep = 1;
@@ -103,6 +105,7 @@ volatile __bit  S2_PRESSED;
 
 volatile uint8_t debounce[2];      // switch debounce buffer
 volatile uint8_t switchcount[2];
+#define SW_CNTMAX 80
 
 void timer0_isr() __interrupt 1 __using 1
 {
@@ -121,55 +124,51 @@ void timer0_isr() __interrupt 1 __using 1
         P3 &= ~(0x4 << digit);  
     }
     displaycounter++;
-    // done    
-}
 
-#define SW_CNTMAX 80
+    //  divider: every 10ms
+    if (++_100us_count == 100) {
+        _100us_count = 0;
+        _10ms_count++;
 
-void timer1_isr() __interrupt 3 __using 1 {
-    // debounce ISR
-    
-    // increment count if settled closed
-    if ((debounce[0] & 0x0F) == 0x00)    
-        {S1_PRESSED=1; switchcount[0]++;}
-    else
-        {S1_PRESSED=0; switchcount[0]=0;}
-    
-    if ((debounce[1] & 0x0F) == 0x00)
-        {S2_PRESSED=1; switchcount[1]++;}
-    else
-        {S2_PRESSED=0; switchcount[1]=0;}
+        // colon blink stuff, 500ms
+        if (_10ms_count == 50) {
+            display_colon = !display_colon;
+            _10ms_count = 0;
+        }
+            
+        // switch read, debounce:
+        // increment count if settled closed
+        if ((debounce[0]) == 0x00)    
+            {S1_PRESSED=1; switchcount[0]++;}
+        else
+            {S1_PRESSED=0; switchcount[0]=0;}
 
-    // debouncing stuff
-    // keep resetting halfway if held long
-    if (switchcount[0] > SW_CNTMAX)
-        {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
-    if (switchcount[1] > SW_CNTMAX)
-        {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
+        if ((debounce[1]) == 0x00)
+            {S2_PRESSED=1; switchcount[1]++;}
+        else
+            {S2_PRESSED=0; switchcount[1]=0;}
 
-    // read switch positions into sliding 8-bit window
-    debounce[0] = (debounce[0] << 1) | SW1;
-    debounce[1] = (debounce[1] << 1) | SW2;  
+        // debouncing stuff
+        // keep resetting halfway if held long
+        if (switchcount[0] > SW_CNTMAX)
+            {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
+        if (switchcount[1] > SW_CNTMAX)
+            {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
+
+        // read switch positions into sliding 8-bit window
+        debounce[0] = (debounce[0] << 1) | SW1;
+        debounce[1] = (debounce[1] << 1) | SW2;
+    }
 }
 
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
-    TL0 = 0xA3;		//Initial timer value
-    TH0 = 0xFF;		//Initial timer value
+	TL0 = 0xA4;		//Initial timer value
+	TH0 = 0xFF;		//Initial timer value
     TF0 = 0;		//Clear TF0 flag
     TR0 = 1;		//Timer0 start run
     ET0 = 1;        // enable timer0 interrupt
     EA = 1;         // global interrupt enable
-}
-
-void Timer1Init(void)		//10ms @ 11.0592MHz
-{
-	TL1 = 0xD5;		//Initial timer value
-	TH1 = 0xDB;		//Initial timer value
-	TF1 = 0;		//Clear TF1 flag
-	TR1 = 1;		//Timer1 start run
-    ET1 = 1;    // enable Timer1 interrupt
-    EA = 1;     // global interrupt enable
 }
 
 #define getkeypress(a) a##_PRESSED
@@ -195,16 +194,14 @@ int main()
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();    
     
-    Timer0Init(); // display refresh
-    Timer1Init(); // switch debounce
+    Timer0Init(); // display refresh & switch read
     
     // LOOP
     while(1)
-    {   
-            
+    {
+
       RELAY = 0;
       _delay_ms(100);
-
       RELAY = 1;
 
       // run every ~1 secs
@@ -224,7 +221,6 @@ int main()
       switch (kmode) {
           
           case K_SET_HOUR:
-              display_colon = 1;
               flash_01 = !flash_01;
               if (! flash_01) {
                   if (getkeypress(S2)) ds_hours_incr();
@@ -299,10 +295,6 @@ int main()
 
 	  case K_SEC_DISP:
 	      dmode=M_SEC_DISP;
-              if (count % 8 < 3)
-                  display_colon = 1; // flashing colon
-              else
-                  display_colon = 0;
 	      if (getkeypress(S1) || (count>100)) { kmode = K_NORMAL; }
 	      if (getkeypress(S2)) { ds_sec_zero(); }
 	      break;
@@ -327,10 +319,6 @@ int main()
           default:
               flash_01 = 0;
               flash_23 = 0;
-              if (count % 8 < 3)
-                  display_colon = 1; // flashing colon
-              else
-                  display_colon = 0;
 
 	      dmode=M_NORMAL;
 
@@ -424,7 +412,7 @@ int main()
 	      break;
       }
 
-      updateTmpDisplay();
+      __critical { updateTmpDisplay(); }
                   
       // save ram config
       ds_ram_config_write(); 
