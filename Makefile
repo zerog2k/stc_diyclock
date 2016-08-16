@@ -4,6 +4,7 @@ SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0
+STCGALPROT ?= stc15a
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 
@@ -27,7 +28,7 @@ eeprom:
 	sed -ne '/:..1/ { s/1/0/2; p }' main.hex > eeprom.hex
 
 flash:
-	$(STCGAL) -p $(STCGALPORT) -P stc15a -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
+	$(STCGAL) -p $(STCGALPORT) -P $(STCGALPROT) -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
 
 clean:
 	rm -f *.ihx *.hex *.bin
