@@ -1,6 +1,6 @@
 # STC DIY Clock Kit firmware
 
-Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA series microcontroller.
+Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA (and STC15W408AS) series microcontroller.
 
 ![Image of Banggood SKU972289](http://img.banggood.com/thumb/large/2014/xiemeijuan/03/SKU203096/A3.jpg?p=WX0407753399201409DA)
 
@@ -19,7 +19,6 @@ Basic functionality is working:
 ## TODOs
 * temperature display in C/F selectable (either build or run-time)
 * alarm and chime functionality
-* possibly: make 12/24 hr a build option (to save precious code space)
 
 ## hardware
 
@@ -44,6 +43,9 @@ make flash
 
 * add other options:
 `STCGALOPTS="-l 9600 -b 9600" make flash`
+
+* flashing STC15W408AS:
+`STCGALPROT="stc15" make flash`
 
 ## pre-compiled binaries
 If you like, you can try pre-compiled binaries here:
@@ -72,6 +74,9 @@ http://www.stcmcu.com (mostly in Chinese)
 
 stc15f204ea english datasheet:
 http://www.stcmcu.com/datasheet/stc/stc-ad-pdf/stc15f204ea-series-english.pdf
+
+stc15w408as english datasheet:
+http://www.stcmicro.com/datasheet/STC15F2K60S2-en2.pdf
 
 sdcc user guide:
 http://sdcc.sourceforge.net/doc/sdccman.pdf
