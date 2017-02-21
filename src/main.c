@@ -23,10 +23,6 @@
 #define ADC_LIGHT 6
 #define ADC_TEMP  7
 
-// three steps of dimming. Photoresistor adc value is 0-255. Lower values = brighter.
-#define DIM_HI  100
-#define DIM_LO  190
-
 // button switch aliases
 #define SW2     P3_0
 #define S2      1
@@ -214,15 +210,15 @@ int main()
       _delay_ms(100);
       RELAY = 1;
 
-      // run every ~1 secs
-      if ((count & 3) == 0) {
+      // sample adc, run frequently
+      if ((count % 4) == 0) {
+          // auto-dimming, by dividing adc range into 8 steps
           lightval = getADCResult8(ADC_LIGHT) >> 3;
           temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
 
-          // constrain dimming range
+          // set floor of dimming range
           if (lightval < 4) 
               lightval = 4;
-
       }       
 
       ds_readburst(); // read rtc
