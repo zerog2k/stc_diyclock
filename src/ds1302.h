@@ -61,6 +61,15 @@
 #define DS_MASK_YEAR_TENS     0b11110000
 #define DS_MASK_YEAR_UNITS    0b00001111
 
+/* 
+  NB: the rtc and config bits below were originally structs/unions, but for some reason 
+  the resulting code was bloated coming out of sdcc. This is attempt to recreate this
+  struct/union functionality directly, by explicit selection of bit/byte iram addressing
+  and using masks above. Because this current implementation is much more complex than
+  dealing with structs/unions, would like to someday return to simpler struct/union access
+  if code size allows (sdcc optimizations?).
+*/
+
 // 8051 zone from 0x20 and 0x2F in IRAM can be accessed as bit (between 0x00 and 0x7F)
 // 0x20, bit 0 is __bit __at (0x00), bit 7 is __bit __at (0x07) etc...
 
