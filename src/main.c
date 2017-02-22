@@ -214,7 +214,7 @@ int main()
       if ((count % 4) == 0) {
           // auto-dimming, by dividing adc range into 8 steps
           lightval = getADCResult8(ADC_LIGHT) >> 3;
-          temp = gettemp(getADCResult(ADC_TEMP)) + (config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK) - 4;
+          temp = gettemp(getADCResult(ADC_TEMP)) + (cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK) - 4;
 
           // set floor of dimming range
           if (lightval < 4) 
@@ -252,9 +252,9 @@ int main()
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
               if (getkeypress(S1))
-                  { uint8_t offset=config_table[CONFIG_TEMP_BYTE]&CONFIG_TEMP_MASK;
-                    offset++; offset&=CONFIG_TEMP_MASK;
-                    config_table[CONFIG_TEMP_BYTE]=(config_table[CONFIG_TEMP_BYTE]&~CONFIG_TEMP_MASK)|offset;
+                  { uint8_t offset=cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK;
+                    offset++; offset&=CFG_TEMP_MASK;
+                    cfg_table[CFG_TEMP_BYTE]=(cfg_table[CFG_TEMP_BYTE]&~CFG_TEMP_MASK)|offset;
                   }
               if (getkeypress(S2)) kmode = K_DATE_DISP;
               break;

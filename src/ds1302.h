@@ -75,15 +75,15 @@ __bit __at (0x37) H12_24;
 
 // config in DS1302 RAM
 
-uint8_t __at (0x2c) config_table[4];
+uint8_t __at (0x2c) cfg_table[4];
 
-#define CONFIG_ALARM_HOURS_BYTE   0
-#define CONFIG_ALARM_MINUTES_BYTE 1
-#define CONFIG_TEMP_BYTE          2
+#define CFG_ALARM_HOURS_BYTE   0
+#define CFG_ALARM_MINUTES_BYTE 1
+#define CFG_TEMP_BYTE          2
 
-#define CONFIG_ALARM_HOURS_MASK   0b11111000
-#define CONFIG_ALARM_MINUTES_MASK 0b00111111
-#define CONFIG_TEMP_MASK          0b00000111
+#define CFG_ALARM_HOURS_MASK   0b11111000
+#define CFG_ALARM_MINUTES_MASK 0b00111111
+#define CFG_TEMP_MASK          0b00000111
 
 // Offset 0 => alarm_hour (7..3) / chime_on (2) / alarm_on (1) / temp_C_F (0)
 // Offset 1 => (7) not used / (6) sw_mmdd / alarm_minute (5..0)

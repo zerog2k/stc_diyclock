@@ -24,18 +24,18 @@ void ds_ram_config_init() {
     
     // read ram config
     // OPTIMISE : end condition of loop !=4 will generate less code than <4 
-    // OPTIMISE : was config_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
+    // OPTIMISE : was cfg_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
     //            using a second variable instead of DS_CMD_RAM>>1 | (i+2) generates less code
     j=DS_CMD_RAM>>1|2;
     for (i=0; i!=4; i++)
-        config_table[i] = ds_readbyte(j++);
+        cfg_table[i] = ds_readbyte(j++);
 }
 
 void ds_ram_config_write() {
     uint8_t i,j;
     j=DS_CMD_RAM>>1|2;
     for (i=0; i!=4; i++)
-        ds_writebyte( j++, config_table[i]);
+        ds_writebyte( j++, cfg_table[i]);
 }
 
 void sendbyte(uint8_t b)
