@@ -25,6 +25,14 @@ Basic functionality is working:
 * DIY LED Clock kit, based on STC15F204EA and DS1302, e.g. [Banggood SKU 972289](http://www.banggood.com/DIY-4-Digit-LED-Electronic-Clock-Kit-Temperature-Light-Control-Version-p-972289.html?p=WX0407753399201409DA)
 * connected to PC via cheap USB-UART adapter, e.g. CP2102, CH340G. [Banggood: CP2102 USB-UART adapter](http://www.banggood.com/CJMCU-CP2102-USB-To-TTLSerial-Module-UART-STC-Downloader-p-970993.html?p=WX0407753399201409DA)
 
+## connection
+| P1 header | UART adapter |
+|-----------|--------------|
+| P3.1      | RXD          |
+| P3.0      | TXD          |
+| GND       | GND          |
+| 5V        | 5V           |
+
 ## requirements
 * linux or mac (windows untested, but should work)
 * sdcc installed and in the path (recommend sdcc >= 3.5.0)
