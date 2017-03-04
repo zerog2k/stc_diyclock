@@ -16,14 +16,25 @@
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
 
 // alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
-#define RELAY   P1_4
-#define BUZZER  P1_5
-    
+// only for revision with stc15f204ea
+#ifdef stc15f204ea
+  #define RELAY   P1_4
+  #define BUZZER  P1_5
+#else // revision with stc15w408as
+  #define RELAY   P0_0
+  #define LED     P1_5
+#endif
+
 // adc channels for sensors
 #define ADC_LIGHT 6
 #define ADC_TEMP  7
 
 // button switch aliases
+// SW3 only for revision with stc15w408as
+#ifdef stc15w408as
+#define SW3     P1_4
+#define S3      2
+#endif
 #define SW2     P3_0
 #define S2      1
 #define SW1     P3_1
@@ -98,9 +109,11 @@ volatile __bit  S1_LONG;
 volatile __bit  S1_PRESSED;
 volatile __bit  S2_LONG;
 volatile __bit  S2_PRESSED;
+volatile __bit  S3_LONG;
+volatile __bit  S3_PRESSED;
 
-volatile uint8_t debounce[2];      // switch debounce buffer
-volatile uint8_t switchcount[2];
+volatile uint8_t debounce[3];      // switch debounce buffer
+volatile uint8_t switchcount[3];
 #define SW_CNTMAX 80
 
 void timer0_isr() __interrupt 1 __using 1
@@ -154,16 +167,35 @@ void timer0_isr() __interrupt 1 __using 1
             switchcount[1] = 0;
         }
 
-        // debouncing stuff
+#ifdef stc15w408as
+        if ((debounce[2]) == 0x00) {
+            // down for at least 8 ticks            
+            S3_PRESSED = 1;
+            switchcount[2]++;
+        } else {
+            // released or bounced, reset state
+            S3_PRESSED = 0;
+            switchcount[2] = 0;
+        }
+#endif
+
+         // debouncing stuff
         // keep resetting halfway if held long
         if (switchcount[0] > SW_CNTMAX)
             {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
         if (switchcount[1] > SW_CNTMAX)
             {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
+#ifdef stc15w408as
+        if (switchcount[2] > SW_CNTMAX)
+            {switchcount[2] = SW_CNTMAX; S3_LONG=1;}
+#endif
 
         // read switch positions into sliding 8-bit window
         debounce[0] = (debounce[0] << 1) | SW1;
         debounce[1] = (debounce[1] << 1) | SW2;
+#ifdef stc15w408as
+        debounce[2] = (debounce[2] << 1) | SW3;
+#endif
     }
 }
 
@@ -329,8 +361,11 @@ int main()
 	      dmode=M_NORMAL;
 
 	      if (S1_PRESSED) { kmode = K_WAIT_S1; lmode=K_SET_HOUR; smode=K_SEC_DISP;  }
-              //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
-              if (S2_PRESSED) { kmode = K_TEMP_DISP; }
+          //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
+          if (S2_PRESSED) { kmode = K_TEMP_DISP; }
+#ifdef stc15w408as
+          if (S3_LONG) { LED=!LED; }
+#endif
       
       };
 
