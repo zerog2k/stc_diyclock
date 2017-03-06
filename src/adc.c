@@ -33,11 +33,9 @@ Get ADC result - 10 bit
 ----------------------------*/
 uint16_t getADCResult(uint8_t chan)
 {
-	ADC_CONTR = ADC_POWER | ADC_SPEEDHH | ADC_START | chan;
-	_nop_;       //Must wait before inquiry
-	while (!(ADC_CONTR & ADC_FLAG));  //Wait complete flag
-	ADC_CONTR &= ~ADC_FLAG;           //Close ADC
-	return  ADC_RES << 2 | (ADC_RESL & 0b11) ;  //Return ADC result
+	uint8_t upper8;
+	upper8 = getADCResult8(chan);
+	return  upper8 << 2 | (ADC_RESL & 0b11) ;  //Return ADC result, 10 bits
 }
 
 uint8_t getADCResult8(uint8_t chan)
@@ -46,7 +44,7 @@ uint8_t getADCResult8(uint8_t chan)
 	_nop_;       //Must wait before inquiry
 	while (!(ADC_CONTR & ADC_FLAG));  //Wait complete flag
 	ADC_CONTR &= ~ADC_FLAG;           //Close ADC
-	return  ADC_RES;  //Return ADC result
+	return  ADC_RES;  //Return ADC result, 8 bits
 }
 
 
