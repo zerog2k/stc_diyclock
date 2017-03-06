@@ -72,19 +72,21 @@ enum display_mode {
 /* ------------------------------------------------------------------------- */
 
 void _delay_ms(uint8_t ms)
-{	
-    // i,j selected for fosc 11.0592MHz, using oscilloscope
-    // the stc-isp tool gives inaccurate values (perhaps for C51 vs sdcc?)
-    // max 255 ms
-    uint8_t i, j;
-    do {
-    	i = 4;
-    	j = 240;
-    	do
-    	{
-    		while (--j);
-    	} while (--i);
-    } while (--ms);
+{
+    // delay function, tuned for 11.092 MHz clock
+    // optimized to assembler
+    ms; // keep compiler from complaining?
+    __asm;
+        ; dpl contains ms param value
+    delay$:
+        mov	b, #8   ; i
+    outer$:
+        mov	a, #243    ; j
+    inner$:
+        djnz acc, inner$
+        djnz b, outer$
+        djnz dpl, delay$
+    __endasm;
 }
 
 // GLOBALS
