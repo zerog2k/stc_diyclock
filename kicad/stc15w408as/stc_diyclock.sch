@@ -28,14 +28,15 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
+LIBS:stc_diyclock-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "STC DIYCLOCK (STC Do It Yourself Clock)"
-Date "2017-03-03"
-Rev "02"
+Date "2017-03-18"
+Rev "03"
 Comp "KKmoon Compact Digital 4-digit LED talking Clock DIY Kit"
 Comment1 "Sold from Feeego on Amazon"
 Comment2 "with light sensor for dimming, temperatur, time, date and a transparent case"
@@ -117,61 +118,6 @@ F 1 "NY3P065" H 9350 3400 60  0000 C CNN
 F 2 "" H 9350 3700 60  0000 C CNN
 F 3 "" H 9350 3700 60  0000 C CNN
 	1    9350 3700
-	1    0    0    -1  
-$EndComp
-$Comp
-L S8050 Q1
-U 1 1 58A85C2B
-P 3450 1200
-F 0 "Q1" H 3650 1275 50  0000 L CNN
-F 1 "8550" H 3650 1200 50  0000 L CNN
-F 2 "TO-92" H 3650 1125 50  0000 L CIN
-F 3 "" H 3450 1200 50  0000 L CNN
-	1    3450 1200
-	1    0    0    -1  
-$EndComp
-$Comp
-L S8050 Q2
-U 1 1 58A85C7A
-P 5800 1200
-F 0 "Q2" H 6000 1275 50  0000 L CNN
-F 1 "8550" H 6000 1200 50  0000 L CNN
-F 2 "TO-92" H 6000 1125 50  0000 L CIN
-F 3 "" H 5800 1200 50  0000 L CNN
-	1    5800 1200
-	1    0    0    -1  
-$EndComp
-$Comp
-L S8050 Q3
-U 1 1 58A85CA9
-P 8150 1200
-F 0 "Q3" H 8350 1275 50  0000 L CNN
-F 1 "8550" H 8350 1200 50  0000 L CNN
-F 2 "TO-92" H 8350 1125 50  0000 L CIN
-F 3 "" H 8150 1200 50  0000 L CNN
-	1    8150 1200
-	1    0    0    -1  
-$EndComp
-$Comp
-L S8050 Q4
-U 1 1 58A85CD2
-P 10650 1200
-F 0 "Q4" H 10850 1275 50  0000 L CNN
-F 1 "8550" H 10850 1200 50  0000 L CNN
-F 2 "TO-92" H 10850 1125 50  0000 L CIN
-F 3 "" H 10650 1200 50  0000 L CNN
-	1    10650 1200
-	1    0    0    -1  
-$EndComp
-$Comp
-L S8550 Q5
-U 1 1 58A85CFD
-P 2300 5500
-F 0 "Q5" H 2500 5575 50  0000 L CNN
-F 1 "S8550" H 2500 5500 50  0000 L CNN
-F 2 "TO-92" H 2500 5425 50  0000 L CIN
-F 3 "" H 2300 5500 50  0000 L CNN
-	1    2300 5500
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -1106,7 +1052,7 @@ F 3 "" H 1700 6450 50  0000 C CNN
 	1    0    0    -1  
 $EndComp
 Text Notes 5600 7150 0    60   ~ 0
-VCC\nGND\nTxD\nRxD
+VCC\nGND\nRxD\nTxD
 $Comp
 L CONN_01X04 P1001
 U 1 1 58B995B9
@@ -1144,6 +1090,71 @@ Text Notes 6800 6850 2    60   ~ 0
 VCC open
 Text Notes 6800 7650 2    39   ~ 0
 NOT PART OF THE CIRCUIT\nProgramming connector for \nthe USB2Serial converter
+Text Notes 6800 7050 2    60   ~ 0
+TxD
+Text Notes 6800 7150 2    60   ~ 0
+RxD
+Text Notes 6800 6950 2    60   ~ 0
+GND
+NoConn ~ 6250 6850
+NoConn ~ 6800 6950
+NoConn ~ 6800 7050
+NoConn ~ 6800 7150
+$Comp
+L S8550 Q1
+U 1 1 58CD012F
+P 3450 1200
+F 0 "Q1" H 3650 1275 50  0000 L CNN
+F 1 "8550" H 3650 1200 50  0000 L CNN
+F 2 "TO-92" H 3650 1125 50  0000 L CIN
+F 3 "" H 3450 1200 50  0000 L CNN
+	1    3450 1200
+	1    0    0    1   
+$EndComp
+$Comp
+L S8550 Q2
+U 1 1 58CD6925
+P 5800 1200
+F 0 "Q2" H 6000 1275 50  0000 L CNN
+F 1 "8550" H 6000 1200 50  0000 L CNN
+F 2 "TO-92" H 6000 1125 50  0000 L CIN
+F 3 "" H 5800 1200 50  0000 L CNN
+	1    5800 1200
+	1    0    0    1   
+$EndComp
+$Comp
+L S8550 Q3
+U 1 1 58CD867B
+P 8150 1200
+F 0 "Q3" H 8350 1275 50  0000 L CNN
+F 1 "8550" H 8350 1200 50  0000 L CNN
+F 2 "TO-92" H 8350 1125 50  0000 L CIN
+F 3 "" H 8150 1200 50  0000 L CNN
+	1    8150 1200
+	1    0    0    1   
+$EndComp
+$Comp
+L S8550 Q4
+U 1 1 58CD9187
+P 10650 1200
+F 0 "Q4" H 10850 1275 50  0000 L CNN
+F 1 "8550" H 10850 1200 50  0000 L CNN
+F 2 "TO-92" H 10850 1125 50  0000 L CIN
+F 3 "" H 10650 1200 50  0000 L CNN
+	1    10650 1200
+	1    0    0    1   
+$EndComp
+$Comp
+L S8550 Q5
+U 1 1 58CDB2D5
+P 2300 5500
+F 0 "Q5" H 2500 5575 50  0000 L CNN
+F 1 "8550" H 2500 5500 50  0000 L CNN
+F 2 "TO-92" H 2500 5425 50  0000 L CIN
+F 3 "" H 2300 5500 50  0000 L CNN
+	1    2300 5500
+	1    0    0    1   
+$EndComp
 Wire Wire Line
 	950  1350 750  1350
 Wire Wire Line
@@ -1385,16 +1396,6 @@ Wire Wire Line
 Wire Wire Line
 	5100 6950 5100 7300
 Wire Wire Line
-	4950 7050 5250 7050
-Wire Wire Line
-	4950 5450 4950 7050
-Connection ~ 4950 5450
-Wire Wire Line
-	4850 7150 5250 7150
-Wire Wire Line
-	4850 5800 4850 7150
-Connection ~ 4850 5800
-Wire Wire Line
 	2400 5150 2400 5300
 Wire Wire Line
 	2400 5700 2400 5800
@@ -1570,14 +1571,14 @@ Wire Notes Line
 	5850 7700 5850 6700
 Wire Notes Line
 	5850 6700 6850 6700
-Text Notes 6800 7050 2    60   ~ 0
-RxD
-Text Notes 6800 7150 2    60   ~ 0
-TxD
-Text Notes 6800 6950 2    60   ~ 0
-GND
-NoConn ~ 6250 6850
-NoConn ~ 6800 6950
-NoConn ~ 6800 7050
-NoConn ~ 6800 7150
+Connection ~ 4950 5800
+Connection ~ 4850 5450
+Wire Wire Line
+	5250 7150 4850 7150
+Wire Wire Line
+	4850 7150 4850 5450
+Wire Wire Line
+	5250 7050 4950 7050
+Wire Wire Line
+	4950 7050 4950 5800
 $EndSCHEMATC
