@@ -366,7 +366,9 @@ int main()
           //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
           if (S2_PRESSED) { kmode = K_TEMP_DISP; }
 #ifdef stc15w408as
-          if (S3_LONG) { LED=!LED; }
+          if (!S3_PRESSED) {
+               if (S3_LONG) { S3_LONG=0; LED=!LED; }
+               }
 #endif
       
       };
