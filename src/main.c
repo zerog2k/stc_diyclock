@@ -476,6 +476,8 @@ int main()
       }
         
       count++;
+      if (count > 200)
+        count -= 200;
       WDT_CLEAR();
     }
 }
