@@ -55,6 +55,8 @@ enum keyboard_mode {
     K_SET_MONTH,
     K_SET_DAY,
     K_WEEKDAY_DISP,
+    K_TEMP_CF_TOGGLE,
+    K_TEMP_OFFSET,
     K_DEBUG
 };
 
@@ -215,7 +217,10 @@ void Timer0Init(void)		//100us @ 11.0592MHz
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
-    return 76 - raw * 64 / 637;
+    int8_t tempC = 76 - raw * 64 / 637;
+   
+    // convert to F if configured
+    return CONF_C_F?(tempC * 1.8) + 32:tempC;
 }
 
 /*********************************************/
@@ -285,13 +290,22 @@ int main()
               
           case K_TEMP_DISP:
 	      dmode=M_TEMP_DISP;
-              if (getkeypress(S1))
-                  { uint8_t offset=cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK;
-                    offset++; offset&=CFG_TEMP_MASK;
-                    cfg_table[CFG_TEMP_BYTE]=(cfg_table[CFG_TEMP_BYTE]&~CFG_TEMP_MASK)|offset;
-                  }
-              if (getkeypress(S2)) kmode = K_DATE_DISP;
+	      if (getkeypress(S1)) { kmode=K_WAIT_S1; lmode=K_TEMP_CF_TOGGLE; smode=K_TEMP_OFFSET; }
+	      if (getkeypress(S2)) kmode = K_DATE_DISP;
+	      break;
+
+	  case K_TEMP_OFFSET:
+              { uint8_t offset=cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK;
+                offset++; offset&=CFG_TEMP_MASK;
+                cfg_table[CFG_TEMP_BYTE]=(cfg_table[CFG_TEMP_BYTE]&~CFG_TEMP_MASK)|offset;
+              }
+	      kmode=K_TEMP_DISP;
               break;
+
+	  case K_TEMP_CF_TOGGLE:
+	      CONF_C_F=!CONF_C_F;
+	      kmode=K_TEMP_DISP;
+	      break;
                         
           case K_DATE_DISP:
               dmode=M_DATE_DISP;
