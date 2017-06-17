@@ -244,253 +244,330 @@ int main()
     // LOOP
     while(1)
     {
-
-      RELAY = 0;
-      _delay_ms(100);
-      RELAY = 1;
-
-      // sample adc, run frequently
-      if ((count % 4) == 0) {
-          // auto-dimming, by dividing adc range into 8 steps
-          lightval = getADCResult8(ADC_LIGHT) >> 3;
-          temp = gettemp(getADCResult(ADC_TEMP)) + (cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK) - 4;
-
-          // set floor of dimming range
-          if (lightval < 4) 
-              lightval = 4;
-      }       
-
-      ds_readburst(); // read rtc
-
-      // keyboard decision tree
-      switch (kmode) {
-          
-          case K_SET_HOUR:
-              flash_01 = !flash_01;
-              if (! flash_01) {
-                  if (getkeypress(S2)) ds_hours_incr();
-                  if (getkeypress(S1)) kmode = K_SET_MINUTE;
-              }
-              break;
-              
-          case K_SET_MINUTE:
-              flash_01 = 0;
-              flash_23 = !flash_23;
-              if (! flash_23) {
-                  if (getkeypress(S2)) ds_minutes_incr();
-                  if (getkeypress(S1)) kmode = K_SET_HOUR_12_24;
-              }
-              break;
-
-          case K_SET_HOUR_12_24:
-	      dmode=M_SET_HOUR_12_24;
-              if (getkeypress(S2)) ds_hours_12_24_toggle();
-              if (getkeypress(S1)) kmode = K_NORMAL;
-              break;
-              
-          case K_TEMP_DISP:
-	      dmode=M_TEMP_DISP;
-	      if (getkeypress(S1)) { kmode=K_WAIT_S1; lmode=K_TEMP_CF_TOGGLE; smode=K_TEMP_OFFSET; }
-	      if (getkeypress(S2)) kmode = K_DATE_DISP;
-	      break;
-
-	  case K_TEMP_OFFSET:
-              { uint8_t offset=cfg_table[CFG_TEMP_BYTE]&CFG_TEMP_MASK;
-                offset++; offset&=CFG_TEMP_MASK;
-                cfg_table[CFG_TEMP_BYTE]=(cfg_table[CFG_TEMP_BYTE]&~CFG_TEMP_MASK)|offset;
-              }
-	      kmode=K_TEMP_DISP;
-              break;
-
-	  case K_TEMP_CF_TOGGLE:
-	      CONF_C_F=!CONF_C_F;
-	      kmode=K_TEMP_DISP;
-	      break;
-                        
-          case K_DATE_DISP:
-              dmode=M_DATE_DISP;
-              if (getkeypress(S1)) {kmode=K_WAIT_S1; lmode=CONF_SW_MMDD?K_SET_DAY:K_SET_MONTH; smode=K_DATE_SWDISP; }
-              if (getkeypress(S2)) kmode = K_WEEKDAY_DISP;                        
-              break;
-
-	  case K_DATE_SWDISP:
-	      CONF_SW_MMDD=!CONF_SW_MMDD;
-              kmode=K_DATE_DISP;
-	      break;
-              
-          case K_SET_MONTH:
-              flash_01 = !flash_01;
-              if (! flash_01) {
-                  if (getkeypress(S2)) { ds_month_incr(); }
-                  if (getkeypress(S1)) { flash_01 = 0; kmode = CONF_SW_MMDD?K_DATE_DISP:K_SET_DAY; }
-              }
-              break;
-              
-          case K_SET_DAY:
-              flash_23 = !flash_23;
-              if (! flash_23) {
-                  if (getkeypress(S2)) { ds_day_incr(); }
-                  if (getkeypress(S1)) { flash_23 = 0; kmode = CONF_SW_MMDD?K_SET_MONTH:K_DATE_DISP;
-                  }
-              }
-              break;
-              
-          case K_WEEKDAY_DISP:
-              dmode=M_WEEKDAY_DISP;
-              if (getkeypress(S1)) ds_weekday_incr();
-              if (getkeypress(S2)) kmode = K_NORMAL;
-              break;
-          
-	  case K_DEBUG:
-              dmode=M_DEBUG;
-	      if (count>100) kmode = K_NORMAL;
-              if (S1_PRESSED||S2_PRESSED) count=0;
-	      break;
-
-	  case K_SEC_DISP:
-	      dmode=M_SEC_DISP;
-	      if (getkeypress(S1) || (count>100)) { kmode = K_NORMAL; }
-	      if (getkeypress(S2)) { ds_sec_zero(); }
-	      break;
-
-	  case K_WAIT_S1:
-	      count=0;
-	      if (!S1_PRESSED) {
-               if (S1_LONG) {S1_LONG=0; kmode=lmode;}
-                      else  {kmode=smode;}
-               }
-	      break;
-
-	  case K_WAIT_S2:
-	      count=0;
-	      if (!S2_PRESSED) {
-               if (S2_LONG) {S2_LONG=0; kmode=lmode;}
-                      else  {kmode=smode;}
-               }
-	      break;
-
-          case K_NORMAL:          
-          default:
-              flash_01 = 0;
-              flash_23 = 0;
-
-	      dmode=M_NORMAL;
-
-	      if (S1_PRESSED) { kmode = K_WAIT_S1; lmode=K_SET_HOUR; smode=K_SEC_DISP;  }
-          //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
-          if (S2_PRESSED) { kmode = K_TEMP_DISP; }
-#ifdef stc15w408as
-          if (!S3_PRESSED) {
-               if (S3_LONG) { S3_LONG=0; LED=!LED; }
-               }
-#endif
-      
-      };
-
-      // display execution tree
-     
-      clearTmpDisplay();
-
-      switch (dmode) {
-          case M_NORMAL:
-              if (flash_01) {
-		  dotdisplay(1,display_colon);
-              } else {
-		  if (!H12_24) { 
-                      filldisplay( 0, (rtc_table[DS_ADDR_HOUR]>>4)&(DS_MASK_HOUR24_TENS>>4), 0);	// tenhour 
-                  } else {
-                      if (H12_TH) filldisplay( 0, 1, 0);	// tenhour in case AMPM mode is on, then '1' only is H12_TH is on
-                  }                  
-                  filldisplay( 1, rtc_table[DS_ADDR_HOUR]&DS_MASK_HOUR_UNITS, display_colon);      
-              }
-  
-              if (flash_23) {
-	          dotdisplay(2,display_colon);
-                  dotdisplay(3,H12_24&H12_PM);	// dot3 if AMPM mode and PM=1
-              } else {
-                  filldisplay( 2, (rtc_table[DS_ADDR_MINUTES]>>4)&(DS_MASK_MINUTES_TENS>>4), display_colon);	//tenmin
-                  filldisplay( 3, rtc_table[DS_ADDR_MINUTES]&DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
-              }
-              break;
-
-          case M_SET_HOUR_12_24:
-              if (!H12_24) {
-                  filldisplay( 1, 2, 0); filldisplay( 2, 4, 0);
-              } else {
-                  filldisplay( 1, 1, 0); filldisplay( 2, 2, 0);                  
-              }
-              filldisplay( 3, LED_h, 0);
-              break;
-
-	  case M_SEC_DISP:
-	      dotdisplay(0,display_colon);
-	      dotdisplay(1,display_colon);
-	      filldisplay(2,(rtc_table[DS_ADDR_SECONDS]>>4)&(DS_MASK_SECONDS_TENS>>4),0);
-	      filldisplay(3,rtc_table[DS_ADDR_SECONDS]&DS_MASK_SECONDS_UNITS,0);
-	      break;
-              
-          case M_DATE_DISP:
-              if (flash_01) {
-		  dotdisplay(1,1);
-              } else {
-                 if (!CONF_SW_MMDD) {
-                  filldisplay( 0, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
-                  filldisplay( 1, rtc_table[DS_ADDR_MONTH]&DS_MASK_MONTH_UNITS, 1); }         
-                 else {
-                  filldisplay( 2, rtc_table[DS_ADDR_MONTH]>>4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
-                  filldisplay( 3, rtc_table[DS_ADDR_MONTH]&DS_MASK_MONTH_UNITS, 0); }         
-              }
-              if (!flash_23) {
-                 if (!CONF_SW_MMDD) {
-                  filldisplay( 2, rtc_table[DS_ADDR_DAY]>>4, 0);		      // tenday   ( &MASK_TENS useless)
-                  filldisplay( 3, rtc_table[DS_ADDR_DAY]&DS_MASK_DAY_UNITS, 0); }     // day       
-                 else {
-                  filldisplay( 0, rtc_table[DS_ADDR_DAY]>>4, 0);		      // tenday   ( &MASK_TENS useless)
-                  filldisplay( 1, rtc_table[DS_ADDR_DAY]&DS_MASK_DAY_UNITS, 1); }     // day       
-              }     
-              break;
-                   
-          case M_WEEKDAY_DISP:
-              filldisplay( 1, LED_DASH, 0);
-              filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &MASK_UNITS useless, all MSBs are '0')
-              filldisplay( 3, LED_DASH, 0);
-              break;
-              
-          case M_TEMP_DISP:
-              filldisplay( 0, ds_int2bcd_tens(temp), 0);
-              filldisplay( 1, ds_int2bcd_ones(temp), 0);
-              filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
-              // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
-              break;                  
-
-	  case M_DEBUG:
-              filldisplay( 0, switchcount[0]>>4, S1_LONG);
-              filldisplay( 1, switchcount[0]&15, S1_PRESSED);
-              filldisplay( 2, switchcount[1]>>4, S2_LONG);
-              filldisplay( 3, switchcount[1]&15, S2_PRESSED);
-	      break;
-      }
-
-      __critical { updateTmpDisplay(); }
-                  
-      // save ram config
-      ds_ram_config_write(); 
-      
-      if (S1_PRESSED || S2_PRESSED && ! (S1_LONG || S2_LONG)) {
-          // try to dampen button over-response
-          _delay_ms(100);
-      }
-
-      // reset long presses when button released
-      if (! S1_PRESSED && S1_LONG) {
-          S1_LONG = 0;
-      }
-      if (! S2_PRESSED && S2_LONG) {
-          S2_LONG = 0;
-      }
+        RELAY = 0;
+        _delay_ms(100);
+        RELAY = 1;
         
-      count++;
-      WDT_CLEAR();
+        // sample adc, run frequently
+        if (count % 4 == 0) {
+            // auto-dimming, by dividing adc range into 8 steps
+            lightval = getADCResult8(ADC_LIGHT) >> 3;
+            temp = gettemp(getADCResult(ADC_TEMP)) + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
+
+            // set floor of dimming range
+            if (lightval < 4)
+            {
+                lightval = 4;
+            }
+        }
+        
+        ds_readburst(); // read rtc
+        
+        // keyboard decision tree
+        switch (kmode) {
+                
+            case K_SET_HOUR:
+                flash_01 = !flash_01;
+                if (! flash_01) {
+                    if (getkeypress(S2)) {
+                        ds_hours_incr();
+                    }
+                    if (getkeypress(S1)) {
+                        kmode = K_SET_MINUTE;
+                    }
+                }
+                break;
+                
+            case K_SET_MINUTE:
+                flash_01 = 0;
+                flash_23 = !flash_23;
+                if (! flash_23) {
+                    if (getkeypress(S2)) {
+                        ds_minutes_incr();
+                    }
+                    if (getkeypress(S1)) {
+                        kmode = K_SET_HOUR_12_24;
+                    }
+                }
+                break;
+                
+            case K_SET_HOUR_12_24:
+                dmode = M_SET_HOUR_12_24;
+                if (getkeypress(S2)) {
+                    ds_hours_12_24_toggle();
+                }
+                if (getkeypress(S1)) {
+                    kmode = K_NORMAL;
+                }
+                break;
+                
+            case K_TEMP_DISP:
+                dmode = M_TEMP_DISP;
+                if (getkeypress(S1)) {
+                    kmode = K_WAIT_S1;
+                    lmode = K_TEMP_CF_TOGGLE;
+                    smode = K_TEMP_OFFSET;
+                }
+                if (getkeypress(S2)) {
+                    kmode = K_DATE_DISP;
+                }
+                break;
+                
+            case K_TEMP_OFFSET:
+            {
+                uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
+                offset++;
+                offset &= CFG_TEMP_MASK;
+                cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
+            }
+                kmode = K_TEMP_DISP;
+                break;
+                
+            case K_TEMP_CF_TOGGLE:
+                CONF_C_F = !CONF_C_F;
+                kmode = K_TEMP_DISP;
+                break;
+                
+            case K_DATE_DISP:
+                dmode = M_DATE_DISP;
+                if (getkeypress(S1)) {
+                    kmode = K_WAIT_S1;
+                    lmode = CONF_SW_MMDD ? K_SET_DAY : K_SET_MONTH;
+                    smode = K_DATE_SWDISP;
+                }
+                if (getkeypress(S2)) {
+                    kmode = K_WEEKDAY_DISP;
+                }
+                break;
+                
+            case K_DATE_SWDISP:
+                CONF_SW_MMDD = !CONF_SW_MMDD;
+                kmode = K_DATE_DISP;
+                break;
+                
+            case K_SET_MONTH:
+                flash_01 = !flash_01;
+                if (! flash_01) {
+                    if (getkeypress(S2)) {
+                        ds_month_incr();
+                    }
+                    if (getkeypress(S1)) {
+                        flash_01 = 0;
+                        kmode = CONF_SW_MMDD ? K_DATE_DISP : K_SET_DAY;
+                    }
+                }
+                break;
+                
+            case K_SET_DAY:
+                flash_23 = !flash_23;
+                if (! flash_23) {
+                    if (getkeypress(S2)) {
+                        ds_day_incr();
+                    }
+                    if (getkeypress(S1)) {
+                        flash_23 = 0;
+                        kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
+                    }
+                }
+                break;
+                
+            case K_WEEKDAY_DISP:
+                dmode = M_WEEKDAY_DISP;
+                if (getkeypress(S1)) {
+                    ds_weekday_incr();
+                }
+                if (getkeypress(S2)) {
+                    kmode = K_NORMAL;
+                }
+                break;
+
+            case K_DEBUG:
+                dmode = M_DEBUG;
+                if (count > 100) {
+                    kmode = K_NORMAL;
+                }
+                if (S1_PRESSED || S2_PRESSED) {
+                    count = 0;
+                }
+                break;
+                
+            case K_SEC_DISP:
+                dmode = M_SEC_DISP;
+                if (getkeypress(S1) || (count>100)) {
+                    kmode = K_NORMAL;
+                }
+                if (getkeypress(S2)) {
+                    ds_sec_zero();
+                }
+                break;
+                
+            case K_WAIT_S1:
+                count = 0;
+                if (!S1_PRESSED) {
+                    if (S1_LONG) {
+                        S1_LONG = 0;
+                        kmode = lmode;
+                    }
+                    else  {
+                        kmode = smode;
+                    }
+                }
+                break;
+                
+            case K_WAIT_S2:
+                count = 0;
+                if (!S2_PRESSED) {
+                    if (S2_LONG) {
+                        S2_LONG = 0;
+                        kmode = lmode;
+                    }
+                    else  {
+                        kmode = smode;
+                    }
+                }
+                break;
+                
+            case K_NORMAL:
+            default:
+                flash_01 = 0;
+                flash_23 = 0;
+                
+                dmode = M_NORMAL;
+                
+                if (S1_PRESSED)
+                {
+                    kmode = K_WAIT_S1;
+                    lmode = K_SET_HOUR;
+                    smode = K_SEC_DISP;
+                }
+                //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
+                if (S2_PRESSED)
+                {
+                    kmode = K_TEMP_DISP;
+                }
+#ifdef stc15w408as
+                if (!S3_PRESSED)
+                {
+                    if (S3_LONG)
+                    {
+                        S3_LONG = 0;
+                        LED = !LED;
+                    }
+                }
+#endif
+                
+        };
+        
+        // display execution tree
+        
+        clearTmpDisplay();
+        
+        switch (dmode) {
+            case M_NORMAL:
+                if (flash_01) {
+                    dotdisplay(1, display_colon);
+                } else {
+                    if (!H12_24) {
+                        filldisplay(0, (rtc_table[DS_ADDR_HOUR] >> 4) & (DS_MASK_HOUR24_TENS >> 4), 0); // tenhour
+                    } else {
+                        if (H12_TH) {
+                            filldisplay( 0, 1, 0);// tenhour in case AMPM mode is on, then '1' only is H12_TH is on
+                        }
+                    }
+                    filldisplay(1, rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR_UNITS, display_colon);
+                }
+                
+                if (flash_23) {
+                    dotdisplay(2, display_colon);
+                    dotdisplay(3, H12_24 & H12_PM);	// dot3 if AMPM mode and PM=1
+                } else {
+                    filldisplay(2, (rtc_table[DS_ADDR_MINUTES] >> 4) & (DS_MASK_MINUTES_TENS >> 4), display_colon);	//tenmin
+                    filldisplay(3, rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
+                }
+                break;
+                
+            case M_SET_HOUR_12_24:
+                if (!H12_24) {
+                    filldisplay(1, 2, 0); filldisplay(2, 4, 0);
+                } else {
+                    filldisplay(1, 1, 0); filldisplay(2, 2, 0);
+                }
+                filldisplay(3, LED_h, 0);
+                break;
+                
+            case M_SEC_DISP:
+                dotdisplay(0, display_colon);
+                dotdisplay(1, display_colon);
+                filldisplay(2, (rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
+                filldisplay(3, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, 0);
+                break;
+                
+            case M_DATE_DISP:
+                if (flash_01) {
+                    dotdisplay(1, 1);
+                } else {
+                    if (!CONF_SW_MMDD) {
+                        filldisplay( 0, rtc_table[DS_ADDR_MONTH] >> 4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                        filldisplay( 1, rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH_UNITS, 1);
+                    }
+                    else {
+                        filldisplay( 2, rtc_table[DS_ADDR_MONTH] >> 4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                        filldisplay( 3, rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH_UNITS, 0);
+                    }
+                }
+                if (!flash_23) {
+                    if (!CONF_SW_MMDD) {
+                        filldisplay( 2, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
+                        filldisplay( 3, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 0);     // day
+                        }
+                    else {
+                        filldisplay( 0, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
+                        filldisplay( 1, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 1);     // day
+                    }
+                }
+                break;
+                
+            case M_WEEKDAY_DISP:
+                filldisplay( 1, LED_DASH, 0);
+                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &MASK_UNITS useless, all MSBs are '0')
+                filldisplay( 3, LED_DASH, 0);
+                break;
+                
+            case M_TEMP_DISP:
+                filldisplay( 0, ds_int2bcd_tens(temp), 0);
+                filldisplay( 1, ds_int2bcd_ones(temp), 0);
+                filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
+                // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
+                break;
+                
+            case M_DEBUG:
+                filldisplay( 0, switchcount[0] >> 4, S1_LONG);
+                filldisplay( 1, switchcount[0] & 15, S1_PRESSED);
+                filldisplay( 2, switchcount[1] >> 4, S2_LONG);
+                filldisplay( 3, switchcount[1] & 15, S2_PRESSED);
+                break;
+        }
+        
+        __critical { updateTmpDisplay(); }
+        
+        // save ram config
+        ds_ram_config_write();
+        
+        if (S1_PRESSED || S2_PRESSED && ! (S1_LONG || S2_LONG)) {
+            // try to dampen button over-response
+            _delay_ms(100);
+        }
+        
+        // reset long presses when button released
+        if (! S1_PRESSED && S1_LONG) {
+            S1_LONG = 0;
+        }
+        if (! S2_PRESSED && S2_LONG) {
+            S2_LONG = 0;
+        }
+        
+        count++;
+        WDT_CLEAR();
     }
 }
 /* ------------------------------------------------------------------------- */
