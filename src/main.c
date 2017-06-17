@@ -33,18 +33,13 @@
 // SW3 only for revision with stc15w408as
 #ifdef stc15w408as
 #define SW3     P1_4
-#define S3      2
 #endif
 #define SW2     P3_0
-#define S2      1
 #define SW1     P3_1
-#define S1      0
 
 // display mode states
 enum keyboard_mode {
     K_NORMAL,
-    K_WAIT_S1,
-    K_WAIT_S2,
     K_SET_HOUR,
     K_SET_MINUTE,
     K_SET_HOUR_12_24,
@@ -102,26 +97,42 @@ volatile uint8_t _10ms_count;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
-uint8_t smode,lmode;
 
 volatile __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
 __bit  beep = 1;
 
-volatile __bit  S1_LONG;
-volatile __bit  S1_PRESSED;
-volatile __bit  S2_LONG;
-volatile __bit  S2_PRESSED;
-volatile __bit  S3_LONG;
-volatile __bit  S3_PRESSED;
+volatile __bit S1_LONG;
+volatile __bit S1_PRESSED;
+volatile __bit S2_LONG;
+volatile __bit S2_PRESSED;
+#ifdef stc15w408as
+volatile __bit S3_LONG;
+volatile __bit S3_PRESSED;
+#endif
 
 volatile uint8_t debounce[3];      // switch debounce buffer
 volatile uint8_t switchcount[3];
 #define SW_CNTMAX 80
 
+enum Event {
+    EV_NONE,
+    EV_S1_SHORT,
+    EV_S1_LONG,
+    EV_S2_SHORT,
+    EV_S2_LONG,
+#ifdef stc15w408as
+    EV_S3_SHORT,
+    EV_S3_LONG,
+#endif
+};
+
+volatile enum Event event;
+
 void timer0_isr() __interrupt 1 __using 1
 {
+    enum Event ev = EV_NONE;
     // display refresh ISR
     // cycle thru digits one at a time
     uint8_t digit = displaycounter % 4;
@@ -149,59 +160,75 @@ void timer0_isr() __interrupt 1 __using 1
             _10ms_count = 0;
         }
             
-        // switch read, debounce:
-        // increment count if settled closed
-        if ((debounce[0]) == 0x00) {
-            // down for at least 8 ticks
-            S1_PRESSED = 1;
-            switchcount[0]++;
-        } else {
-            // released or bounced, reset state            
-            S1_PRESSED = 0; 
-            switchcount[0] = 0;
+#define MONITOR_S(n) \
+        { \
+            uint8_t s = n - 1; \
+            /* read switch positions into sliding 8-bit window */ \
+            debounce[s] = (debounce[s] << 1) | SW ## n ; \
+            if (debounce[s] == 0) { \
+                /* down for at least 8 ticks */ \
+                S ## n ## _PRESSED = 1; \
+                if (!S ## n ## _LONG) { \
+                    switchcount[s]++; \
+                } \
+            } else { \
+                /* released or bounced */ \
+                if (S ## n ## _PRESSED) { \
+                    if (!S ## n ## _LONG) { \
+                        ev = EV_S ## n ## _SHORT; \
+                    } \
+                    S ## n ## _PRESSED = 0; \
+                    S ## n ## _LONG = 0; \
+                    switchcount[s] = 0; \
+                } \
+            } \
+            if (switchcount[s] > SW_CNTMAX) { \
+                S ## n ## _LONG = 1; \
+                switchcount[s] = 0; \
+                ev = EV_S ## n ## _LONG; \
+            } \
         }
 
-        if ((debounce[1]) == 0x00) {
-            // down for at least 8 ticks            
-            S2_PRESSED = 1;
-            switchcount[1]++;
-        } else {
-            // released or bounced, reset state
-            S2_PRESSED = 0;
-            switchcount[1] = 0;
+        MONITOR_S(1);
+        MONITOR_S(2);
+#ifdef stc15w408as
+        MONITOR_S(3);
+#endif
+
+        if (event == EV_NONE)
+        {
+            event = ev;
         }
-
-#ifdef stc15w408as
-        if ((debounce[2]) == 0x00) {
-            // down for at least 8 ticks            
-            S3_PRESSED = 1;
-            switchcount[2]++;
-        } else {
-            // released or bounced, reset state
-            S3_PRESSED = 0;
-            switchcount[2] = 0;
-        }
-#endif
-
-         // debouncing stuff
-        // keep resetting halfway if held long
-        if (switchcount[0] > SW_CNTMAX)
-            {switchcount[0] = SW_CNTMAX; S1_LONG=1;}
-        if (switchcount[1] > SW_CNTMAX)
-            {switchcount[1] = SW_CNTMAX; S2_LONG=1;}
-#ifdef stc15w408as
-        if (switchcount[2] > SW_CNTMAX)
-            {switchcount[2] = SW_CNTMAX; S3_LONG=1;}
-#endif
-
-        // read switch positions into sliding 8-bit window
-        debounce[0] = (debounce[0] << 1) | SW1;
-        debounce[1] = (debounce[1] << 1) | SW2;
-#ifdef stc15w408as
-        debounce[2] = (debounce[2] << 1) | SW3;
-#endif
     }
 }
+
+/*
+// macro expansion for MONITOR_S(1)
+{
+    uint8_t s = 1 - 1;
+    debounce[s] = (debounce[s] << 1) | SW1 ;
+    if (debounce[s] == 0) {
+        S_PRESSED = 1;
+        if (!S_LONG) {
+            switchcount[s]++;
+        }
+    } else {
+        if (S1_PRESSED) {
+            if (!S1_LONG) {
+                ev = EV_S1_SHORT;
+            }
+            S1_PRESSED = 0;
+            S1_LONG = 0;
+            switchcount[s] = 0;
+        }
+    }
+    if (switchcount[s] > SW_CNTMAX) {
+        S1_LONG = 1;
+        switchcount[s] = 0;
+        ev = EV_S1_LONG;
+    }
+}
+*/
 
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
@@ -212,8 +239,6 @@ void Timer0Init(void)		//100us @ 11.0592MHz
     ET0 = 1;        // enable timer0 interrupt
     EA = 1;         // global interrupt enable
 }
-
-#define getkeypress(a) a##_PRESSED
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
@@ -242,12 +267,16 @@ int main()
     Timer0Init(); // display refresh & switch read
     
     // LOOP
-    while(1)
+    while (1)
     {
+        enum Event ev = event;
+        event = EV_NONE;
+        //kmode = K_DEBUG;
+
         RELAY = 0;
         _delay_ms(100);
         RELAY = 1;
-        
+
         // sample adc, run frequently
         if (count % 4 == 0) {
             // auto-dimming, by dividing adc range into 8 steps
@@ -255,213 +284,169 @@ int main()
             temp = gettemp(getADCResult(ADC_TEMP)) + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 
             // set floor of dimming range
-            if (lightval < 4)
-            {
+            if (lightval < 4) {
                 lightval = 4;
             }
         }
-        
+
         ds_readburst(); // read rtc
-        
+
         // keyboard decision tree
         switch (kmode) {
-                
+
             case K_SET_HOUR:
                 flash_01 = !flash_01;
-                if (! flash_01) {
-                    if (getkeypress(S2)) {
-                        ds_hours_incr();
-                    }
-                    if (getkeypress(S1)) {
-                        kmode = K_SET_MINUTE;
-                    }
+                if (ev == EV_S2_SHORT) {
+                    ds_hours_incr();
+                }
+                else if (ev == EV_S1_SHORT) {
+                    kmode = K_SET_MINUTE;
                 }
                 break;
-                
+
             case K_SET_MINUTE:
                 flash_01 = 0;
                 flash_23 = !flash_23;
-                if (! flash_23) {
-                    if (getkeypress(S2)) {
-                        ds_minutes_incr();
-                    }
-                    if (getkeypress(S1)) {
-                        kmode = K_SET_HOUR_12_24;
-                    }
+                if (ev == EV_S2_SHORT) {
+                    ds_minutes_incr();
+                }
+                else if (ev == EV_S1_SHORT) {
+                    kmode = K_SET_HOUR_12_24;
                 }
                 break;
-                
+
             case K_SET_HOUR_12_24:
                 dmode = M_SET_HOUR_12_24;
-                if (getkeypress(S2)) {
+                if (ev == EV_S2_SHORT) {
                     ds_hours_12_24_toggle();
                 }
-                if (getkeypress(S1)) {
+                else if (ev == EV_S1_SHORT) {
                     kmode = K_NORMAL;
                 }
                 break;
-                
+
             case K_TEMP_DISP:
                 dmode = M_TEMP_DISP;
-                if (getkeypress(S1)) {
-                    kmode = K_WAIT_S1;
-                    lmode = K_TEMP_CF_TOGGLE;
-                    smode = K_TEMP_OFFSET;
+                if (ev == EV_S1_SHORT) {
+                    kmode = K_TEMP_OFFSET;
                 }
-                if (getkeypress(S2)) {
+                else if (ev == EV_S1_LONG) {
+                    kmode = K_TEMP_CF_TOGGLE;
+                }
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_DATE_DISP;
                 }
                 break;
-                
+
             case K_TEMP_OFFSET:
-            {
-                uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
-                offset++;
-                offset &= CFG_TEMP_MASK;
-                cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
-            }
+                {
+                    uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
+                    offset++;
+                    offset &= CFG_TEMP_MASK;
+                    cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
+                }
                 kmode = K_TEMP_DISP;
                 break;
-                
+
             case K_TEMP_CF_TOGGLE:
                 CONF_C_F = !CONF_C_F;
                 kmode = K_TEMP_DISP;
                 break;
-                
+
             case K_DATE_DISP:
                 dmode = M_DATE_DISP;
-                if (getkeypress(S1)) {
-                    kmode = K_WAIT_S1;
-                    lmode = CONF_SW_MMDD ? K_SET_DAY : K_SET_MONTH;
-                    smode = K_DATE_SWDISP;
+                if (ev == EV_S1_SHORT) {
+                    kmode = K_DATE_SWDISP;
                 }
-                if (getkeypress(S2)) {
+                else if (ev == EV_S1_LONG) {
+                    kmode = CONF_SW_MMDD ? K_SET_DAY : K_SET_MONTH;
+                }
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_WEEKDAY_DISP;
                 }
                 break;
-                
+
             case K_DATE_SWDISP:
                 CONF_SW_MMDD = !CONF_SW_MMDD;
                 kmode = K_DATE_DISP;
                 break;
-                
+
             case K_SET_MONTH:
                 flash_01 = !flash_01;
-                if (! flash_01) {
-                    if (getkeypress(S2)) {
-                        ds_month_incr();
-                    }
-                    if (getkeypress(S1)) {
-                        flash_01 = 0;
-                        kmode = CONF_SW_MMDD ? K_DATE_DISP : K_SET_DAY;
-                    }
+                if (ev == EV_S2_SHORT) {
+                    ds_month_incr();
+                }
+                else if (ev == EV_S1_SHORT) {
+                    flash_01 = 0;
+                    kmode = CONF_SW_MMDD ? K_DATE_DISP : K_SET_DAY;
                 }
                 break;
-                
+
             case K_SET_DAY:
                 flash_23 = !flash_23;
-                if (! flash_23) {
-                    if (getkeypress(S2)) {
-                        ds_day_incr();
-                    }
-                    if (getkeypress(S1)) {
-                        flash_23 = 0;
-                        kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
-                    }
+                if (ev == EV_S2_SHORT) {
+                    ds_day_incr();
+                }
+                else if (ev == EV_S1_SHORT) {
+                    flash_23 = 0;
+                    kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
                 }
                 break;
-                
+
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
-                if (getkeypress(S1)) {
+                if (ev == EV_S1_SHORT) {
                     ds_weekday_incr();
                 }
-                if (getkeypress(S2)) {
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_NORMAL;
                 }
                 break;
 
             case K_DEBUG:
                 dmode = M_DEBUG;
-                if (count > 100) {
-                    kmode = K_NORMAL;
-                }
-                if (S1_PRESSED || S2_PRESSED) {
+                if (ev == EV_S1_SHORT || ev == EV_S2_SHORT) {
                     count = 0;
                 }
                 break;
-                
+
             case K_SEC_DISP:
                 dmode = M_SEC_DISP;
-                if (getkeypress(S1) || (count>100)) {
+                if (ev == EV_S1_SHORT) {
                     kmode = K_NORMAL;
                 }
-                if (getkeypress(S2)) {
+                else if (ev == EV_S2_SHORT) {
                     ds_sec_zero();
                 }
                 break;
-                
-            case K_WAIT_S1:
-                count = 0;
-                if (!S1_PRESSED) {
-                    if (S1_LONG) {
-                        S1_LONG = 0;
-                        kmode = lmode;
-                    }
-                    else  {
-                        kmode = smode;
-                    }
-                }
-                break;
-                
-            case K_WAIT_S2:
-                count = 0;
-                if (!S2_PRESSED) {
-                    if (S2_LONG) {
-                        S2_LONG = 0;
-                        kmode = lmode;
-                    }
-                    else  {
-                        kmode = smode;
-                    }
-                }
-                break;
-                
+
             case K_NORMAL:
             default:
                 flash_01 = 0;
                 flash_23 = 0;
-                
+
                 dmode = M_NORMAL;
-                
-                if (S1_PRESSED)
-                {
-                    kmode = K_WAIT_S1;
-                    lmode = K_SET_HOUR;
-                    smode = K_SEC_DISP;
+
+                if (ev == EV_S1_SHORT) {
+                    kmode = K_SEC_DISP;
                 }
-                //if (S2_PRESSED) { kmode = K_WAIT_S2; lmode=K_DEBUG;    smode=K_TEMP_DISP; }
-                if (S2_PRESSED)
-                {
+                else if (ev == EV_S1_LONG) {
+                    kmode = K_SET_HOUR;
+                }
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_TEMP_DISP;
                 }
 #ifdef stc15w408as
-                if (!S3_PRESSED)
-                {
-                    if (S3_LONG)
-                    {
-                        S3_LONG = 0;
-                        LED = !LED;
-                    }
+                else if (ev == EV_S3_LONG) {
+                    LED = !LED;
                 }
 #endif
-                
         };
-        
+
         // display execution tree
-        
+
         clearTmpDisplay();
-        
+
         switch (dmode) {
             case M_NORMAL:
                 if (flash_01) {
@@ -476,7 +461,7 @@ int main()
                     }
                     filldisplay(1, rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR_UNITS, display_colon);
                 }
-                
+
                 if (flash_23) {
                     dotdisplay(2, display_colon);
                     dotdisplay(3, H12_24 & H12_PM);	// dot3 if AMPM mode and PM=1
@@ -485,7 +470,7 @@ int main()
                     filldisplay(3, rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
                 }
                 break;
-                
+
             case M_SET_HOUR_12_24:
                 if (!H12_24) {
                     filldisplay(1, 2, 0); filldisplay(2, 4, 0);
@@ -494,14 +479,14 @@ int main()
                 }
                 filldisplay(3, LED_h, 0);
                 break;
-                
+
             case M_SEC_DISP:
                 dotdisplay(0, display_colon);
                 dotdisplay(1, display_colon);
-                filldisplay(2, (rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
+                filldisplay(2,(rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
                 filldisplay(3, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, 0);
                 break;
-                
+
             case M_DATE_DISP:
                 if (flash_01) {
                     dotdisplay(1, 1);
@@ -519,53 +504,42 @@ int main()
                     if (!CONF_SW_MMDD) {
                         filldisplay( 2, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
                         filldisplay( 3, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 0);     // day
-                        }
+                    }
                     else {
                         filldisplay( 0, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
                         filldisplay( 1, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 1);     // day
                     }
                 }
                 break;
-                
+
             case M_WEEKDAY_DISP:
                 filldisplay( 1, LED_DASH, 0);
-                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0);		//weekday ( &MASK_UNITS useless, all MSBs are '0')
+                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0); //weekday ( &MASK_UNITS useless, all MSBs are '0')
                 filldisplay( 3, LED_DASH, 0);
                 break;
-                
+
             case M_TEMP_DISP:
                 filldisplay( 0, ds_int2bcd_tens(temp), 0);
                 filldisplay( 1, ds_int2bcd_ones(temp), 0);
                 filldisplay( 2, CONF_C_F ? LED_f : LED_c, 1);
                 // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
                 break;
-                
+
             case M_DEBUG:
-                filldisplay( 0, switchcount[0] >> 4, S1_LONG);
-                filldisplay( 1, switchcount[0] & 15, S1_PRESSED);
-                filldisplay( 2, switchcount[1] >> 4, S2_LONG);
-                filldisplay( 3, switchcount[1] & 15, S2_PRESSED);
+                filldisplay( 0, S1_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT);
+                filldisplay( 1, S1_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG);
+                filldisplay( 2, S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S2_SHORT);
+                filldisplay( 3, S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S2_LONG);
                 break;
         }
-        
-        __critical { updateTmpDisplay(); }
-        
+
+        __critical {
+            updateTmpDisplay();
+        }
+
         // save ram config
         ds_ram_config_write();
-        
-        if (S1_PRESSED || S2_PRESSED && ! (S1_LONG || S2_LONG)) {
-            // try to dampen button over-response
-            _delay_ms(100);
-        }
-        
-        // reset long presses when button released
-        if (! S1_PRESSED && S1_LONG) {
-            S1_LONG = 0;
-        }
-        if (! S2_PRESSED && S2_LONG) {
-            S2_LONG = 0;
-        }
-        
+
         count++;
         WDT_CLEAR();
     }
