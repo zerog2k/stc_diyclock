@@ -314,7 +314,7 @@ int main()
 
             case K_SET_HOUR:
                 flash_01 = !flash_01;
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
                     ds_hours_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -325,7 +325,7 @@ int main()
             case K_SET_MINUTE:
                 flash_01 = 0;
                 flash_23 = !flash_23;
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
                     ds_minutes_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -391,7 +391,7 @@ int main()
 
             case K_SET_MONTH:
                 flash_01 = !flash_01;
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
                     ds_month_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -402,7 +402,7 @@ int main()
 
             case K_SET_DAY:
                 flash_23 = !flash_23;
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
                     ds_day_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -413,7 +413,7 @@ int main()
 
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
-                if (ev == EV_S1_SHORT) {
+                if (ev == EV_S1_SHORT || (S1_LONG && (count % 2 == 0))) {
                     ds_weekday_incr();
                 }
                 else if (ev == EV_S2_SHORT) {
