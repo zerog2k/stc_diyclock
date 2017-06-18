@@ -33,6 +33,9 @@
 // SW3 only for revision with stc15w408as
 #ifdef stc15w408as
 #define SW3     P1_4
+#define NUM_SW 3
+#else
+#define NUM_SW 2
 #endif
 #define SW2     P3_0
 #define SW1     P3_1
@@ -52,7 +55,11 @@ enum keyboard_mode {
     K_WEEKDAY_DISP,
     K_TEMP_CF_TOGGLE,
     K_TEMP_OFFSET,
-    K_DEBUG
+#ifdef DEBUG
+    K_DEBUG,
+    K_DEBUG2,
+    K_DEBUG3,
+#endif
 };
 
 // display mode states
@@ -63,8 +70,13 @@ enum display_mode {
     M_TEMP_DISP,
     M_DATE_DISP,
     M_WEEKDAY_DISP,
-    M_DEBUG
+#ifdef DEBUG
+    M_DEBUG,
+    M_DEBUG2,
+    M_DEBUG3,
+#endif
 };
+#define NUM_DEBUG 3
 
 /* ------------------------------------------------------------------------- */
 
@@ -112,8 +124,8 @@ volatile __bit S3_LONG;
 volatile __bit S3_PRESSED;
 #endif
 
-volatile uint8_t debounce[3];      // switch debounce buffer
-volatile uint8_t switchcount[3];
+volatile uint8_t debounce[NUM_SW];      // switch debounce buffer
+volatile uint8_t switchcount[NUM_SW];
 #define SW_CNTMAX 80
 
 enum Event {
@@ -122,6 +134,7 @@ enum Event {
     EV_S1_LONG,
     EV_S2_SHORT,
     EV_S2_LONG,
+    EV_S1S2_LONG,
 #ifdef stc15w408as
     EV_S3_SHORT,
     EV_S3_LONG,
@@ -195,8 +208,14 @@ void timer0_isr() __interrupt 1 __using 1
         MONITOR_S(3);
 #endif
 
-        if (event == EV_NONE)
-        {
+        if (ev == EV_S1_LONG && S2_PRESSED) {
+            switchcount[1] = 0;
+            ev = EV_S1S2_LONG;
+        } else if (ev == EV_S2_LONG && S1_PRESSED) {
+            switchcount[0] = 0;
+            ev = EV_S1S2_LONG;
+        }
+        if (event == EV_NONE) {
             event = ev;
         }
     }
@@ -271,7 +290,6 @@ int main()
     {
         enum Event ev = event;
         event = EV_NONE;
-        //kmode = K_DEBUG;
 
         RELAY = 0;
         _delay_ms(100);
@@ -403,12 +421,22 @@ int main()
                 }
                 break;
 
+#ifdef DEBUG
+            // To enter DEBUG mode, go to the SECONDS display, then hold S1 and S2 simultaneously.
+            // S1 cycles through the DEBUG modes.
+            // To exit DEBUG mode, hold S1 and S2 again.
             case K_DEBUG:
-                dmode = M_DEBUG;
-                if (ev == EV_S1_SHORT || ev == EV_S2_SHORT) {
-                    count = 0;
+            case K_DEBUG2:
+            case K_DEBUG3:
+                dmode = M_DEBUG + kmode - K_DEBUG;
+                if (ev == EV_S1_SHORT) {
+                    kmode = (kmode - K_DEBUG + 1) % NUM_DEBUG + K_DEBUG;
+                }
+                else if (ev == EV_S1S2_LONG) {
+                    kmode = K_SEC_DISP;
                 }
                 break;
+#endif
 
             case K_SEC_DISP:
                 dmode = M_SEC_DISP;
@@ -418,6 +446,11 @@ int main()
                 else if (ev == EV_S2_SHORT) {
                     ds_sec_zero();
                 }
+#ifdef DEBUG
+                else if (ev == EV_S1S2_LONG) {
+                    kmode = K_DEBUG;
+                }
+#endif
                 break;
 
             case K_NORMAL:
@@ -525,12 +558,39 @@ int main()
                 // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
                 break;
 
+#ifdef DEBUG
             case M_DEBUG:
-                filldisplay( 0, S1_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT);
-                filldisplay( 1, S1_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG);
-                filldisplay( 2, S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S2_SHORT);
-                filldisplay( 3, S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S2_LONG);
+            {
+                // events and loop counter
+                uint8_t cc = count;
+                filldisplay( 0, S1_PRESSED || S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT || ev == EV_S2_SHORT);
+                filldisplay( 1, S1_LONG || S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG || ev == EV_S2_LONG);
+                filldisplay( 2, cc >> 4 & 0x0F, ev != EV_NONE);
+                filldisplay( 3, cc & 0x0F, 0);
                 break;
+            }
+            case M_DEBUG2:
+            {
+                // photoresistor adc and lightval
+                uint8_t adc = getADCResult8(ADC_LIGHT);
+                uint8_t lv = lightval;
+                filldisplay( 0, adc >> 4, 0);
+                filldisplay( 1, adc & 0x0F, 0);
+                filldisplay( 2, lv >> 4, 1);
+                filldisplay( 3, lv & 0x0F, 0);
+                break;
+            }
+            case M_DEBUG3:
+            {
+                // thermistor adc
+                uint16_t rt = getADCResult(ADC_TEMP);
+                filldisplay( 0, rt >> 12, 0);
+                filldisplay( 1, rt >> 8 & 0x0F, 0);
+                filldisplay( 2, rt >> 4 & 0x0F, 0);
+                filldisplay( 3, rt & 0x0F, 0);
+                break;
+            }
+#endif
         }
 
         __critical {

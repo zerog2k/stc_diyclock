@@ -1,7 +1,7 @@
 SDCC ?= sdcc
 STCCODESIZE ?= 4089
 SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59 \
-    -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
+    -DDEBUG -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
 SDCCREV ?= -Dstc15f204ea
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
