@@ -17,12 +17,12 @@
 
 // alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
 // only for revision with stc15f204ea
-#ifdef stc15f204ea
-  #define RELAY   P1_4
-  #define BUZZER  P1_5
-#else // revision with stc15w408as
-  #define RELAY   P0_0
-  #define LED     P1_5
+#if defined stc15f204ea || defined stc15w404as
+ #define RELAY   P1_4
+ #define BUZZER  P1_5
+ // additional pins on P3 header: P3_6 P3_7
+#else // revision with stc15w408as (with voice chip)
+ #define LED     P1_5
 #endif
 
 // adc channels for sensors
@@ -32,10 +32,10 @@
 // button switch aliases
 // SW3 only for revision with stc15w408as
 #ifdef stc15w408as
-#define SW3     P1_4
-#define NUM_SW 3
+ #define SW3     P1_4
+ #define NUM_SW 3
 #else
-#define NUM_SW 2
+ #define NUM_SW 2
 #endif
 #define SW2     P3_0
 #define SW1     P3_1
@@ -79,7 +79,7 @@ enum display_mode {
 #define NUM_DEBUG 3
 
 /* ------------------------------------------------------------------------- */
-
+/*
 void _delay_ms(uint8_t ms)
 {
     // delay function, tuned for 11.092 MHz clock
@@ -97,23 +97,25 @@ void _delay_ms(uint8_t ms)
         djnz dpl, delay$
     __endasm;
 }
-
+*/
 // GLOBALS
 uint8_t  count;     // was uint16 - 8 seems to be enough
 uint16_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
-volatile uint8_t _100us_count;
-volatile uint8_t _10ms_count;
+volatile int8_t count_100;
+volatile int16_t count_1000;
+volatile int16_t count_5000;
+volatile __bit loop_gate;
+volatile __bit blinker_slow;
+volatile __bit blinker_fast;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
 
-volatile __bit  display_colon;         // flash colon
 __bit  flash_01;
 __bit  flash_23;
-__bit  beep = 1;
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
@@ -158,19 +160,23 @@ void timer0_isr() __interrupt 1 __using 1
         // fill digits
         P2 = dbuf[digit];
         // turn on selected digit, set low
-        P3 &= ~(0x4 << digit);  
+        P3 &= ~(0x4 << digit);
     }
     displaycounter++;
 
-    //  divider: every 10ms
-    if (++_100us_count == 100) {
-        _100us_count = 0;
-        _10ms_count++;
-
-        // colon blink stuff, 500ms
-        if (_10ms_count == 50) {
-            display_colon = !display_colon;
-            _10ms_count = 0;
+    // 100/sec: 10 ms
+    if (count_100 == 100) {
+        count_100 = 0;
+        // 10/sec: 100 ms
+        if (count_1000 == 1000) {
+            count_1000 = 0;
+            blinker_fast = !blinker_fast;
+            loop_gate = 1;
+            // 2/sec: 500 ms
+            if (count_5000 == 5000) {
+                count_5000 = 0;
+                blinker_slow = !blinker_slow;
+            }
         }
             
 #define MONITOR_S(n) \
@@ -219,6 +225,9 @@ void timer0_isr() __interrupt 1 __using 1
             event = ev;
         }
     }
+    count_100++;
+    count_1000++;
+    count_5000++;
 }
 
 /*
@@ -249,14 +258,21 @@ void timer0_isr() __interrupt 1 __using 1
 }
 */
 
+// Call timer0_isr() 10000/sec: 0.0001 sec
+// Initialize the timer count so that it overflows after 0.0001 sec
+// THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
-	TL0 = 0xA4;		//Initial timer value
-	TH0 = 0xFF;		//Initial timer value
-    TF0 = 0;		//Clear TF0 flag
-    TR0 = 1;		//Timer0 start run
-    ET0 = 1;        // enable timer0 interrupt
-    EA = 1;         // global interrupt enable
+    // refer to section 7 of datasheet: STC15F2K60S2-en2.pdf
+    // TMOD = 0;    // default: 16-bit auto-reload
+    // AUXR = 0;    // default: traditional 8051 timer frequency of FOSC / 12
+    // Initial values of TL0 and TH0 are stored in hidden reload registers: RL_TL0 and RL_TH0
+	TL0 = 0xA4;		// Initial timer value
+	TH0 = 0xFF;		// Initial timer value
+    TF0 = 0;		// Clear overflow flag
+    TR0 = 1;		// Timer0 start run
+    ET0 = 1;        // Enable timer0 interrupt
+    EA = 1;         // Enable global interrupt
 }
 
 int8_t gettemp(uint16_t raw) {
@@ -288,12 +304,23 @@ int main()
     // LOOP
     while (1)
     {
-        enum Event ev = event;
+        enum Event ev;
+
+        while (!loop_gate); // wait for open
+        loop_gate = 0; // close gate
+
+        ev = event;
         event = EV_NONE;
 
-        RELAY = 0;
-        _delay_ms(100);
-        RELAY = 1;
+//#ifdef RELAY
+//        RELAY = blinker_slow;
+//#endif
+//#ifdef LED
+//        LED = blinker_slow;
+//#endif
+//#ifdef BUZZER
+//        BUZZER = blinker_slow;
+//#endif
 
         // sample adc, run frequently
         if (count % 4 == 0) {
@@ -313,8 +340,8 @@ int main()
         switch (kmode) {
 
             case K_SET_HOUR:
-                flash_01 = !flash_01;
-                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
+                flash_01 = 1;
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
                     ds_hours_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -324,8 +351,8 @@ int main()
 
             case K_SET_MINUTE:
                 flash_01 = 0;
-                flash_23 = !flash_23;
-                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
+                flash_23 = 1;
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
                     ds_minutes_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -390,8 +417,8 @@ int main()
                 break;
 
             case K_SET_MONTH:
-                flash_01 = !flash_01;
-                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
+                flash_01 = 1;
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
                     ds_month_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -401,8 +428,8 @@ int main()
                 break;
 
             case K_SET_DAY:
-                flash_23 = !flash_23;
-                if (ev == EV_S2_SHORT || (S2_LONG && (count % 2 == 0))) {
+                flash_23 = 1;
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
                     ds_day_incr();
                 }
                 else if (ev == EV_S1_SHORT) {
@@ -413,7 +440,7 @@ int main()
 
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
-                if (ev == EV_S1_SHORT || (S1_LONG && (count % 2 == 0))) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
                     ds_weekday_incr();
                 }
                 else if (ev == EV_S2_SHORT) {
@@ -482,25 +509,28 @@ int main()
 
         switch (dmode) {
             case M_NORMAL:
-                if (flash_01) {
-                    dotdisplay(1, display_colon);
-                } else {
+                if (!flash_01 || blinker_fast || S2_LONG) {
                     if (!H12_24) {
                         filldisplay(0, (rtc_table[DS_ADDR_HOUR] >> 4) & (DS_MASK_HOUR24_TENS >> 4), 0); // tenhour
-                    } else {
+                    }
+                    else {
                         if (H12_TH) {
                             filldisplay( 0, 1, 0);// tenhour in case AMPM mode is on, then '1' only is H12_TH is on
                         }
                     }
-                    filldisplay(1, rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR_UNITS, display_colon);
+                    filldisplay(1, rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR_UNITS, blinker_slow);
+                }
+                else {
+                    dotdisplay(1, blinker_fast);
                 }
 
-                if (flash_23) {
-                    dotdisplay(2, display_colon);
-                    dotdisplay(3, H12_24 & H12_PM);	// dot3 if AMPM mode and PM=1
-                } else {
-                    filldisplay(2, (rtc_table[DS_ADDR_MINUTES] >> 4) & (DS_MASK_MINUTES_TENS >> 4), display_colon);	//tenmin
+                if (!flash_23 || blinker_fast || S2_LONG) {
+                    filldisplay(2, (rtc_table[DS_ADDR_MINUTES] >> 4) & (DS_MASK_MINUTES_TENS >> 4), blinker_slow);	//tenmin
                     filldisplay(3, rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
+                }
+                else {
+                    dotdisplay(2, blinker_slow);
+                    dotdisplay(3, H12_24 & H12_PM);	// dot3 if AMPM mode and PM=1
                 }
                 break;
 
@@ -514,32 +544,34 @@ int main()
                 break;
 
             case M_SEC_DISP:
-                dotdisplay(0, display_colon);
-                dotdisplay(1, display_colon);
+                dotdisplay(0, blinker_slow);
+                dotdisplay(1, blinker_slow);
                 filldisplay(2,(rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
                 filldisplay(3, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, 0);
                 break;
 
             case M_DATE_DISP:
-                if (flash_01) {
-                    dotdisplay(1, 1);
-                } else {
+                if (!flash_01 || blinker_fast || S2_LONG) {
                     if (!CONF_SW_MMDD) {
-                        filldisplay( 0, rtc_table[DS_ADDR_MONTH] >> 4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                        filldisplay( 0, rtc_table[DS_ADDR_MONTH] >> 4, 0);// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
                         filldisplay( 1, rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH_UNITS, 1);
                     }
                     else {
-                        filldisplay( 2, rtc_table[DS_ADDR_MONTH] >> 4, 0);	// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
+                        filldisplay( 2, rtc_table[DS_ADDR_MONTH] >> 4, 0);// tenmonth ( &MASK_TENS useless, as MSB bits are read as '0')
                         filldisplay( 3, rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH_UNITS, 0);
                     }
                 }
-                if (!flash_23) {
+                else {
+                    dotdisplay(1, 1);
+                }
+
+                if (!flash_23 || blinker_fast || S2_LONG) {
                     if (!CONF_SW_MMDD) {
-                        filldisplay( 2, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
+                        filldisplay( 2, rtc_table[DS_ADDR_DAY] >> 4, 0); // tenday   ( &MASK_TENS useless)
                         filldisplay( 3, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 0);     // day
                     }
                     else {
-                        filldisplay( 0, rtc_table[DS_ADDR_DAY] >> 4, 0);		      // tenday   ( &MASK_TENS useless)
+                        filldisplay( 0, rtc_table[DS_ADDR_DAY] >> 4, 0); // tenday   ( &MASK_TENS useless)
                         filldisplay( 1, rtc_table[DS_ADDR_DAY] & DS_MASK_DAY_UNITS, 1);     // day
                     }
                 }
@@ -561,12 +593,17 @@ int main()
 #ifdef DEBUG
             case M_DEBUG:
             {
-                // events and loop counter
+                // seconds, loop counter, blinkers, S1/S2, keypress events
                 uint8_t cc = count;
-                filldisplay( 0, S1_PRESSED || S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT || ev == EV_S2_SHORT);
-                filldisplay( 1, S1_LONG || S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG || ev == EV_S2_LONG);
-                filldisplay( 2, cc >> 4 & 0x0F, ev != EV_NONE);
-                filldisplay( 3, cc & 0x0F, 0);
+                if (S1_PRESSED || S2_PRESSED) {
+                    filldisplay( 0, S1_PRESSED || S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT || ev == EV_S2_SHORT);
+                    filldisplay( 1, S1_LONG || S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG || ev == EV_S2_LONG);
+                } else {
+                    filldisplay(0, (rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
+                    filldisplay(1, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, blinker_slow );
+                }
+                filldisplay(2, cc >> 4 & 0x0F, ev != EV_NONE);
+                filldisplay(3, cc & 0x0F, blinker_slow & blinker_fast);
                 break;
             }
             case M_DEBUG2:
