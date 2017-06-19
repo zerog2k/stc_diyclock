@@ -9,15 +9,16 @@ Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood
 ## features
 Basic functionality is working:
 * time display/set (12/24 hour modes)
-* date display/set
+* date display/set (with reversible MM/YY, YY/MM display)
+* day of week
+* seconds display/reset
 * display auto-dim
-* temperature display in C
+* temperature display in C or F (with user-defined offset adjustment)
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
 
 ## TODOs
-* temperature display in C/F selectable (either build or run-time)
 * alarm and chime functionality
 
 ## hardware
@@ -63,15 +64,16 @@ https://github.com/zerog2k/stc_diyclock/releases
 Instead of stcgal, you could alternatively use the official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.
 A windows app, but also works fine for me under mac and linux with wine.
 
-**note** due to optimizations that make use of "eeprom" section for holding lookup tables, if you are using 4k flash model mcu AND if using stc-isp tool, you must flash main.hex (as code file) and eeprom.hex (as eeprom file). (Ignore stc-isp warning about exceeding space when loading code file.)
+~~**note** due to optimizations that make use of "eeprom" section for holding lookup tables, if you are using 4k flash model mcu AND if using stc-isp tool, you must flash main.hex (as code file) and eeprom.hex (as eeprom file). (Ignore stc-isp warning about exceeding space when loading code file.)
 To generate eeprom.hex, run:
 ```
 make eeprom
 ```
+~~
 
 ## clock assumptions
-Some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
-For example, delay routines would need to be adjusted if this is different.
+For STC15F204EA, some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
+For example, delay routines might need to be adjusted if this is different. (Most timing has been moved to hardware timers.)
 
 ## disclaimers
 This code is provided as-is, with NO guarantees or liabilities.
