@@ -215,9 +215,11 @@ void timer0_isr() __interrupt 1 __using 1
 #endif
 
         if (ev == EV_S1_LONG && S2_PRESSED) {
+            S2_LONG = 1;
             switchcount[1] = 0;
             ev = EV_S1S2_LONG;
         } else if (ev == EV_S2_LONG && S1_PRESSED) {
+            S1_LONG = 1;
             switchcount[0] = 0;
             ev = EV_S1S2_LONG;
         }
