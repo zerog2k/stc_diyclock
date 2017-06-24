@@ -1,7 +1,6 @@
 SDCC ?= sdcc
 STCCODESIZE ?= 4089
-SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59 \
-    -DDEBUG -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
+SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
 SDCCREV ?= -Dstc15f204ea
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
@@ -9,6 +8,7 @@ STCGALPORT ?= /dev/ttyUSB0
 STCGALPROT ?= stc15a
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
+CFLAGS ?=
 
 SRC = src/adc.c src/ds1302.c
 
@@ -21,7 +21,7 @@ build/%.rel: src/%.c src/%.h
 	$(SDCC) $(SDCCOPTS) $(SDCCREV) -o $@ -c $<
 
 main: $(OBJ)
-	$(SDCC) -o build/ src/$@.c $(SDCCOPTS) $(SDCCREV) $^
+	$(SDCC) -o build/ src/$@.c $(SDCCOPTS) $(SDCCREV) $(CFLAGS) $^
 	@ tail -n 5 build/main.mem | head -n 2
 	@ tail -n 1 build/main.mem
 	cp build/$@.ihx $@.hex
