@@ -48,9 +48,11 @@ enum keyboard_mode {
     K_SET_HOUR_12_24,
     K_SEC_DISP,
     K_TEMP_DISP,
+#ifndef WITHOUT_DATE
     K_DATE_DISP,
     K_SET_MONTH,
     K_SET_DAY,
+#endif
     K_WEEKDAY_DISP,
 #ifdef DEBUG
     K_DEBUG,
@@ -65,7 +67,9 @@ enum display_mode {
     M_SET_HOUR_12_24,
     M_SEC_DISP,
     M_TEMP_DISP,
+#ifndef WITHOUT_DATE
     M_DATE_DISP,
+#endif
     M_WEEKDAY_DISP,
 #ifdef DEBUG
     M_DEBUG,
@@ -384,10 +388,15 @@ int main()
                     ds_ram_config_write();
                 }
                 else if (ev == EV_S2_SHORT) {
+#ifndef WITHOUT_DATE
                     kmode = K_DATE_DISP;
+#else
+                    kmode = K_WEEKDAY_DISP;
+#endif
                 }
                 break;
 
+#ifndef WITHOUT_DATE
             case K_DATE_DISP:
                 dmode = M_DATE_DISP;
                 if (ev == EV_S1_SHORT) {
@@ -424,6 +433,7 @@ int main()
                     kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
                 }
                 break;
+#endif
 
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
@@ -537,6 +547,7 @@ int main()
                 filldisplay(3, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, 0);
                 break;
 
+#ifndef WITHOUT_DATE
             case M_DATE_DISP:
                 if (!flash_01 || blinker_fast || S2_LONG) {
                     if (!CONF_SW_MMDD) {
@@ -563,6 +574,7 @@ int main()
                     }
                 }
                 break;
+#endif
 
             case M_WEEKDAY_DISP:
                 filldisplay( 1, LED_DASH, 0);
