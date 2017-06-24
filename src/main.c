@@ -49,12 +49,9 @@ enum keyboard_mode {
     K_SEC_DISP,
     K_TEMP_DISP,
     K_DATE_DISP,
-    K_DATE_SWDISP,
     K_SET_MONTH,
     K_SET_DAY,
     K_WEEKDAY_DISP,
-    K_TEMP_CF_TOGGLE,
-    K_TEMP_OFFSET,
 #ifdef DEBUG
     K_DEBUG,
     K_DEBUG2,
@@ -98,8 +95,8 @@ void _delay_ms(uint8_t ms)
     __endasm;
 }
 */
-// GLOBALS
-uint8_t  count;     // was uint16 - 8 seems to be enough
+
+uint8_t  count;     // main loop counter
 uint16_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
@@ -152,7 +149,7 @@ void timer0_isr() __interrupt 1 __using 1
     // cycle thru digits one at a time
     uint8_t digit = displaycounter % 4;
 
-    // turn off all digits, set high    
+    // turn off all digits, set high
     P3 |= 0x3C;
 
     // auto dimming, skip lighting for some cycles
@@ -178,7 +175,7 @@ void timer0_isr() __interrupt 1 __using 1
                 blinker_slow = !blinker_slow;
             }
         }
-            
+
 #define MONITOR_S(n) \
         { \
             uint8_t s = n - 1; \
@@ -279,10 +276,10 @@ void Timer0Init(void)		//100us @ 11.0592MHz
 
 int8_t gettemp(uint16_t raw) {
     // formula for ntc adc value to approx C
-    int8_t tempC = 76 - raw * 64 / 637;
-   
+    float tempC = 76. - raw * 64. / 637.;
     // convert to F if configured
-    return CONF_C_F?(tempC * 1.8) + 32:tempC;
+    return (CONF_C_F ? tempC * 1.8 + 32 : tempC)
+        + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
 
 /*********************************************/
@@ -292,17 +289,17 @@ int main()
     // set photoresistor & ntc pins to open-drain output
     P1M1 |= (1<<6) | (1<<7);
     P1M0 |= (1<<6) | (1<<7);
-            
+
     // init rtc
     ds_init();
     // init/read ram config
     ds_ram_config_init();
-    
+
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
-    //ds_reset_clock();    
-    
+    //ds_reset_clock();
+
     Timer0Init(); // display refresh & switch read
-    
+
     // LOOP
     while (1)
     {
@@ -326,10 +323,9 @@ int main()
 
         // sample adc, run frequently
         if (count % 4 == 0) {
+            temp = gettemp(getADCResult(ADC_TEMP));
             // auto-dimming, by dividing adc range into 8 steps
             lightval = getADCResult8(ADC_LIGHT) >> 3;
-            temp = gettemp(getADCResult(ADC_TEMP)) + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
-
             // set floor of dimming range
             if (lightval < 4) {
                 lightval = 4;
@@ -375,35 +371,29 @@ int main()
             case K_TEMP_DISP:
                 dmode = M_TEMP_DISP;
                 if (ev == EV_S1_SHORT) {
-                    kmode = K_TEMP_OFFSET;
+                    // increment offset
+                    uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
+                    offset++;
+                    offset &= CFG_TEMP_MASK;
+                    cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
+                    ds_ram_config_write();
                 }
                 else if (ev == EV_S1_LONG) {
-                    kmode = K_TEMP_CF_TOGGLE;
+                    // toggle C/F
+                    CONF_C_F = !CONF_C_F;
+                    ds_ram_config_write();
                 }
                 else if (ev == EV_S2_SHORT) {
                     kmode = K_DATE_DISP;
                 }
                 break;
 
-            case K_TEMP_OFFSET:
-                {
-                    uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
-                    offset++;
-                    offset &= CFG_TEMP_MASK;
-                    cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
-                }
-                kmode = K_TEMP_DISP;
-                break;
-
-            case K_TEMP_CF_TOGGLE:
-                CONF_C_F = !CONF_C_F;
-                kmode = K_TEMP_DISP;
-                break;
-
             case K_DATE_DISP:
                 dmode = M_DATE_DISP;
                 if (ev == EV_S1_SHORT) {
-                    kmode = K_DATE_SWDISP;
+                    // toggle MMDD
+                    CONF_SW_MMDD = !CONF_SW_MMDD;
+                    ds_ram_config_write();
                 }
                 else if (ev == EV_S1_LONG) {
                     kmode = CONF_SW_MMDD ? K_SET_DAY : K_SET_MONTH;
@@ -411,11 +401,6 @@ int main()
                 else if (ev == EV_S2_SHORT) {
                     kmode = K_WEEKDAY_DISP;
                 }
-                break;
-
-            case K_DATE_SWDISP:
-                CONF_SW_MMDD = !CONF_SW_MMDD;
-                kmode = K_DATE_DISP;
                 break;
 
             case K_SET_MONTH:
@@ -635,9 +620,6 @@ int main()
         __critical {
             updateTmpDisplay();
         }
-
-        // save ram config
-        ds_ram_config_write();
 
         count++;
         WDT_CLEAR();
