@@ -101,7 +101,8 @@ VE3LNY's adaptation of this hardware to AVR (he has some interesting AVR project
 http://www.qsl.net/v/ve3lny/travel_clock.html
 
 [original firmware operation flow state diagram](docs/DIY_LED_Clock_operation_original.png)
-[kit instructions w/ schematic](docs/DIY_LED_Clock.png)
+
+Kit instructions w/ schematic: [scan](docs/DIY_LED_Clock.png) | [PDF](http://img.banggood.com/file/products/20170116024635SKU203096.pdf)
 
 
 ### chat
