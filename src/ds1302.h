@@ -43,7 +43,7 @@
 #define DS_MASK_MINUTES       0b01111111
 #define DS_MASK_MINUTES_TENS  0b01110000
 #define DS_MASK_MINUTES_UNITS 0b00001111
-#define DS_MASK_AMPM_MODE     0b10000000
+#define DS_MASK_1224_MODE     0b10000000
 #define DS_MASK_PM            0b00100000
 #define DS_MASK_HOUR12        0b00011111
 #define DS_MASK_HOUR12_TENS   0b00010000
@@ -123,7 +123,7 @@ void ds_writebyte(uint8_t addr, uint8_t data);
 void ds_init();
 
 // reset date/time to 01/01 00:00
-void ds_reset_clock();
+//void ds_reset_clock();
 
 // toggle 12/24 hour mode
 void ds_hours_12_24_toggle();
@@ -152,4 +152,10 @@ uint8_t ds_int2bcd(uint8_t integer);
 // convert integer to bcd parts (high = tens, low = ones)
 uint8_t ds_int2bcd_tens(uint8_t integer);
 uint8_t ds_int2bcd_ones(uint8_t integer);
-    
+
+void ds_alarm_minutes_incr();
+void ds_alarm_hours_incr();
+void ds_alarm_on_toggle();
+void ds_date_mmdd_toggle();
+void ds_temperature_offset_incr();
+void ds_temperature_cf_toggle();
