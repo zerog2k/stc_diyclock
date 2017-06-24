@@ -80,7 +80,7 @@ __bit __at (0x34) H12_TH;
 // h12.pm in RTC is at address 0x26, bit 5 -> => 0x26-0x20 => 0x6*8+5 => 53 => 0x35
 __bit __at (0x35) H12_PM;
 // hour_12_24 in RTC is at address 0x26, bit 7 -> => 0x26-0x20 => 0x6*8+7 => 55 => 0x37
-__bit __at (0x37) H12_24;
+__bit __at (0x37) H12_12;
 
 // config in DS1302 RAM
 

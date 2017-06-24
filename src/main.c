@@ -54,6 +54,11 @@ enum keyboard_mode {
     K_SET_DAY,
 #endif
     K_WEEKDAY_DISP,
+#ifndef WITHOUT_ALARM
+    K_ALARM,
+    K_ALARM_SET_HOUR,
+    K_ALARM_SET_MINUTE,
+#endif
 #ifdef DEBUG
     K_DEBUG,
     K_DEBUG2,
@@ -71,6 +76,9 @@ enum display_mode {
     M_DATE_DISP,
 #endif
     M_WEEKDAY_DISP,
+#ifndef WITHOUT_ALARM
+    M_ALARM,
+#endif
 #ifdef DEBUG
     M_DEBUG,
     M_DEBUG2,
@@ -108,9 +116,13 @@ volatile uint8_t displaycounter;
 volatile int8_t count_100;
 volatile int16_t count_1000;
 volatile int16_t count_5000;
-volatile __bit loop_gate;
+#ifndef WITHOUT_ALARM
+volatile int16_t count_20000;
+volatile __bit blinker_slowest;
+#endif
 volatile __bit blinker_slow;
 volatile __bit blinker_fast;
+volatile __bit loop_gate;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
@@ -177,6 +189,14 @@ void timer0_isr() __interrupt 1 __using 1
             if (count_5000 == 5000) {
                 count_5000 = 0;
                 blinker_slow = !blinker_slow;
+#ifndef WITHOUT_ALARM
+                // 1/ 2sec: 20000 ms
+                if (count_20000 == 20000) {
+                    count_20000 = 0;
+                }
+                // 500 ms on, 1500 ms off
+                blinker_slowest = count_20000 < 5000;
+#endif
             }
         }
 
@@ -231,6 +251,9 @@ void timer0_isr() __interrupt 1 __using 1
     count_100++;
     count_1000++;
     count_5000++;
+#ifndef WITHOUT_ALARM
+    count_20000++;
+#endif
 }
 
 /*
@@ -343,10 +366,10 @@ int main()
 
             case K_SET_HOUR:
                 flash_01 = 1;
-                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
                     ds_hours_incr();
                 }
-                else if (ev == EV_S1_SHORT) {
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_SET_MINUTE;
                 }
                 break;
@@ -354,20 +377,20 @@ int main()
             case K_SET_MINUTE:
                 flash_01 = 0;
                 flash_23 = 1;
-                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
                     ds_minutes_incr();
                 }
-                else if (ev == EV_S1_SHORT) {
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_SET_HOUR_12_24;
                 }
                 break;
 
             case K_SET_HOUR_12_24:
                 dmode = M_SET_HOUR_12_24;
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S1_SHORT) {
                     ds_hours_12_24_toggle();
                 }
-                else if (ev == EV_S1_SHORT) {
+                else if (ev == EV_S2_SHORT) {
                     kmode = K_NORMAL;
                 }
                 break;
@@ -465,7 +488,11 @@ int main()
             case K_SEC_DISP:
                 dmode = M_SEC_DISP;
                 if (ev == EV_S1_SHORT) {
+#ifndef WITHOUT_ALARM
+                    kmode = K_ALARM;
+#else
                     kmode = K_NORMAL;
+#endif
                 }
                 else if (ev == EV_S2_SHORT) {
                     ds_sec_zero();
@@ -477,6 +504,53 @@ int main()
 #endif
                 break;
 
+#ifndef WITHOUT_ALARM
+            case K_ALARM:
+                flash_01 = 0;
+                flash_23 = 0;
+                dmode = M_ALARM;
+                if (ev == EV_S1_SHORT) {
+                    kmode = K_NORMAL;
+                }
+                else if (ev == EV_S2_SHORT) {
+                    CONF_ALARM_ON = !CONF_ALARM_ON;
+                    ds_ram_config_write();
+                }
+                else if (ev == EV_S2_LONG) {
+                    kmode = K_ALARM_SET_HOUR;
+                }
+                break;
+
+            case K_ALARM_SET_HOUR:
+                flash_01 = 1;
+                if (ev == EV_S2_SHORT) {
+                    kmode = K_ALARM_SET_MINUTE;
+                }
+                else if (ev == EV_S1_SHORT || S1_LONG && blinker_fast) {
+                    // increment ALARM HH
+                    uint8_t hh = (((cfg_table[CFG_ALARM_HOURS_BYTE] >> 3) + 1) % 24) << 3;
+                    cfg_table[CFG_ALARM_HOURS_BYTE] &= ~CFG_ALARM_HOURS_MASK;
+                    cfg_table[CFG_ALARM_HOURS_BYTE] |= hh;
+                    ds_ram_config_write();
+                }
+                break;
+
+            case K_ALARM_SET_MINUTE:
+                flash_01 = 0;
+                flash_23 = 1;
+                if (ev == EV_S2_SHORT) {
+                    kmode = K_ALARM;
+                }
+                else if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                    // increment ALARM MM
+                    uint8_t mm = ((cfg_table[CFG_ALARM_MINUTES_BYTE] & CFG_ALARM_MINUTES_MASK) + 1) % 60;
+                    cfg_table[CFG_ALARM_MINUTES_BYTE] &= ~CFG_ALARM_MINUTES_MASK;
+                    cfg_table[CFG_ALARM_MINUTES_BYTE] |= mm;
+                    ds_ram_config_write();
+                }
+                break;
+#endif
+
             case K_NORMAL:
             default:
                 flash_01 = 0;
@@ -487,7 +561,7 @@ int main()
                 if (ev == EV_S1_SHORT) {
                     kmode = K_SEC_DISP;
                 }
-                else if (ev == EV_S1_LONG) {
+                else if (ev == EV_S2_LONG) {
                     kmode = K_SET_HOUR;
                 }
                 else if (ev == EV_S2_SHORT) {
@@ -506,33 +580,78 @@ int main()
 
         switch (dmode) {
             case M_NORMAL:
-                if (!flash_01 || blinker_fast || S2_LONG) {
-                    if (!H12_24) {
-                        filldisplay(0, (rtc_table[DS_ADDR_HOUR] >> 4) & (DS_MASK_HOUR24_TENS >> 4), 0); // tenhour
+#ifndef WITHOUT_ALARM
+            case M_ALARM:
+#endif
+            {
+                uint8_t hh;
+                uint8_t mm;
+                __bit pm = 0;
+
+#ifndef WITHOUT_ALARM
+                if (dmode == M_NORMAL) {
+#endif
+                    // get as BCD
+                    hh = rtc_table[DS_ADDR_HOUR];
+                    if (H12_12) {
+                        hh &= DS_MASK_HOUR12;
+                    } else {
+                        hh &= DS_MASK_HOUR24;
                     }
-                    else {
-                        if (H12_TH) {
-                            filldisplay( 0, 1, 0);// tenhour in case AMPM mode is on, then '1' only is H12_TH is on
+                    pm = H12_12 && H12_PM;
+                    mm = rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES;
+#ifndef WITHOUT_ALARM
+                } else { // M_ALARM
+                    hh = cfg_table[CFG_ALARM_HOURS_BYTE] >> 3;
+                    if (H12_12) {
+                        if (hh >= 12) {
+                            pm = 1;
+                            hh -= 12;
+                        }
+                        if (hh == 0) {
+                            hh = 12;
                         }
                     }
-                    filldisplay(1, rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR_UNITS, blinker_slow);
+                    mm = cfg_table[CFG_ALARM_MINUTES_BYTE] & CFG_ALARM_MINUTES_MASK;
+                    // convert to BCD
+                    hh = ds_int2bcd(hh);
+                    mm = ds_int2bcd(mm);
                 }
-                else {
-                    dotdisplay(1, blinker_fast);
+#endif
+
+                if (!flash_01 || blinker_fast || S1_LONG) {
+                    uint8_t h0 = hh >> 4;
+                    if (H12_12 && h0 == 0) {
+                        h0 = LED_BLANK;
+                    }
+                    filldisplay(0, h0, 0);
+                    filldisplay(1, hh & 0x0F, 0);
                 }
 
-                if (!flash_23 || blinker_fast || S2_LONG) {
-                    filldisplay(2, (rtc_table[DS_ADDR_MINUTES] >> 4) & (DS_MASK_MINUTES_TENS >> 4), blinker_slow);	//tenmin
-                    filldisplay(3, rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES_UNITS, H12_24 & H12_PM);  		//min
+                if (!flash_23 || blinker_fast || S1_LONG) {
+                    filldisplay(2, mm >> 4, 0);
+                    filldisplay(3, mm & 0x0F, 0);
                 }
-                else {
-                    dotdisplay(2, blinker_slow);
-                    dotdisplay(3, H12_24 & H12_PM);	// dot3 if AMPM mode and PM=1
+
+                if (blinker_slow || dmode != M_NORMAL) {
+                    dotdisplay(1, 1);
+                    dotdisplay(2, 1);
                 }
+
+                // dot 3: If alarm is on, blink for 500 ms every 2000 ms
+                //        If 12h: on if pm when not blinking
+#ifndef WITHOUT_ALARM
+                if (!H12_12) { // 24h
+                    pm = CONF_ALARM_ON && blinker_slowest && blinker_fast;
+                } else if (CONF_ALARM_ON && blinker_slowest) {
+                    pm = blinker_fast;
+                }
+#endif
+                dotdisplay(3, pm);
                 break;
-
+            }
             case M_SET_HOUR_12_24:
-                if (!H12_24) {
+                if (!H12_12) {
                     filldisplay(1, 2, 0); filldisplay(2, 4, 0);
                 } else {
                     filldisplay(1, 1, 0); filldisplay(2, 2, 0);
