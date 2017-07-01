@@ -4,12 +4,9 @@
 
 #include "stc15.h"
 #include <stdint.h>
+#include "hwconfig.h"
 
 #define _nop_ __asm nop __endasm;
-
-#define DS_CE    P1_0
-#define DS_IO    P1_1
-#define DS_SCLK  P1_2
 
 #define DS_CMD        1 << 7
 #define DS_CMD_READ   1

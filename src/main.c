@@ -15,34 +15,8 @@
 // clear wdt
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
 
-// alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
-// only for revision with stc15f204ea
-#if defined stc15f204ea || defined stc15w404as
- #define RELAY   P1_4
- #define BUZZER  P1_5
- #define BUZZER_ON  BUZZER = 0
- #define BUZZER_OFF BUZZER = 1
- // additional pins on P3 header: P3_6 P3_7
-#else // revision with stc15w408as (with voice chip)
- #define LED     P1_5
- #define BUZZER_ON
- #define BUZZER_OFF
-#endif
-
-// adc channels for sensors
-#define ADC_LIGHT 6
-#define ADC_TEMP  7
-
-// button switch aliases
-// SW3 only for revision with stc15w408as
-#ifdef stc15w408as
- #define SW3     P1_4
- #define NUM_SW 3
-#else
- #define NUM_SW 2
-#endif
-#define SW2     P3_0
-#define SW1     P3_1
+// hardware configuration
+#include "hwconfig.h"
 
 // display mode states
 enum keyboard_mode {
@@ -186,14 +160,14 @@ void timer0_isr() __interrupt 1 __using 1
     uint8_t digit = displaycounter % 4;
 
     // turn off all digits, set high
-    P3 |= 0x3C;
+    LED_DIGITS_OFF();
 
     // auto dimming, skip lighting for some cycles
     if (displaycounter % lightval < 4 ) {
         // fill digits
-        P2 = dbuf[digit];
+        LED_SEGMENT_PORT = dbuf[digit];
         // turn on selected digit, set low
-        P3 &= ~(0x4 << digit);
+        LED_DIGIT_ON(digit);
     }
     displaycounter++;
 
@@ -357,8 +331,8 @@ int main()
 {
     // SETUP
     // set photoresistor & ntc pins to open-drain output
-    P1M1 |= (1<<6) | (1<<7);
-    P1M0 |= (1<<6) | (1<<7);
+    P1M1 |= (1<<ADC_LIGHT) | (1<<ADC_TEMP);
+    P1M0 |= (1<<ADC_LIGHT) | (1<<ADC_TEMP);
 
     // init rtc
     ds_init();
