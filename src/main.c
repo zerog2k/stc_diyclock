@@ -330,28 +330,12 @@ void Timer0Init(void)		//100us @ 11.0592MHz
     EA = 1;         // Enable global interrupt
 }
 
-// Formula was : 76-raw*64/637 - which makes use of integer mult/div routines
-// Getting degF from degC using integer was not good as values were sometimes jumping by 2
-// The floating point one is even worse in term of code size generated (>1024bytes...)
-// Approximation for slope is 1/10 (64/637) - valid for a normal 20 degrees range
-// & let's find some other trick (80 bytes - See also docs\Temp.ods file)
 int8_t gettemp(uint16_t raw) {
-    uint16_t val=raw;
-    uint8_t temp;
-
-    raw<<=2;
-    if (CONF_C_F) raw<<=1;  // raw*5 (4+1) if Celcius, raw*9 (4*2+1) if Farenheit
-    raw+=val;
-
-    if (CONF_C_F) {val=6835; temp=32;}  // equiv. to temp=xxxx-(9/5)*raw/10 i.e. 9*raw/50
-                                        // see next - same for degF
-             else {val=5*757; temp=0;}  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50  
-                                        // at 25degC, raw is 512, thus 24 is 522 and limit between 24 and 25 is 517
-                                        // so between 0deg and 1deg, limit is 517+24*10 = 757 
-                                        // (*5 due to previous adjustment of raw value)
-    while (raw<val) {temp++; val-=50;}
-
-    return temp + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
+    // formula for ntc adc value to approx C
+    float tempC = 76. - raw * 64. / 637.;
+    // convert to F if configured
+    return (CONF_C_F ? tempC * 1.8 + 32 : tempC)
+        + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
 
 void dot3display(__bit pm)
