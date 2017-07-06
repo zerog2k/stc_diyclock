@@ -14,7 +14,7 @@
 /* article, please specify in which data and procedures from STC    ---
 */
 /*----------------------------------------------------------------------------------*/
-#include <stc12.h>
+#include "stc15.h"
 #include "adc.h"
 
 /*----------------------------
@@ -33,28 +33,9 @@ Get ADC result - 10 bit
 ----------------------------*/
 uint16_t getADCResult(uint8_t chan)
 {
-        uint8_t tmp=getADCResult8(chan);	// 8bit result is in DPL
-__asm
-        mov     r7,dpl
-	; bits 7&6 will be bit 1&0 of 16bit MSB
-        mov     a,#0xc0
-        anl     a,r7
-        rl      a
-        rl      a
-        mov     dph,a
-	; bits 5..0 will be left shifted by 2
-        anl     ar7,#0x3f
-        mov     a,r7
-        add     a,r7
-        add     a,acc
-        mov     r7,a
-        ; add ADC_RESL bits 1&0
-        mov     a,#0x03
-        anl     a,_ADC_RESL
-        orl     a,ar7
-	; on 16bit result LSB
-        mov     dpl,a
-__endasm;
+	uint8_t upper8;
+	upper8 = getADCResult8(chan);
+	return  upper8 << 2 | (ADC_RESL & 0b11) ;  //Return ADC result, 10 bits
 }
 
 uint8_t getADCResult8(uint8_t chan)
@@ -63,7 +44,7 @@ uint8_t getADCResult8(uint8_t chan)
 	_nop_;       //Must wait before inquiry
 	while (!(ADC_CONTR & ADC_FLAG));  //Wait complete flag
 	ADC_CONTR &= ~ADC_FLAG;           //Close ADC
-	return  ADC_RES;  //Return ADC result
+	return  ADC_RES;  //Return ADC result, 8 bits
 }
 
 

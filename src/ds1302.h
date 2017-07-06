@@ -2,17 +2,14 @@
 // http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 //
 
-#include <stc12.h>
+#include "stc15.h"
 #include <stdint.h>
 
 #define _nop_ __asm nop __endasm;
 
 #define DS_CE    P1_0
-#define _DS_CE    _P1_0
 #define DS_IO    P1_1
-#define _DS_IO    _P1_1
 #define DS_SCLK  P1_2
-#define _DS_SCLK  _P1_2
 
 #define DS_CMD        1 << 7
 #define DS_CMD_READ   1
@@ -46,7 +43,7 @@
 #define DS_MASK_MINUTES       0b01111111
 #define DS_MASK_MINUTES_TENS  0b01110000
 #define DS_MASK_MINUTES_UNITS 0b00001111
-#define DS_MASK_AMPM_MODE     0b10000000
+#define DS_MASK_1224_MODE     0b10000000
 #define DS_MASK_PM            0b00100000
 #define DS_MASK_HOUR12        0b00011111
 #define DS_MASK_HOUR12_TENS   0b00010000
@@ -64,6 +61,15 @@
 #define DS_MASK_YEAR_TENS     0b11110000
 #define DS_MASK_YEAR_UNITS    0b00001111
 
+/* 
+  NB: the rtc and config bits below were originally structs/unions, but for some reason 
+  the resulting code was bloated coming out of sdcc. This is attempt to recreate this
+  struct/union functionality directly, by explicit selection of bit/byte iram addressing
+  and using masks above. Because this current implementation is much more complex than
+  dealing with structs/unions, would like to someday return to simpler struct/union access
+  if code size allows (sdcc optimizations?).
+*/
+
 // 8051 zone from 0x20 and 0x2F in IRAM can be accessed as bit (between 0x00 and 0x7F)
 // 0x20, bit 0 is __bit __at (0x00), bit 7 is __bit __at (0x07) etc...
 
@@ -74,34 +80,29 @@ __bit __at (0x34) H12_TH;
 // h12.pm in RTC is at address 0x26, bit 5 -> => 0x26-0x20 => 0x6*8+5 => 53 => 0x35
 __bit __at (0x35) H12_PM;
 // hour_12_24 in RTC is at address 0x26, bit 7 -> => 0x26-0x20 => 0x6*8+7 => 55 => 0x37
-__bit __at (0x37) H12_24;
+__bit __at (0x37) H12_12;
 
 // config in DS1302 RAM
 
-uint8_t __at (0x2c) config_table[4];
+uint8_t __at (0x2c) cfg_table[4];
 
-#define CONFIG_ALARM_HOURS_BYTE   0
-#define CONFIG_ALARM_MINUTES_BYTE 1
-#define CONFIG_TEMP_BYTE          2
-#define CONFIG_CHIME_START_BYTE   2
-#define CONFIG_CHIME_STOP_BYTE    3
+#define CFG_ALARM_HOURS_BYTE   0
+#define CFG_ALARM_MINUTES_BYTE 1
+#define CFG_TEMP_BYTE          2
 
-#define CONFIG_ALARM_HOURS_MASK   0b00011111
-#define CONFIG_ALARM_MINUTES_MASK 0b00111111
-#define CONFIG_TEMP_MASK          0b11100000
-#define CONFIG_TEMP_SHIFT         5
-#define CONFIG_CHIME_START_MASK   0b00011111
-#define CONFIG_CHIME_STOP_MASK    0b00011111
+#define CFG_ALARM_HOURS_MASK   0b11111000
+#define CFG_ALARM_MINUTES_MASK 0b00111111
+#define CFG_TEMP_MASK          0b00000111
 
-// Offset 0 => temp_C_F (7) / Alarm_on (6) / Chime_on(5) / alarm_hour (4..0)
+// Offset 0 => alarm_hour (7..3) / chime_on (2) / alarm_on (1) / temp_C_F (0)
 // Offset 1 => (7) not used / (6) sw_mmdd / alarm_minute (5..0)
-// Offset 2 => temp_offset (7..5) / chime_hour_start (4..0) 
+// Offset 2 => chime_hour_start (7..3) / temp_offset (2..0), signed -4 / +3
 // Offset 3 => (7),(6)&(5) not used / chime_hour_stop (4..0)
 
 // temp_C_F in config is at address 0x2c, bit 0 => 0x2c-0x20 => 0xc*8+0 => 96 => 0x60
-__bit __at (0x67) CONF_C_F;
-__bit __at (0x66) CONF_ALARM_ON;
-__bit __at (0x65) CONF_CHIME_ON;
+__bit __at (0x60) CONF_C_F;
+__bit __at (0x61) CONF_ALARM_ON;
+__bit __at (0x62) CONF_CHIME_ON;
 __bit __at (0x6E) CONF_SW_MMDD;
 
 // DS1302 Functions
@@ -122,7 +123,7 @@ void ds_writebyte(uint8_t addr, uint8_t data);
 void ds_init();
 
 // reset date/time to 01/01 00:00
-void ds_reset_clock();
+//void ds_reset_clock();
 
 // toggle 12/24 hour mode
 void ds_hours_12_24_toggle();
@@ -151,4 +152,10 @@ uint8_t ds_int2bcd(uint8_t integer);
 // convert integer to bcd parts (high = tens, low = ones)
 uint8_t ds_int2bcd_tens(uint8_t integer);
 uint8_t ds_int2bcd_ones(uint8_t integer);
-    
+
+void ds_alarm_minutes_incr();
+void ds_alarm_hours_incr();
+void ds_alarm_on_toggle();
+void ds_date_mmdd_toggle();
+void ds_temperature_offset_incr();
+void ds_temperature_cf_toggle();
