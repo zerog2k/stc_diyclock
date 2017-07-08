@@ -1,5 +1,6 @@
 *.hex
 *.ihx
 *.bin
+.*.swp
 build/*
 config
