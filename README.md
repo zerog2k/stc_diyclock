@@ -14,12 +14,13 @@ Basic functionality is working:
 * seconds display/reset
 * display auto-dim
 * temperature display in C or F (with user-defined offset adjustment)
+* alarm
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
 
 ## TODOs
-* alarm and chime functionality
+* chime?
 
 ## hardware
 
