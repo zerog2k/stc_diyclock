@@ -20,7 +20,9 @@ Basic functionality is working:
 *Pull requests are welcome.*
 
 ## TODOs
-* chime?
+* chime ?
+* time sync to WWVB radio receiver module (for STC15W408AS)
+* time sync to GPS receiver outputting serial NMEA data (for STC15W408AS)
 
 ## hardware
 
