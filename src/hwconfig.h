@@ -11,6 +11,15 @@
     https://github.com/zerog2k/stc_diyclock/issues/20
 */
 
+/*
+    HW_WITH_GPS:
+    uncomment for connecting NMEA GPS receiver to unit for time sync
+    currently only working with STC15W408AS 
+    (will not work on STC15F204EA - not enough code, memory, and no uart)
+    currently reassigning uart pins to P3_6:rxd, P3_7:txd
+*/
+#define HW_WITH_GPS
+
 // alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
 // only for revision with stc15f204ea
 #if defined stc15f204ea || defined stc15w404as

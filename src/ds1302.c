@@ -200,12 +200,31 @@ void ds_hours_incr() {
     ds_writebyte(DS_ADDR_HOUR, b);
 }
 
+// set hours
+void ds_hours_set(uint8_t tens, uint8_t ones)
+{
+    ds_writebyte(DS_ADDR_HOUR, (tens << 4 | ones));
+}
+
 // increment minutes
 void ds_minutes_incr() {
     uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES);
     INCR(minutes, 0, 59);
     ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
 }
+
+// set minutes
+void ds_minutes_set(uint8_t tens, uint8_t ones)
+{
+    ds_writebyte(DS_ADDR_MINUTES, (tens << 4 | ones));
+}
+
+// set seconds
+void ds_seconds_set(uint8_t tens, uint8_t ones)
+{
+    ds_writebyte(DS_ADDR_SECONDS, (tens << 4 | ones));
+}
+
 
 // increment month
 void ds_month_incr() {

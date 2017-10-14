@@ -128,8 +128,17 @@ void ds_hours_12_24_toggle();
 // increment hours
 void ds_hours_incr();
 
+// set hours
+void ds_hours_set(uint8_t tens, uint8_t ones);
+
 // increment minutes
 void ds_minutes_incr();
+
+// set minutes
+void ds_minutes_set(uint8_t tens, uint8_t ones);
+
+// set seconds
+void ds_seconds_set(uint8_t tens, uint8_t ones);
 
 // increment month
 void ds_month_incr();

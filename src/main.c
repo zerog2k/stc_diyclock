@@ -18,6 +18,16 @@
 // hardware configuration
 #include "hwconfig.h"
 
+#ifdef HW_WITH_GPS
+#include <string.h>
+#include "gps.h"
+#include "uart.h"
+__pdata char line[NMEA_LINE_LEN_MAX];
+#define printf printf_tiny     // see sdcc user guide
+gps_time_bcd_t  gpstime;    // store parsed gps timestring
+
+#endif
+
 // display mode states
 enum keyboard_mode {
     K_NORMAL,
@@ -359,6 +369,11 @@ int main()
     //ds_reset_clock();
 
     Timer0Init(); // display refresh & switch read
+    
+#ifdef HW_WITH_GPS
+    uart1_init();   // setup uart
+    printf("Starting\n");
+#endif
 
     // LOOP
     while (1)
@@ -807,6 +822,31 @@ int main()
 
         count++;
         WDT_CLEAR();
+
+#ifdef HW_WITH_GPS
+        // periodically attempt to fetch gps time
+        /// TODO: waiting too long to call get_nmea_ts will result in a stale buffer (delayed time)
+        /// consider improving signalling and checking of timestamp, so we consume only recent ts
+        // TODO: parse YYMMDD and set
+        // TODO: handle TZ/offset (either through compile-time option or better yet, clock menu settable)
+        if (count % 16 == 0)
+        {
+            // look for NMEA line with timestamp
+            if (get_nmea_ts(line, NMEA_LINE_LEN_MAX))
+            {
+                parse_gps_time(line, &gpstime);
+                // set rtc
+                ds_hours_set(gpstime.ten_hours, gpstime.one_hours);
+                ds_minutes_set(gpstime.ten_minutes, gpstime.one_minutes);
+                ds_seconds_set(gpstime.ten_seconds, gpstime.one_seconds);
+
+                printf("l: %s, h: %d%d, m: %d%d, s: %d%d\n", line,  
+                    gpstime.ten_hours, gpstime.one_hours, gpstime.ten_minutes, gpstime.one_minutes,
+                    gpstime.ten_seconds, gpstime.one_seconds);
+            }
+
+        }
+#endif
     }
 }
 /* ------------------------------------------------------------------------- */

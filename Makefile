@@ -1,11 +1,11 @@
 SDCC ?= sdcc
-STCCODESIZE ?= 4089
-SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
+STCCODESIZE ?= 8184
+SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 256  --data-loc 0x30 --disable-warning 126 --disable-warning 59
 SDCCREV ?= -Dstc15f204ea
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0
-STCGALPROT ?= stc15a
+STCGALPROT ?= stc15
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
@@ -22,12 +22,11 @@ build/%.rel: src/%.c src/%.h
 
 main: $(OBJ)
 	$(SDCC) -o build/ src/$@.c $(SDCCOPTS) $(SDCCREV) $(CFLAGS) $^
-	@ tail -n 5 build/main.mem | head -n 2
-	@ tail -n 1 build/main.mem
+	@ tail -n 5 build/main.mem 
 	cp build/$@.ihx $@.hex
 	
 eeprom:
-	sed -ne '/:..1/ { s/1/0/2; p }' main.hex > eeprom.hex
+	sed -ne '/:..2/ { s/2/0/2; p }' main.hex > eeprom.hex
 
 flash:
 	$(STCGAL) -p $(STCGALPORT) -P $(STCGALPROT) -t $(SYSCLK) $(STCGALOPTS) $(FLASHFILE)
