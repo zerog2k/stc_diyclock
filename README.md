@@ -16,13 +16,19 @@ Basic functionality is working:
 * temperature display in C or F (with user-defined offset adjustment)
 * alarm
 
+## Experimental support
+* time sync to GPS receiver outputting serial NMEA data (STC15W408AS)
+  * on gps branch: https://github.com/zerog2k/stc_diyclock/tree/gps
+  * for STC15W408AS (sorry no STC15F204EA, not enough ram/code, and no hw uart)
+  * very experimental at this point (help wanted to polish this)
+
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
 
 ## TODOs
 * chime ?
 * time sync to WWVB radio receiver module (for STC15W408AS)
-* time sync to GPS receiver outputting serial NMEA data (for STC15W408AS)
+
 
 ## hardware
 
