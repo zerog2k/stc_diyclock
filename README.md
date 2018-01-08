@@ -49,6 +49,16 @@ Basic functionality is working:
 * stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
 
 ## usage
+choose platformio or traditional make build
+
+### platformio support
+_experimental_
+
+* install platformio mcs51 platform:
+`platformio platforms install https://github.com/zerog2k/platform-mcs51.git`
+* adjust `upload_port` in `platformio.ini`
+
+### traditional make
 ```
 make clean
 make
