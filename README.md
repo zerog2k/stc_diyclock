@@ -24,7 +24,7 @@ Basic functionality is working:
 * platformio support
   * on `platformio` branch
   * see platformio build section below for platform installation instructions
-  * tested on linux/vscode
+  * tested on linux/vscode w/ stc15w408as based clock kit
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
@@ -69,7 +69,7 @@ make
 make flash
 ```
 
-## options
+#### make options
 * override default serial port:
 `STCGALPORT=/dev/ttyUSB0 make flash`
 
