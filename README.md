@@ -18,9 +18,13 @@ Basic functionality is working:
 
 ## Experimental support
 * time sync to GPS receiver outputting serial NMEA data (STC15W408AS)
-  * on gps branch: https://github.com/zerog2k/stc_diyclock/tree/gps
+  * on `gps` branch: https://github.com/zerog2k/stc_diyclock/tree/gps
   * for STC15W408AS (sorry no STC15F204EA, not enough ram/code, and no hw uart)
   * very experimental at this point (help wanted to polish this)
+* platformio support
+  * on `platformio` branch
+  * see platformio build section below for platform installation instructions
+  * tested on linux/vscode w/ stc15w408as based clock kit
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
@@ -49,13 +53,23 @@ Basic functionality is working:
 * stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
 
 ## usage
+choose platformio or traditional make build
+
+### platformio support
+_experimental_
+
+* assumes you have platformio installed
+* choose which mcu you are building for by uncommenting one `env_default` in `platformio.ini`
+* adjust `upload_port` as needed in `platformio.ini`
+
+### traditional make
 ```
 make clean
 make
 make flash
 ```
 
-## options
+#### make options
 * override default serial port:
 `STCGALPORT=/dev/ttyUSB0 make flash`
 
