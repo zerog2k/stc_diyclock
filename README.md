@@ -58,9 +58,9 @@ choose platformio or traditional make build
 ### platformio support
 _experimental_
 
-* install platformio mcs51 platform:
-`platformio platforms install https://github.com/zerog2k/platform-mcs51.git`
-* adjust `upload_port` in `platformio.ini`
+* assumes you have platformio installed
+* choose which mcu you are building for by uncommenting one `env_default` in `platformio.ini`
+* adjust `upload_port` as needed in `platformio.ini`
 
 ### traditional make
 ```
