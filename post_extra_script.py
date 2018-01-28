@@ -33,5 +33,5 @@ if "BOARD" in env and env.BoardConfig().get("vendor") == "STC":
                 "-P", stc_protocol,
                 "-t", int(f_cpu_khz),
             ],
-            UPLOADHEXCMD = "stcgal/stcgal.py $UPLOAD_OPTIONS $SOURCE"
+            UPLOADHEXCMD = "stcgal/stcgal.py $UPLOAD_OPTIONS $UPLOAD_FLAGS $SOURCE"
     )
