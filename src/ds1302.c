@@ -10,6 +10,9 @@
 #define MAGIC_HI  0x5A
 #define MAGIC_LO  0xA5
 
+ds1302_rtc_t rtc;
+ram_config_t config;
+
 #define INCR(num, low, high) if (num < high) { num++; } else { num = low; }
 
 void ds_ram_config_init() {
@@ -29,8 +32,8 @@ void ds_ram_config_init() {
     // OPTIMISE : was cfg_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
     //            using a second variable instead of DS_CMD_RAM>>1 | (i+2) generates less code
     j = DS_CMD_RAM >> 1 | 2;
-    for (i = 0; i != 4; i++) {
-        cfg_table[i] = ds_readbyte(j++);
+    for (i = 0; i != sizeof(config); i++) {
+        *((uint8_t *) config + i) = ds_readbyte(j++);
     }
 }
 
@@ -38,7 +41,7 @@ void ds_ram_config_write() {
     uint8_t i, j;
     j = DS_CMD_RAM >> 1 | 2;
     for (i=0; i!=4; i++) {
-        ds_writebyte( j++, cfg_table[i]);
+        ds_writebyte( j++, *((uint8_t *) config + i));
     }
 }
 
@@ -110,7 +113,7 @@ void ds_readburst() {
     sendbyte(b);
     // read bytes
     for (j = 0; j != 8; j++) {
-        rtc_table[j] = readbyte();
+        *((uint8_t *) rtc + j) = readbyte();
     }
     DS_CE = 0;
 }
@@ -149,132 +152,133 @@ void ds_reset_clock() {
 
 void ds_hours_12_24_toggle() {
 
-    uint8_t hours,b;
-    if (H12_12) { // 12h->24h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
-        if (hours == 12) {
-            if (!H12_PM) {
-                hours = 0;
-            }
-        } else {
-            if (H12_PM) {
-                hours += 12;			 // to 24h format
-            }
-        }
-        b = ds_int2bcd(hours);			 // clear hour_12_24 bit
-    }
-    else { // 24h->12h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
-        b = DS_MASK_1224_MODE;
-        if (hours >= 12) { 	// pm
-            hours -= 12;
-            b |= DS_MASK_PM;
-        }
-        if (hours == 0) {  		//12am
-            hours = 12;
-        }
-        b |= ds_int2bcd(hours);
-    }
+    uint8_t hours = 0;
 
-    ds_writebyte(DS_ADDR_HOUR, b);
+    if (rtc.h12.hour_12_24) {
+        // 24 -> 12
+        hours = rtc.h24.tenhour * 10 + rtc.h24.hour;
+        if (hours < 13)
+        {
+            // 00 -> 12 am
+            if (hours == 0)
+               hours = 12;
+            // 00 - 12 hrs: am
+            rtc.h12.pm = 0;
+        } else {
+            // 13 - 23 hrs: pm
+            hours -= 12;
+            rtc.h12.pm = 1;
+        }
+        rtc.h24.tenhour = hours / 10;
+    } else {
+        // 12 -> 24
+        if (rtc.h12.pm) {
+            if (hours < 12)
+                hours += 12;
+        } else {
+            // 12 am -> 00
+            if (hours == 12)
+                hours = 0;
+        }
+        rtc.h12.tenhour = hours / 10;
+    }
+    rtc.h12.hour = hours % 10;
+    rtc.h12.hour_12_24 = ! rtc.h12.hour_12_24;
+    ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
 // increment hours
 void ds_hours_incr() {
     uint8_t hours, b = 0;
-    if (!H12_12) {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);	//24h format
-        INCR(hours, 0, 23);
-        b = ds_int2bcd(hours);		// bit 7 = 0
+    if (rtc.h24.hour_12_24 == HOUR_24) {
+        hours = ds_splitbcd2int(rtc.h24.tenhour, rtc.h24.hour);
+        if (hours < 23)
+            hours++;
+        else {
+            hours = 00;
+        }
+        rtc.h24.tenhour = hours / 10;
     } else {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12);	//12h format
-        INCR(hours, 1, 12);
-        if (hours == 12) {
-            H12_PM = !H12_PM;
+        hours = ds_splitbcd2int(rtc.h12.tenhour, rtc.h12.hour);
+        if (hours < 12)
+            hours++;
+        else {
+            hours = 1;
+            rtc.h12.pm = !rtc.h12.pm;
         }
-        b = ds_int2bcd(hours) | DS_MASK_1224_MODE;
-        if (H12_PM) {
-            b |=  DS_MASK_PM;
-        }
+        rtc.h12.tenhour = hours / 10;       
     }
-    ds_writebyte(DS_ADDR_HOUR, b);
+    rtc.h12.hour = hours % 10;
+    rtc.h12.hour_12_24 = ! rtc.h12.hour_12_24;
+    ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
 // increment minutes
 void ds_minutes_incr() {
-    uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES);
+    uint8_t minutes = ds_splitbcd2int(rtc.tenminutes, rtc.minutes);
     INCR(minutes, 0, 59);
-    ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
+    ds_sync_rtc_byte(DS_ADDR_MINUTES);
 }
 
 // increment month
 void ds_month_incr() {
-    uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH);
+    uint8_t month = ds_splitbcd2int(rtc.tenmonth, rtc.month);
     INCR(month, 1, 12);
-    ds_writebyte(DS_ADDR_MONTH, ds_int2bcd(month));
+    ds_sync_rtc_byte(DS_ADDR_MONTH);
 }
 
 // increment day
 void ds_day_incr() {
-    uint8_t day = ds_split2int(rtc_table[DS_ADDR_DAY] & DS_MASK_DAY);
+    uint8_t day = ds_splitbcd2int(rtc.tenday, rtc.day);
     INCR(day, 1, 31);
-    ds_writebyte(DS_ADDR_DAY, ds_int2bcd(day));
+    ds_sync_rtc_byte(DS_ADDR_DAY);
 }
 
 void ds_alarm_minutes_incr() {
-    uint8_t mm = cfg_table[CFG_ALARM_MINUTES_BYTE] & CFG_ALARM_MINUTES_MASK;
-    INCR(mm, 0, 59);
-    cfg_table[CFG_ALARM_MINUTES_BYTE] &= ~CFG_ALARM_MINUTES_MASK;
-    cfg_table[CFG_ALARM_MINUTES_BYTE] |= mm;
+    INCR(config.alarm_minute, 0, 59);
     ds_ram_config_write();
 }
 
 void ds_alarm_hours_incr() {
-    uint8_t hh = cfg_table[CFG_ALARM_HOURS_BYTE] >> 3;
-    INCR(hh, 0, 23);
-    hh <<= 3;
-    cfg_table[CFG_ALARM_HOURS_BYTE] &= ~CFG_ALARM_HOURS_MASK;
-    cfg_table[CFG_ALARM_HOURS_BYTE] |= hh;
+    INCR(config.alarm_hour, 0, 23);
     ds_ram_config_write();
 }
 
 void ds_alarm_on_toggle() {
-    CONF_ALARM_ON = !CONF_ALARM_ON;
+    config.alarm_on = !config.alarm_on;
     ds_ram_config_write();
 }
 
 void ds_date_mmdd_toggle() {
-    CONF_SW_MMDD = !CONF_SW_MMDD;
+    config.show_mmdd = !config.show_mmdd;
     ds_ram_config_write();
 }
 
 void ds_temperature_offset_incr() {
-    uint8_t offset = cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK;
-    offset++;
-    offset &= CFG_TEMP_MASK;
-    cfg_table[CFG_TEMP_BYTE] = (cfg_table[CFG_TEMP_BYTE] & ~CFG_TEMP_MASK) | offset;
+    config.temp_offset++;
     ds_ram_config_write();
 }
 
 void ds_temperature_cf_toggle() {
-    CONF_C_F = !CONF_C_F;
+    config.temp_C_F = !config.temp_C_F;
     ds_ram_config_write();
 }
 
 void ds_weekday_incr() {
-    uint8_t day = rtc_table[DS_ADDR_WEEKDAY];
-    INCR(day, 1, 7);
-    ds_writebyte(DS_ADDR_WEEKDAY, day);
-    rtc_table[DS_ADDR_WEEKDAY] = day;		// usefull ?
+    rtc.weekday++;
+    ds_sync_rtc_byte(DS_ADDR_WEEKDAY);
 }
 
 void ds_sec_zero() {
-    rtc_table[DS_ADDR_SECONDS] = 0;
     ds_writebyte(DS_ADDR_SECONDS, 0);
 }
     
-uint8_t ds_split2int(uint8_t tens_ones) {
-    return (tens_ones >> 4) * 10 + (tens_ones & 0x0F);
+uint8_t ds_bcd2int(uint8_t bcd) {
+    return (bcd >> 4) * 10 + (bcd & 0x0F);
+}
+
+uint8_t ds_splitbcd2int(uint8_t tens, uint8_t ones) {
+    return tens * 10 + ones;
 }
 
 // return bcd byte from integer
@@ -288,4 +292,9 @@ uint8_t ds_int2bcd_tens(uint8_t integer) {
 
 uint8_t ds_int2bcd_ones(uint8_t integer) {
     return integer % 10;
+}
+
+void ds_sync_rtc_byte(uint8_t addr)
+{
+    ds_writebyte(addr, *((uint8_t *) rtc + addr));
 }

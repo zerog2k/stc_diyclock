@@ -1,6 +1,6 @@
 SDCC ?= sdcc
 STCCODESIZE ?= 4089
-SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
+SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --disable-warning 126 --disable-warning 59
 SDCCREV ?= -Dstc15f204ea
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
