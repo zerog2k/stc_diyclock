@@ -118,6 +118,7 @@ extern ram_config_t config;
 uint8_t rtc_hh_bcd;
 uint8_t rtc_mm_bcd;
 __bit rtc_pm;
+__bit rtc_hours_12_24;
 #ifndef WITHOUT_ALARM
 uint8_t alarm_hh_bcd;
 uint8_t alarm_mm_bcd;
@@ -337,7 +338,7 @@ void dot3display(__bit pm)
 #ifndef WITHOUT_ALARM
     // dot 3: If alarm is on, blink for 500 ms every 2000 ms
     //        If 12h: on if pm when not blinking
-    if (!rtc.h12.hour_12_24) { // 24h
+    if (!rtc_hours_12_24) { // 24h
         pm = config.alarm_on && blinker_slowest && blinker_fast;
     } else if (config.alarm_on && blinker_slowest) {
         pm = blinker_fast;
@@ -389,22 +390,24 @@ int main()
         // Read RTC
         ds_readburst();
         // parse RTC
-        {
-            rtc_hh_bcd = *((uint8_t *) rtc + DS_ADDR_HOUR);
-            if (rtc.h12.hour_12_24) {
-                rtc_hh_bcd &= DS_MASK_HOUR12;
-            } else {
-                rtc_hh_bcd &= DS_MASK_HOUR24;
-            }
-            rtc_pm = rtc.h12.hour_12_24 && rtc.h12.pm;
-            rtc_mm_bcd = *((uint8_t *) rtc + DS_ADDR_MINUTES);
+        // loop vars for more efficient code
+        rtc_hours_12_24 = rtc.hour_12_24;
+        rtc_pm = rtc_hours_12_24 && rtc.h12.pm;
+
+        rtc_hh_bcd = *((uint8_t *) rtc + DS_ADDR_HOUR);
+        if (rtc_hours_12_24) {
+            rtc_hh_bcd &= DS_MASK_HOUR12;
+        } else {
+            rtc_hh_bcd &= DS_MASK_HOUR24;
         }
+        rtc_mm_bcd = *((uint8_t *) rtc + DS_ADDR_MINUTES);
+
 
 #ifndef WITHOUT_ALARM
         if (cfg_changed) {
             alarm_pm = 0;
             alarm_hh_bcd = config.alarm_hour;
-            if (rtc.h12.hour_12_24) {
+            if (rtc_hours_12_24) {
                 if (alarm_hh_bcd >= 12) {
                     alarm_pm = 1;
                     alarm_hh_bcd -= 12;
@@ -670,7 +673,7 @@ int main()
 
                 if (!flash_01 || blinker_fast || S1_LONG) {
                     uint8_t h0 = hh >> 4;
-                    if (rtc.h12.hour_12_24 && h0 == 0) {
+                    if (rtc_hours_12_24 && h0 == 0) {
                         h0 = LED_BLANK;
                     }
                     filldisplay(0, h0, 0);
@@ -691,7 +694,7 @@ int main()
                 break;
             }
             case M_SET_HOUR_12_24:
-                if (!rtc.h12.hour_12_24) {
+                if (!rtc_hours_12_24) {
                     filldisplay(1, 2, 0);
                     filldisplay(2, 4, 0);
                 } else {

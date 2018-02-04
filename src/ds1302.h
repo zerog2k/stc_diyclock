@@ -45,6 +45,9 @@ typedef struct  {
     uint8_t reserved1:1;
     
     union {
+        uint8_t hour:4;
+        uint8_t reserved2c:3;
+        uint8_t hour_12_24:1;
         struct {
             // 1-12
             uint8_t hour:4;         
@@ -194,7 +197,8 @@ typedef struct  {
 
 typedef struct  {
     // ram config stored in rtc
-    // must keep these fields 4 bytes, aligned
+    // using whole bytes instead of bitfields
+    // seems to improves code size
     
     uint8_t   temp_C_F;      // 0 = Celcius, 1 = Fahrenheit
     uint8_t   alarm_on;

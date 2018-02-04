@@ -13,7 +13,7 @@
 ds1302_rtc_t rtc;
 ram_config_t config;
 
-#define INCR(num, low, high) if (num < high) { num++; } else { num = low; }
+#define INCR(num, low, high) { if (num < high) { num++; } else { num = low; } }
 
 void ds_ram_config_init() {
     uint8_t i,j;
@@ -40,12 +40,12 @@ void ds_ram_config_init() {
 void ds_ram_config_write() {
     uint8_t i, j;
     j = DS_CMD_RAM >> 1 | 2;
-    for (i=0; i!=4; i++) {
+    for (i = 0; i != sizeof(config); i++) {
         ds_writebyte( j++, *((uint8_t *) config + i));
     }
 }
 
-void sendbyte(uint8_t b)
+void _sendbyte(uint8_t b)
 {
     b;
   __asm
@@ -66,7 +66,7 @@ void sendbyte(uint8_t b)
   __endasm;
 }
 
-uint8_t readbyte()
+uint8_t _readbyte()
 {
   __asm
 	push	ar7
@@ -95,9 +95,9 @@ uint8_t ds_readbyte(uint8_t addr) {
     DS_SCLK = 0;
     DS_CE = 1;
     // send cmd byte
-    sendbyte(b);
+    _sendbyte(b);
     // read byte
-    b = readbyte();
+    b = _readbyte();
     DS_CE = 0;
     return b;
 }
@@ -110,10 +110,10 @@ void ds_readburst() {
     DS_SCLK = 0;
     DS_CE = 1;
     // send cmd byte
-    sendbyte(b);
+    _sendbyte(b);
     // read bytes
-    for (j = 0; j != 8; j++) {
-        *((uint8_t *) rtc + j) = readbyte();
+    for (j = 0; j != sizeof(rtc); j++) {
+        *((uint8_t *) rtc + j) = _readbyte();
     }
     DS_CE = 0;
 }
@@ -126,9 +126,9 @@ void ds_writebyte(uint8_t addr, uint8_t data) {
     DS_SCLK = 0;
     DS_CE = 1;
     // send cmd byte
-    sendbyte(b);
+    _sendbyte(b);
     // send data byte
-    sendbyte(data);
+    _sendbyte(data);
 
     DS_CE = 0;
 }
@@ -152,11 +152,11 @@ void ds_reset_clock() {
 
 void ds_hours_12_24_toggle() {
 
-    uint8_t hours = 0;
+    uint8_t hours = rtc.hour;  // just the ones place
 
-    if (rtc.h12.hour_12_24) {
+    if (rtc.hour_12_24) {
         // 24 -> 12
-        hours = rtc.h24.tenhour * 10 + rtc.h24.hour;
+        hours += rtc.h24.tenhour * 10; // get tens place
         if (hours < 13)
         {
             // 00 -> 12 am
@@ -169,9 +169,10 @@ void ds_hours_12_24_toggle() {
             hours -= 12;
             rtc.h12.pm = 1;
         }
-        rtc.h24.tenhour = hours / 10;
+        rtc.h24.tenhour = hours / 10;  
     } else {
         // 12 -> 24
+        hours += rtc.h12.tenhour * 10; // get tens place
         if (rtc.h12.pm) {
             if (hours < 12)
                 hours += 12;
@@ -182,16 +183,16 @@ void ds_hours_12_24_toggle() {
         }
         rtc.h12.tenhour = hours / 10;
     }
-    rtc.h12.hour = hours % 10;
-    rtc.h12.hour_12_24 = ! rtc.h12.hour_12_24;
+    rtc.hour = hours % 10;
+    rtc.hour_12_24 = !rtc.hour_12_24;
     ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
 // increment hours
 void ds_hours_incr() {
-    uint8_t hours, b = 0;
-    if (rtc.h24.hour_12_24 == HOUR_24) {
-        hours = ds_splitbcd2int(rtc.h24.tenhour, rtc.h24.hour);
+    uint8_t hours = rtc.hour; // just ones place
+    if (rtc.hour_12_24 == HOUR_24) {
+        hours += rtc.h24.tenhour * 10; // get tens place
         if (hours < 23)
             hours++;
         else {
@@ -199,7 +200,7 @@ void ds_hours_incr() {
         }
         rtc.h24.tenhour = hours / 10;
     } else {
-        hours = ds_splitbcd2int(rtc.h12.tenhour, rtc.h12.hour);
+        hours += rtc.h12.tenhour * 10; // get tens place
         if (hours < 12)
             hours++;
         else {
@@ -208,8 +209,8 @@ void ds_hours_incr() {
         }
         rtc.h12.tenhour = hours / 10;       
     }
-    rtc.h12.hour = hours % 10;
-    rtc.h12.hour_12_24 = ! rtc.h12.hour_12_24;
+    rtc.hour = hours % 10;
+    rtc.hour_12_24 = ! rtc.hour_12_24;
     ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
@@ -255,7 +256,7 @@ void ds_date_mmdd_toggle() {
 }
 
 void ds_temperature_offset_incr() {
-    config.temp_offset++;
+    INCR(config.temp_offset, -6, 6);
     ds_ram_config_write();
 }
 
