@@ -70,18 +70,20 @@ const uint8_t ledtable2[] = {
     0b01111111, //     0b10000000, // 0x13 - '.'
 };
 
-uint8_t tmpbuf[4];
+volatile uint8_t tmpbuf[4];
 __bit   dot0;
 __bit   dot1;
 __bit   dot2;
 __bit   dot3;
 
-uint8_t dbuf[4];
+volatile uint8_t dbuf[4];
 
 #define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; tmpbuf[0]=tmpbuf[1]=tmpbuf[2]=tmpbuf[3]=LED_BLANK; }
 
-#define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
-#define dotdisplay(pos,dp) { if (dp) dot##pos=1;}
+// N.B.: must mask off dynamic "val" here to single byte, else strange things will happen with preprocessor type promotion
+// also, do not cast to uint8_t or else struct bitfields won't work correctly
+#define filldisplay(pos,val,dp) { tmpbuf[pos] = val & 0xff; if (dp) dot##pos = 1;}
+#define dotdisplay(pos,dp) { if (dp) dot##pos = 1;}
 
 #define updateTmpDisplay() { uint8_t tmp; \
                         tmp=ledtable[tmpbuf[0]]; if (dot0) tmp&=0x7F; dbuf[0]=tmp; \

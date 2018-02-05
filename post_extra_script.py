@@ -13,9 +13,6 @@ env.Append(
     CFLAGS = [
     "--disable-warning", 126,
     "--disable-warning", 59
-    ],
-    LINKFLAGS = [
-        "--data-loc", 0x30
     ]
 )
 

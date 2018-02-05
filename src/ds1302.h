@@ -45,9 +45,6 @@ typedef struct  {
     uint8_t reserved1:1;
     
     union {
-        uint8_t hour:4;
-        uint8_t reserved2c:3;
-        uint8_t hour_12_24:1;
         struct {
             // 1-12
             uint8_t hour:4;         

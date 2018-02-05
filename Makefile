@@ -1,14 +1,15 @@
 SDCC ?= sdcc
 STCCODESIZE ?= 4089
-SDCCOPTS ?= --iram-size 256 --code-size $(STCCODESIZE) --xram-size 0 --disable-warning 126 --disable-warning 59
+SDCCOPTS ?= --code-size $(STCCODESIZE) --xram-size 0 --disable-warning 126 --disable-warning 59
 SDCCREV ?= -Dstc15f204ea
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0
-STCGALPROT ?= stc15a
+STCGALPROT ?= auto
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
 #CFLAGS ?= -DWITH_LEDTABLE_RELOC
+#CFLAGS ?= -D WITHOUT_ALARM
 
 SRC = src/adc.c src/ds1302.c
 

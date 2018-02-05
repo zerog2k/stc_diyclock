@@ -2,7 +2,7 @@
 // http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 //
 
-#pragma callee_saves sendbyte,readbyte
+#pragma callee_saves _sendbyte,_readbyte
 #pragma callee_saves ds_writebyte,ds_readbyte
 
 #include "ds1302.h"
@@ -89,13 +89,13 @@ uint8_t _readbyte()
 
 uint8_t ds_readbyte(uint8_t addr) {
     // ds1302 single-byte read
-    uint8_t b;
-    b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_READ;
+    uint8_t b, cmd;
+    cmd = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_READ;
     DS_CE = 0;
     DS_SCLK = 0;
     DS_CE = 1;
     // send cmd byte
-    _sendbyte(b);
+    _sendbyte(cmd);
     // read byte
     b = _readbyte();
     DS_CE = 0;
@@ -104,23 +104,25 @@ uint8_t ds_readbyte(uint8_t addr) {
 
 void ds_readburst() {
     // ds1302 burst-read 8 bytes into struct
-    uint8_t j, b;
-    b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
+    uint8_t j, b, cmd;
+    uint8_t *p_rtc = (uint8_t *) rtc;
+    cmd = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
     DS_CE = 0;
     DS_SCLK = 0;
     DS_CE = 1;
     // send cmd byte
-    _sendbyte(b);
+    _sendbyte(cmd);
     // read bytes
-    for (j = 0; j != sizeof(rtc); j++) {
-        *((uint8_t *) rtc + j) = _readbyte();
+    for (j = 0; j != 7; j++) {
+        *(p_rtc++) = _readbyte();
     }
+
     DS_CE = 0;
 }
 
 void ds_writebyte(uint8_t addr, uint8_t data) {
     // ds1302 single-byte write
-    uint8_t b = 0;
+    uint8_t b;
     b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_WRITE;
     DS_CE = 0;
     DS_SCLK = 0;
@@ -152,9 +154,21 @@ void ds_reset_clock() {
 
 void ds_hours_12_24_toggle() {
 
-    uint8_t hours = rtc.hour;  // just the ones place
+    uint8_t hours = rtc.h12.hour;  // just the ones place
 
-    if (rtc.hour_12_24) {
+    if (rtc.h12.hour_12_24) {
+        // 12 -> 24
+        hours += rtc.h12.tenhour * 10; // get tens place
+        if (rtc.h12.pm) {
+            if (hours < 12)
+                hours += 12;
+        } else {
+            // 12 am -> 00
+            if (hours == 12)
+                hours = 0;
+        }
+        rtc.h24.tenhour = hours / 10;
+    } else {
         // 24 -> 12
         hours += rtc.h24.tenhour * 10; // get tens place
         if (hours < 13)
@@ -169,29 +183,17 @@ void ds_hours_12_24_toggle() {
             hours -= 12;
             rtc.h12.pm = 1;
         }
-        rtc.h24.tenhour = hours / 10;  
-    } else {
-        // 12 -> 24
-        hours += rtc.h12.tenhour * 10; // get tens place
-        if (rtc.h12.pm) {
-            if (hours < 12)
-                hours += 12;
-        } else {
-            // 12 am -> 00
-            if (hours == 12)
-                hours = 0;
-        }
-        rtc.h12.tenhour = hours / 10;
+        rtc.h12.tenhour = hours / 10;          
     }
-    rtc.hour = hours % 10;
-    rtc.hour_12_24 = !rtc.hour_12_24;
+    rtc.h12.hour = hours % 10;
+    rtc.h12.hour_12_24 = !rtc.h12.hour_12_24;
     ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
 // increment hours
 void ds_hours_incr() {
-    uint8_t hours = rtc.hour; // just ones place
-    if (rtc.hour_12_24 == HOUR_24) {
+    uint8_t hours = rtc.h12.hour; // just ones place
+    if (rtc.h12.hour_12_24 == HOUR_24) {
         hours += rtc.h24.tenhour * 10; // get tens place
         if (hours < 23)
             hours++;
@@ -209,8 +211,7 @@ void ds_hours_incr() {
         }
         rtc.h12.tenhour = hours / 10;       
     }
-    rtc.hour = hours % 10;
-    rtc.hour_12_24 = ! rtc.hour_12_24;
+    rtc.h12.hour = hours % 10;
     ds_sync_rtc_byte(DS_ADDR_HOUR);
 }
 
@@ -218,6 +219,8 @@ void ds_hours_incr() {
 void ds_minutes_incr() {
     uint8_t minutes = ds_splitbcd2int(rtc.tenminutes, rtc.minutes);
     INCR(minutes, 0, 59);
+    rtc.tenminutes = minutes / 10;
+    rtc.minutes = minutes % 10;
     ds_sync_rtc_byte(DS_ADDR_MINUTES);
 }
 
@@ -225,6 +228,8 @@ void ds_minutes_incr() {
 void ds_month_incr() {
     uint8_t month = ds_splitbcd2int(rtc.tenmonth, rtc.month);
     INCR(month, 1, 12);
+    rtc.tenmonth = month / 10;
+    rtc.month = month % 10;
     ds_sync_rtc_byte(DS_ADDR_MONTH);
 }
 
@@ -232,6 +237,8 @@ void ds_month_incr() {
 void ds_day_incr() {
     uint8_t day = ds_splitbcd2int(rtc.tenday, rtc.day);
     INCR(day, 1, 31);
+    rtc.tenday = day / 10;
+    rtc.day = day % 10;
     ds_sync_rtc_byte(DS_ADDR_DAY);
 }
 
@@ -297,5 +304,6 @@ uint8_t ds_int2bcd_ones(uint8_t integer) {
 
 void ds_sync_rtc_byte(uint8_t addr)
 {
-    ds_writebyte(addr, *((uint8_t *) rtc + addr));
+    uint8_t *p_rtc = (uint8_t *) rtc + addr;
+    ds_writebyte(addr, *p_rtc);
 }

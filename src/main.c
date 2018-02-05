@@ -391,7 +391,7 @@ int main()
         ds_readburst();
         // parse RTC
         // loop vars for more efficient code
-        rtc_hours_12_24 = rtc.hour_12_24;
+        rtc_hours_12_24 = rtc.h12.hour_12_24;
         rtc_pm = rtc_hours_12_24 && rtc.h12.pm;
 
         rtc_hh_bcd = *((uint8_t *) rtc + DS_ADDR_HOUR);
