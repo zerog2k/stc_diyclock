@@ -3,7 +3,6 @@
 
 #define BAUDRATE 9600
 
-volatile char uart_char;
 
 // buffer to hold string
 #define NMEA_LINE_LEN_MAX 84
@@ -12,12 +11,12 @@ __pdata char linebuf[NMEA_LINE_LEN_MAX];
 volatile uint8_t linebuf_idx = 0;
 
 typedef enum {
-    NMEA_LINE_START,
-    NMEA_LINE_STOP,
-    NMEA_LINE_UNKNOWN
+    NMEA_LINE_START,    // SOL processing
+    NMEA_LINE_END,      // EOL processing
+    NMEA_LINE_RESET     // ready for next line processing
 } nmea_line_state_t;
 
-volatile nmea_line_state_t nmea_line_state = NMEA_LINE_UNKNOWN;
+volatile nmea_line_state_t nmea_line_state = NMEA_LINE_RESET;
 
 void uart1_init()
 {
@@ -38,41 +37,56 @@ void uart1_init()
 
 void uart1_isr() __interrupt 4 __using 2
 {
+    char uart_char;
     if (RI)
     {
         RI = 0; //clear rx int
         uart_char = SBUF;
-        if (nmea_line_state == NMEA_LINE_START) {
-            // capturing a line
-            if ((uart_char == '\n') || (linebuf_idx >= (NMEA_LINE_LEN_MAX-1))) {
-                // reached end of line or buffer full
+        if (nmea_line_state == NMEA_LINE_START) 
+        {
+            // started line capture
+            if (linebuf_idx >= NMEA_LINE_LEN_MAX || uart_char == '$')
+            {
+                // buffer full before reaching EOL, or unexpected SOL
+                // possible bad line, reset
+                nmea_line_state = NMEA_LINE_RESET;               
+            }
+            else if (uart_char == '\n' || uart_char == '\r') 
+            {
+                // reached EOL 
                 REN = 0;    // stop rx
-                nmea_line_state = NMEA_LINE_STOP;
-            } else {
+                linebuf[linebuf_idx++] = 0; // string terminator
+                nmea_line_state = NMEA_LINE_END;
+            } 
+            else 
+            {
                 // append buffer
                 linebuf[linebuf_idx++] = uart_char;
             }
-        } else {
-            // not already capturing a line, wait for start
+        }
+        else if (nmea_line_state == NMEA_LINE_RESET)
+        {
+            // in reset, waiting to start line capture
             if (uart_char == '$')
             {
-                nmea_line_state = NMEA_LINE_START;     
+                nmea_line_state = NMEA_LINE_START;
+                linebuf_idx = 0;     
                 linebuf[linebuf_idx++] = uart_char;
             }
             // otherwise ignore char in buf
         }
 
-        if (nmea_line_state == NMEA_LINE_STOP)
+        if (nmea_line_state == NMEA_LINE_END)
         {
             // check buffer for target string
             // TODO: consider moving out of ISR and using flags/state signalling
             // TODO: buffer entire nmea line & verify checksum
-            if (memcmp(linebuf, gpstoken, GPSTOKEN_LEN) != 0)
+            if (memcmp(linebuf, GPSTOKEN, GPSTOKEN_LEN) != 0)
             {
                 // unwanted, so reset state, buffer, re-enable rx
-                nmea_line_state = NMEA_LINE_UNKNOWN;
+                nmea_line_state = NMEA_LINE_RESET;
                 linebuf_idx = 0;
-                memset(linebuf, 0, NMEA_LINE_LEN_MAX);
+                //memset(linebuf, 0, NMEA_LINE_LEN_MAX);
                 REN = 1;
             }
         }
@@ -99,21 +113,38 @@ char getchar() {
 
 bool get_nmea_ts(char *buf, uint8_t len)
 {
+    char * pstr;
     // calling this function will copy buffer and restart rx
     // TODO: use complete line buffer and verify
     bool success = false;
-    if (nmea_line_state == NMEA_LINE_STOP)
+    if (nmea_line_state == NMEA_LINE_END)
     {
-        ES = 0; // disable uart interrupt
-        // received nmea line, copy to buffer
-        memset(buf, 0, len);    // zero pad string buffer
-        strncpy(buf, linebuf + GPSTOKEN_LEN, GPS_TIMESTAMP_LEN);
+        // check if gps sentence is correct
+        // TODO: check crc of complete sentence        
+        // if sentence valid, field after timestamp is 'A'
+        // looking for char after second comma    
+        ES = 0; // disable uart interrupt    
+        pstr = strchr(linebuf, ',');
+        //printf("pstr1:%s\n", pstr);
+        if (pstr) {
+            pstr = strchr(pstr+1, ',');
+            //printf("pstr2:%s\n", pstr);
+            if (pstr[1] == 'A')
+            {
+                // data marked valid           
+                // received nmea line, copy to buffer
+                memset(buf, 0, GPS_TIMESTAMP_LEN+1);    // zero pad string buffer
+                strncpy(buf, linebuf + GPSTOKEN_LEN, GPS_TIMESTAMP_LEN);
+                success = true;
+            }
+        }
         // reset state, buffer, interrupt, and enable rx
-        nmea_line_state = NMEA_LINE_UNKNOWN;
-        linebuf_idx = 0;
+        nmea_line_state = NMEA_LINE_RESET;
         ES = 1;
         REN = 1;
-        success = true;
+
+    } else {
+        //printf("ls:%d,ren:%d ", nmea_line_state, REN);
     }
     return success;
 }

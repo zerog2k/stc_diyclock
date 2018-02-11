@@ -17,13 +17,13 @@
 
 // hardware configuration
 #include "hwconfig.h"
+#define printf printf_tiny     // see sdcc user guide
 
 #ifdef HW_WITH_GPS
 #include <string.h>
 #include "gps.h"
 #include "uart.h"
 __pdata char line[NMEA_LINE_LEN_MAX];
-#define printf printf_tiny     // see sdcc user guide
 gps_time_bcd_t  gpstime;    // store parsed gps timestring
 
 #endif
@@ -372,7 +372,7 @@ int main()
     
 #ifdef HW_WITH_GPS
     uart1_init();   // setup uart
-    printf("Starting\n");
+    //printf("Starting\n");
 #endif
 
     // LOOP
@@ -840,9 +840,11 @@ int main()
                 ds_minutes_set(gpstime.ten_minutes, gpstime.one_minutes);
                 ds_seconds_set(gpstime.ten_seconds, gpstime.one_seconds);
 
+                /*
                 printf("l: %s, h: %d%d, m: %d%d, s: %d%d\n", line,  
                     gpstime.ten_hours, gpstime.one_hours, gpstime.ten_minutes, gpstime.one_minutes,
                     gpstime.ten_seconds, gpstime.one_seconds);
+                */
             }
 
         }

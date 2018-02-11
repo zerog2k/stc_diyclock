@@ -8,7 +8,7 @@
 
 #define GPSTOKEN_LEN 7
 #define GPS_TIMESTAMP_LEN 6
-__code const char * gpstoken = "$GPRMC,"; // glonass could be $GL instead of $GP?
+__code const char * GPSTOKEN = "$GPRMC,"; // glonass could be $GL instead of $GP?
 
 typedef struct {
     uint8_t ten_hours;
