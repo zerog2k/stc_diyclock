@@ -3,13 +3,16 @@
 // Copyright 2016, Jens Jensen
 //
 
+// silence: "src/main.c:672: warning 126: unreachable code"
+#pragma disable_warning 126
+
 #include "stc15.h"
 #include <stdint.h>
 #include <stdio.h>
 #include "adc.h"
 #include "ds1302.h"
 #include "led.h"
-    
+
 #define FOSC    11059200
 
 // clear wdt

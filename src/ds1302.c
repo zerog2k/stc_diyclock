@@ -4,6 +4,8 @@
 
 #pragma callee_saves sendbyte,readbyte
 #pragma callee_saves ds_writebyte,ds_readbyte
+// silence: "src/ds1302.c:84: warning 59: function 'readbyte' must return value"
+#pragma disable_warning 59
 
 #include "ds1302.h"
 
