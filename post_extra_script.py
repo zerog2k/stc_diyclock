@@ -16,6 +16,7 @@ env.Append(
     ],
     LINKFLAGS = [
         "--data-loc", 0x30
-    ]
+    ],
+    STCGALCMD="/stcgal.py"
 )
 
