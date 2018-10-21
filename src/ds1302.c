@@ -32,7 +32,8 @@ void ds_ram_config_init() {
     //            using a second variable instead of DS_CMD_RAM>>1 | (i+2) generates less code
     j = DS_CMD_RAM >> 1 | 2;
     for (i = 0; i != 4; i++) {
-        cfg_table[i] = ds_readbyte(j++);
+        cfg_table[i] = ds_readbyte(j);
+        j++;
     }
 }
 
@@ -40,7 +41,8 @@ void ds_ram_config_write() {
     uint8_t i, j;
     j = DS_CMD_RAM >> 1 | 2;
     for (i=0; i!=4; i++) {
-        ds_writebyte( j++, cfg_table[i]);
+        ds_writebyte( j, cfg_table[i]);
+        j++;
     }
 }
 

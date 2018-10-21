@@ -90,7 +90,7 @@ void _delay_ms(uint8_t ms)
 */
 
 uint8_t  count;     // main loop counter
-uint16_t temp;      // temperature sensor value
+uint8_t temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
@@ -157,10 +157,11 @@ volatile enum Event event;
 
 void timer0_isr() __interrupt 1 __using 1
 {
+    uint8_t tmp;
     enum Event ev = EV_NONE;
     // display refresh ISR
     // cycle thru digits one at a time
-    uint8_t digit = displaycounter % 4;
+    uint8_t digit = displaycounter % (uint8_t) 4;
 
     // turn off all digits, set high
     LED_DIGITS_OFF();
@@ -170,7 +171,10 @@ void timer0_isr() __interrupt 1 __using 1
         // fill digits
         LED_SEGMENT_PORT = dbuf[digit];
         // turn on selected digit, set low
-        LED_DIGIT_ON(digit);
+        //LED_DIGIT_ON(digit);
+        // issue #32, fix for newer sdcc versions which are using non-atomic port access
+        tmp = ~((1<<LED_DIGITS_PORT_BASE) << digit);
+        LED_DIGITS_PORT &= tmp;
     }
     displaycounter++;
 
@@ -375,7 +379,7 @@ int main()
         event = EV_NONE;
 
         // sample adc, run frequently
-        if (count % 4 == 0) {
+        if (count % (uint8_t) 4 == 0) {
             temp = gettemp(getADCResult(ADC_TEMP));
             // auto-dimming, by dividing adc range into 8 steps
             lightval = getADCResult8(ADC_LIGHT) >> 3;
