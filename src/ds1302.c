@@ -14,6 +14,13 @@
 
 #define INCR(num, low, high) if (num < high) { num++; } else { num = low; }
 
+/*
+  RAM 0x10-0x11に A5,5A(MAGIC)が書き込まれているかどうかで、RAMの初期化が必要か判断。
+  そうなっていなければ、初期化。
+  既にMAGICキーが書き込まれていれば、そのデータを読み出す。
+  Judge whether need to initialize RAM or not by checking RAM address 0x10-0x11 has A5,5A (MAGIC).
+  When MAGIC key wasn't written, initialize. When it was written, read out the data.
+ */
 void ds_ram_config_init() {
     uint8_t i,j;
     // check magic bytes to see if ram has been written before
@@ -37,6 +44,16 @@ void ds_ram_config_init() {
     }
 }
 
+
+/*
+  Data written to EEPROM
+  0x10 A5
+  0x11 5A
+  0x12 HH             <- cfg_table[0]
+  0x13 MM             <- cfg_table[1]
+  0x14 Temperature    <- cfg_table[2]
+  0x15 --
+ */
 void ds_ram_config_write() {
     uint8_t i, j;
     j = DS_CMD_RAM >> 1 | 2;
@@ -134,10 +151,26 @@ void ds_writebyte(uint8_t addr, uint8_t data) {
     DS_CE = 0;
 }
 
+/*
+  Initialize DS1302
+  bit7 of control register is WP (Write Protect) bit. This bit is unstable after power up, therefore need to set 0 clear and can be written. If this bit is set as 1, can't be written to any registers.
+
+  コントロールレジスタのbit7は、WP (Write Protect) bitです。このビットは、電源投入時、
+  不定なので、0クリアして、書き込みできるようにする必要あり。1だとどのレジスタへも
+  書き込みできなくなる。
+
+  Bit 7 of register for second information is clock halt (CH) flag. When it is 1, stop clock oscilator and enter low power consumption mode under 100nA.
+  When it is set 0, start clock. Just after power-up, this bit is unstable, need to initialize. But maintain the origianl information of second.
+
+  秒情報レジスタのbit7は、clock halt (CH)フラグになっており、
+  1では、クロックオシレータが停止して、100nA未満の低消費電力モードになっている
+  0だと、クロックがスタートする。電源投入時は、不定なので、ここで初期化。ただし、元の
+  秒情報は維持する。
+ */
 void ds_init() {
     uint8_t b = ds_readbyte(DS_ADDR_SECONDS);
     ds_writebyte(DS_ADDR_WP, 0); // clear WP
-    b &= ~(0b10000000);
+    b &= ~(0b10000000);	// clear Bit7
     ds_writebyte(DS_ADDR_SECONDS, b); // clear CH
 }
 
@@ -211,6 +244,14 @@ void ds_minutes_incr() {
     ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
 }
 
+// increment year
+// Added by KO
+void ds_year_incr() {
+    uint8_t year = ds_split2int(rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR);
+    INCR(year, 0, 99);
+    ds_writebyte(DS_ADDR_YEAR, ds_int2bcd(year));
+}
+
 // increment month
 void ds_month_incr() {
     uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH);
@@ -267,7 +308,7 @@ void ds_temperature_cf_toggle() {
 
 void ds_weekday_incr() {
     uint8_t day = rtc_table[DS_ADDR_WEEKDAY];
-    INCR(day, 1, 7);
+    INCR(day, 1, 7);	//always return value range of 1-7
     ds_writebyte(DS_ADDR_WEEKDAY, day);
     rtc_table[DS_ADDR_WEEKDAY] = day;		// usefull ?
 }

@@ -33,8 +33,9 @@ enum keyboard_mode {
     K_DATE_DISP,
     K_SET_MONTH,
     K_SET_DAY,
+    K_YEAR_DISP,	//年表示モード追加
 #endif
-    K_WEEKDAY_DISP,
+    K_WEEKDAY_DISP,	//DS1302側は、1-7を日付変更時に変更しているだけで、意味を持たせていない。ユーザ側で1=Sundayとかシーケンシャルに設定する
 #ifndef WITHOUT_ALARM
     K_ALARM,
     K_ALARM_SET_HOUR,
@@ -57,6 +58,7 @@ enum display_mode {
     M_DATE_DISP,
 #endif
     M_WEEKDAY_DISP,
+    M_YEAR_DISP,	//年表示モード追加
 #ifndef WITHOUT_ALARM
     M_ALARM,
 #endif
@@ -90,15 +92,15 @@ void _delay_ms(uint8_t ms)
 */
 
 uint8_t  count;     // main loop counter
-uint8_t temp;      // temperature sensor value
+uint8_t  temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
-volatile int8_t count_100;
-volatile int16_t count_1000;
-volatile int16_t count_5000;
+volatile int8_t count_100;	//0.01s=10ms
+volatile int8_t count_1000;	//0.1s=100ms
+volatile int8_t count_5000;	//0.5s=500ms
 #ifndef WITHOUT_ALARM
-volatile int16_t count_20000;
+volatile int16_t count_20000;	//2s
 volatile __bit blinker_slowest;
 #endif
 
@@ -110,6 +112,7 @@ volatile __bit loop_gate;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
+uint8_t dmode_bak = M_NORMAL;	// ノーマル時に日付とかを表示させるため、バックアップ
 
 __bit  flash_01;
 __bit  flash_23;
@@ -125,6 +128,10 @@ __bit alarm_trigger;
 __bit alarm_reset;
 #endif
 __bit cfg_changed = 1;
+uint8_t snooth_time;	//スヌーズの時間(分)
+uint8_t alarm_mm_snooth;	//スヌーズを加味したアラームの時刻(分)
+uint8_t ss;	//現在の秒
+
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
@@ -137,7 +144,7 @@ volatile __bit S3_PRESSED;
 
 volatile uint8_t debounce[NUM_SW];      // switch debounce buffer
 volatile uint8_t switchcount[NUM_SW];
-#define SW_CNTMAX 80
+#define SW_CNTMAX 80	//長押しカウント
 
 enum Event {
     EV_NONE,
@@ -155,6 +162,13 @@ enum Event {
 
 volatile enum Event event;
 
+/*
+  割り込み処理：0.1ms=100us毎にここに来る
+
+  ボタンのチェック
+  LEDのダイナミック点灯：4桁を順に点灯
+
+ */
 void timer0_isr() __interrupt 1 __using 1
 {
     uint8_t tmp;
@@ -181,26 +195,34 @@ void timer0_isr() __interrupt 1 __using 1
     // 100/sec: 10 ms
     if (count_100 == 100) {
         count_100 = 0;
+	count_1000++;	//ここに変更により、10ms毎にインクリ
+
         // 10/sec: 100 ms
-        if (count_1000 == 1000) {
+        if (count_1000 == 10) {
             count_1000 = 0;
-            blinker_fast = !blinker_fast;
-            loop_gate = 1;
-            // 2/sec: 500 ms
-            if (count_5000 == 5000) {
+            blinker_fast = !blinker_fast;	//100ms毎に点滅させる
+            loop_gate = 1;	//ループ処理を100ms毎に行わせる
+
+	    count_5000++;	//100ms毎にインクリ
+#ifndef WITHOUT_ALARM
+	    count_20000++;	//100ms毎にインクリ
+#endif
+	    // 2/sec: 500 ms
+            if (count_5000 == 5) {
                 count_5000 = 0;
-                blinker_slow = !blinker_slow;
+                blinker_slow = !blinker_slow;	//500s毎に点滅
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
-                if (count_20000 == 20000) {
+                if (count_20000 == 20) {
                     count_20000 = 0;
                 }
-                // 500 ms on, 1500 ms off
-                blinker_slowest = count_20000 < 5000;
+                // 500 ms on=true=1, 1500 ms off=false=0
+                blinker_slowest = count_20000 < 5;
 #endif
             }
         }
 
+	//スイッチのチェック。チャタリング処理
 #define MONITOR_S(n) \
         { \
             uint8_t s = n - 1; \
@@ -249,12 +271,10 @@ void timer0_isr() __interrupt 1 __using 1
             event = ev;
         }
     }
-    count_100++;
-    count_1000++;
-    count_5000++;
+    count_100++;	//これは、0.1ms毎にインクリ
+    
 #ifndef WITHOUT_ALARM
-    count_20000++;
-
+    //アラーム設定で何もしない時の
     if (count_timeout != 0) {
         count_timeout--;
         if (count_timeout == 0) {
@@ -297,14 +317,15 @@ void timer0_isr() __interrupt 1 __using 1
 // Call timer0_isr() 10000/sec: 0.0001 sec
 // Initialize the timer count so that it overflows after 0.0001 sec
 // THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
+//11.0592MHz動作時に、100us毎に割り込みを掛ける設定
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
     // refer to section 7 of datasheet: STC15F2K60S2-en2.pdf
     // TMOD = 0;    // default: 16-bit auto-reload
     // AUXR = 0;    // default: traditional 8051 timer frequency of FOSC / 12
     // Initial values of TL0 and TH0 are stored in hidden reload registers: RL_TL0 and RL_TH0
-	TL0 = 0xA4;		// Initial timer value
-	TH0 = 0xFF;		// Initial timer value
+    TL0 = 0xA4;		// Initial timer value
+    TH0 = 0xFF;		// Initial timer value
     TF0 = 0;		// Clear overflow flag
     TR0 = 1;		// Timer0 start run
     ET0 = 1;        // Enable timer0 interrupt
@@ -316,6 +337,7 @@ void Timer0Init(void)		//100us @ 11.0592MHz
 // The floating point one is even worse in term of code size generated (>1024bytes...)
 // Approximation for slope is 1/10 (64/637) - valid for a normal 20 degrees range
 // & let's find some other trick (80 bytes - See also docs\Temp.ods file)
+//サーミスタのAD変換した値を簡易計算で温度に換算。摂氏、華氏の設定に応じて対応
 int8_t gettemp(uint16_t raw) {
     uint16_t val=raw;
     uint8_t temp;
@@ -335,18 +357,34 @@ int8_t gettemp(uint16_t raw) {
     return temp + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
 
+//3桁目のLEDのドット表示。アラーム設定時、点滅パターンを指定している
 void dot3display(__bit pm)
 {
 #ifndef WITHOUT_ALARM
     // dot 3: If alarm is on, blink for 500 ms every 2000 ms
     //        If 12h: on if pm when not blinking
-    if (!H12_12) { // 24h
+    if (!H12_12) { // 24hモードの時
         pm = CONF_ALARM_ON && blinker_slowest && blinker_fast;
     } else if (CONF_ALARM_ON && blinker_slowest) {
+      //12hモードの時は、500ms間は点滅、後は、AM/PMかにより、消灯、点灯決めている
         pm = blinker_fast;
     }
 #endif
     dotdisplay(3, pm);
+}
+
+
+//snooth=5固定を前回のアラームの分に加える
+uint8_t add_BCD(uint8_t snooth) {
+  snooth;	//dpl
+  __asm
+    mov a, dpl
+    add a, _alarm_mm_bcd
+    da a
+    mov dpl, a
+    ret
+  __endasm;
+	
 }
 
 /*********************************************/
@@ -372,7 +410,7 @@ int main()
     {
         enum Event ev;
 
-        while (!loop_gate); // wait for open
+        while (!loop_gate); // wait for open 無駄にループを回さないように100ms毎
         loop_gate = 0; // close gate
 
         ev = event;
@@ -420,11 +458,15 @@ int main()
             // convert to BCD
             alarm_hh_bcd = ds_int2bcd(alarm_hh_bcd);
             alarm_mm_bcd = ds_int2bcd(alarm_mm_bcd);
-            cfg_changed = 0;
+
+	    snooth_time = 0;
+	    cfg_changed = 0;
         }
 
         // check for alarm trigger
-        if (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm) {
+	// snooth_time>0の時は、分の部分だけで比較
+	if ( (snooth_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm))
+	     || (snooth_time>0 && (alarm_mm_snooth == rtc_mm_bcd)) ) {
             if (CONF_ALARM_ON && !alarm_trigger && !alarm_reset) {
                 alarm_trigger = 1;
             }
@@ -434,15 +476,32 @@ int main()
         }
 
         // S1 or S2 to stop alarm
+	//S1押した時はスヌーズにする
         if (alarm_trigger && !alarm_reset) {
-            if (ev == EV_S1_SHORT || ev == EV_S2_SHORT) {
+	  //            if (ev == EV_S1_SHORT || ev == EV_S2_SHORT) {
+            if (ev == EV_S1_SHORT) {
+	      //スヌーズ
+                alarm_trigger = 0;
+		snooth_time += 5;	//次に鳴らすまでの間隔(5分後)
+		//スヌーズ時間が1時間超えたら、スヌーズ終了
+		if (snooth_time>60) snooth_time=0;
+		
+		//snoothがBCDではないので、途中で計算がおかしくなっていた
+		alarm_mm_snooth = add_BCD(ds_int2bcd(snooth_time));
+		
+		if (alarm_mm_snooth > 0x59) alarm_mm_snooth = alarm_mm_snooth - 0x60;
+                ev = EV_NONE;
+	    }
+            else if (ev == EV_S2_SHORT) {
                 alarm_reset = 1;
                 alarm_trigger = 0;
                 ev = EV_NONE;
+		snooth_time = 0;
             }
         }
 #endif
 
+	/////////////////////////////////////////////////////////////////////
         // keyboard decision tree
         switch (kmode) {
 
@@ -538,9 +597,21 @@ int main()
                     ds_weekday_incr();
                 }
                 else if (ev == EV_S2_SHORT) {
-                    kmode = K_NORMAL;
+//                    kmode = K_NORMAL;
+		    // ノーマルに戻さず、年表示、設定
+                    kmode = K_YEAR_DISP;
                 }
                 break;
+
+	    case K_YEAR_DISP:
+                dmode = M_YEAR_DISP;
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                    ds_year_incr();
+                }
+                else if (ev == EV_S2_SHORT) {
+                    kmode = K_NORMAL;
+                }
+	        break;
 
 #ifdef DEBUG
             // To enter DEBUG mode, go to the SECONDS display, then hold S1 and S2 simultaneously.
@@ -649,9 +720,21 @@ int main()
 #endif
         };
 
+	/////////////////////////////////////////////////////////////////////
         // display execution tree
 
         clearTmpDisplay();
+
+	dmode_bak = dmode;
+	if (dmode==M_NORMAL) {
+
+	  ss = rtc_table[DS_ADDR_SECONDS];
+	  if (ss < 0x20) dmode = M_NORMAL;
+	  else if (ss < 0x25) dmode = M_TEMP_DISP;
+	  else if (ss < 0x30) dmode = M_DATE_DISP;
+	  else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
+	  
+	}
 
         switch (dmode) {
             case M_NORMAL:
@@ -670,7 +753,7 @@ int main()
                     pm = alarm_pm;
                 }
 #endif
-
+		
                 if (!flash_01 || blinker_fast || S1_LONG) {
                     uint8_t h0 = hh >> 4;
                     if (H12_12 && h0 == 0) {
@@ -741,12 +824,37 @@ int main()
 #endif
 
             case M_WEEKDAY_DISP:
-                filldisplay( 1, LED_DASH, 0);
-                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0); //weekday ( &MASK_UNITS useless, all MSBs are '0')
-                filldisplay( 3, LED_DASH, 0);
+	      //                filldisplay( 1, LED_DASH, 0);
+	      //                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0); //weekday ( &MASK_UNITS useless, all MSBs are '0')
+	      //                filldisplay( 3, LED_DASH, 0);
+
+	      {
+		uint8_t wd;
+		/*		
+	      filldisplay(1, weekDay[0][0]-'G'+LED_G, 0);
+	      filldisplay(2, weekDay[0][1]-'G'+LED_G, 0);
+	      filldisplay(3, weekDay[0][2]-'G'+LED_G, 0);
+		*/
+ 
+	      wd = rtc_table[DS_ADDR_WEEKDAY]-1;
+
+	      filldisplay(1, weekDay[wd][0]-'A'+LED_A, 0);
+	      filldisplay(2, weekDay[wd][1]-'A'+LED_A, 0);
+	      filldisplay(3, weekDay[wd][2]-'A'+LED_A, 0);
+
                 dot3display(0);
+	      }
                 break;
 
+            case M_YEAR_DISP:
+	      //年の表示20xx
+	      filldisplay(0, 2, 0);
+	      filldisplay(1, 0, 0);
+	      
+	      filldisplay(2,(rtc_table[DS_ADDR_YEAR] >> 4) & (DS_MASK_YEAR_TENS >> 4), 0);
+	      filldisplay(3, rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR_UNITS, 0);
+	      break;
+	      
             case M_TEMP_DISP:
                 filldisplay( 0, ds_int2bcd_tens(temp), 0);
                 filldisplay( 1, ds_int2bcd_ones(temp), 0);
@@ -794,6 +902,8 @@ int main()
             }
 #endif
         }
+
+	dmode = dmode_bak;	//元に戻す
 
 #ifndef WITHOUT_ALARM
         if (alarm_trigger && !alarm_reset) {
