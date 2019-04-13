@@ -1,0 +1,25 @@
+Modification items to stc_diyclock by KazHat
+
+1. Change the character of day of the week.
+    Ex. -1-  ->   Sun 
+   Add new LED pattern to show 'modified alphabet' for 7 seg LED.
+   By this change, easily recognize day of the week even some alphabet's shape is not match the actual alphabet.
+   For example, T looks 7, I is 1, W is upsidedown of A and so on.
+
+2. Add smooth function.
+    When push S1 button (upper button), stop the alarm and alarm again after 5 minutes later.
+    This continues up to 1 hour to avoid alarm forever.
+    Push + button (lower button) for stopping the alarm.
+
+3. Back to the original display sequence:  This is my favorite.
+    Same as original display sequence, show time -> temp -> date -> day of the week per minute.
+    Temp is shown from 20th sec, date is shown from 25th sec and day of the week is shown from 30th sec.
+
+4. Leap year 
+    Add to be able to set the year. This information is set to the real time clock IC of DS1302.
+    Date information is always gotten from DS1302, then Feb/29 is correctly processed when this year is leap year or not.
+    This needs user to set the year, I insterted year setting after day setting.
+
+
+Thanks,
+Kazuki Ohno
