@@ -131,7 +131,7 @@ void ds_hours_incr();
 // increment minutes
 void ds_minutes_incr();
 
-// increment year      ...Newly add by KO
+// increment year
 void ds_year_incr();
 
 // increment month

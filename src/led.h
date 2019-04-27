@@ -3,17 +3,17 @@
 #include <stdint.h>
 
 // index into ledtable[]
+// To define all alphabets sequentially, move LED_a - LED_f after LED_dp
+#define LED_BLANK  10
+#define LED_DASH   11
+#define LED_h   12
+#define LED_dp  13
 #define LED_a   14 //0xa
 #define LED_b   15 //0xb
 #define LED_c   16 //0xc
 #define LED_d   17 //0xd
 #define LED_e   18 //0xe
 #define LED_f   19 //0xf
-#define LED_BLANK  10
-#define LED_DASH   11
-#define LED_h   12
-#define LED_dp  13
-#define LED_A   14
 
 const uint8_t
 #ifndef WITHOUT_LEDTABLE_RELOC
