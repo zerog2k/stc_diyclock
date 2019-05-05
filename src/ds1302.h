@@ -131,6 +131,9 @@ void ds_hours_incr();
 // increment minutes
 void ds_minutes_incr();
 
+// increment year
+void ds_year_incr();
+
 // increment month
 void ds_month_incr();
 

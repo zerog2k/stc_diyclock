@@ -14,7 +14,7 @@ Basic functionality is working:
 * seconds display/reset
 * display auto-dim
 * temperature display in C or F (with user-defined offset adjustment)
-* alarm
+* alarm with snooze
 
 ## Experimental support
 * time sync to GPS receiver outputting serial NMEA data (STC15W408AS)

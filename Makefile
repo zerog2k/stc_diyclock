@@ -8,7 +8,7 @@ STCGALPORT ?= /dev/ttyUSB0
 STCGALPROT ?= auto
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
-CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
+CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC -DSHOW_TEMP_DATE_WEEKDAY
 
 SRC = src/adc.c src/ds1302.c
 
@@ -25,7 +25,7 @@ main: $(OBJ)
 	@ tail -n 5 build/main.mem | head -n 2
 	@ tail -n 1 build/main.mem
 	cp build/$@.ihx $@.hex
-	
+
 eeprom:
 	sed -ne '/:..1/ { s/1/0/2; p }' main.hex > eeprom.hex
 

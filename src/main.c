@@ -33,6 +33,7 @@ enum keyboard_mode {
     K_DATE_DISP,
     K_SET_MONTH,
     K_SET_DAY,
+    K_YEAR_DISP,
 #endif
     K_WEEKDAY_DISP,
 #ifndef WITHOUT_ALARM
@@ -57,6 +58,7 @@ enum display_mode {
     M_DATE_DISP,
 #endif
     M_WEEKDAY_DISP,
+    M_YEAR_DISP,
 #ifndef WITHOUT_ALARM
     M_ALARM,
 #endif
@@ -90,15 +92,15 @@ void _delay_ms(uint8_t ms)
 */
 
 uint8_t  count;     // main loop counter
-uint8_t temp;      // temperature sensor value
+uint8_t  temp;      // temperature sensor value
 uint8_t  lightval;  // light sensor value
 
 volatile uint8_t displaycounter;
-volatile int8_t count_100;
-volatile int16_t count_1000;
-volatile int16_t count_5000;
+volatile int8_t count_100;	//0.01s=10ms
+volatile int8_t count_1000;	//0.1s=100ms
+volatile int8_t count_5000;	//0.5s=500ms
 #ifndef WITHOUT_ALARM
-volatile int16_t count_20000;
+volatile int16_t count_20000;	//2s
 volatile __bit blinker_slowest;
 #endif
 
@@ -110,6 +112,7 @@ volatile __bit loop_gate;
 
 uint8_t dmode = M_NORMAL;     // display mode state
 uint8_t kmode = K_NORMAL;
+uint8_t dmode_bak = M_NORMAL;
 
 __bit  flash_01;
 __bit  flash_23;
@@ -125,6 +128,10 @@ __bit alarm_trigger;
 __bit alarm_reset;
 #endif
 __bit cfg_changed = 1;
+uint8_t snooze_time;	//snooze(min)
+uint8_t alarm_mm_snooze;	//next alarm time (min)
+uint8_t ss;
+
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
@@ -137,7 +144,7 @@ volatile __bit S3_PRESSED;
 
 volatile uint8_t debounce[NUM_SW];      // switch debounce buffer
 volatile uint8_t switchcount[NUM_SW];
-#define SW_CNTMAX 80
+#define SW_CNTMAX 80	//long push
 
 enum Event {
     EV_NONE,
@@ -155,6 +162,12 @@ enum Event {
 
 volatile enum Event event;
 
+/*
+  interrupt: every 0.1ms=100us come here
+
+  Check button status
+  Dynamically LED turn on
+ */
 void timer0_isr() __interrupt 1 __using 1
 {
     uint8_t tmp;
@@ -181,26 +194,34 @@ void timer0_isr() __interrupt 1 __using 1
     // 100/sec: 10 ms
     if (count_100 == 100) {
         count_100 = 0;
+	count_1000++;	//increment every 10ms
+
         // 10/sec: 100 ms
-        if (count_1000 == 1000) {
+        if (count_1000 == 10) {
             count_1000 = 0;
-            blinker_fast = !blinker_fast;
-            loop_gate = 1;
-            // 2/sec: 500 ms
-            if (count_5000 == 5000) {
+            blinker_fast = !blinker_fast;	//blink every 100ms
+            loop_gate = 1;	//every 100ms
+
+	    count_5000++;	//increment every 100ms
+#ifndef WITHOUT_ALARM
+	    count_20000++;	//increment every 100ms
+#endif
+	    // 2/sec: 500 ms
+            if (count_5000 == 5) {
                 count_5000 = 0;
-                blinker_slow = !blinker_slow;
+                blinker_slow = !blinker_slow;	//blink every 500ms
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
-                if (count_20000 == 20000) {
+                if (count_20000 == 20) {
                     count_20000 = 0;
                 }
-                // 500 ms on, 1500 ms off
-                blinker_slowest = count_20000 < 5000;
+                // 500 ms on=true=1, 1500 ms off=false=0
+                blinker_slowest = count_20000 < 5;
 #endif
             }
         }
 
+	// Check SW status and chattering control
 #define MONITOR_S(n) \
         { \
             uint8_t s = n - 1; \
@@ -249,12 +270,9 @@ void timer0_isr() __interrupt 1 __using 1
             event = ev;
         }
     }
-    count_100++;
-    count_1000++;
-    count_5000++;
+    count_100++;	//increment every 0.1ms
+    
 #ifndef WITHOUT_ALARM
-    count_20000++;
-
     if (count_timeout != 0) {
         count_timeout--;
         if (count_timeout == 0) {
@@ -297,14 +315,15 @@ void timer0_isr() __interrupt 1 __using 1
 // Call timer0_isr() 10000/sec: 0.0001 sec
 // Initialize the timer count so that it overflows after 0.0001 sec
 // THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
+// When 11.0592MHz clock case, set every 100us interruption 
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
     // refer to section 7 of datasheet: STC15F2K60S2-en2.pdf
     // TMOD = 0;    // default: 16-bit auto-reload
     // AUXR = 0;    // default: traditional 8051 timer frequency of FOSC / 12
     // Initial values of TL0 and TH0 are stored in hidden reload registers: RL_TL0 and RL_TH0
-	TL0 = 0xA4;		// Initial timer value
-	TH0 = 0xFF;		// Initial timer value
+    TL0 = 0xA4;		// Initial timer value
+    TH0 = 0xFF;		// Initial timer value
     TF0 = 0;		// Clear overflow flag
     TR0 = 1;		// Timer0 start run
     ET0 = 1;        // Enable timer0 interrupt
@@ -335,18 +354,34 @@ int8_t gettemp(uint16_t raw) {
     return temp + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
 
+//3rd LED's dot display. Blink pattern is set when alarm is set.
 void dot3display(__bit pm)
 {
 #ifndef WITHOUT_ALARM
     // dot 3: If alarm is on, blink for 500 ms every 2000 ms
     //        If 12h: on if pm when not blinking
-    if (!H12_12) { // 24h
+    if (!H12_12) { // 24h mode
         pm = CONF_ALARM_ON && blinker_slowest && blinker_fast;
     } else if (CONF_ALARM_ON && blinker_slowest) {
+      //12h mode case: blink 500ms, AM/PM=Off/On in another 500ms 
         pm = blinker_fast;
     }
 #endif
     dotdisplay(3, pm);
+}
+
+
+//set next alarm_min by adding snooze
+uint8_t add_BCD(uint8_t snooze) {
+  snooze;	//dpl
+  __asm
+    mov a, dpl
+    add a, _alarm_mm_bcd
+    da a
+    mov dpl, a
+    ret
+  __endasm;
+	
 }
 
 /*********************************************/
@@ -372,7 +407,7 @@ int main()
     {
         enum Event ev;
 
-        while (!loop_gate); // wait for open
+        while (!loop_gate); // wait for open every 100ms
         loop_gate = 0; // close gate
 
         ev = event;
@@ -420,11 +455,15 @@ int main()
             // convert to BCD
             alarm_hh_bcd = ds_int2bcd(alarm_hh_bcd);
             alarm_mm_bcd = ds_int2bcd(alarm_mm_bcd);
-            cfg_changed = 0;
+
+	    snooze_time = 0;
+	    cfg_changed = 0;
         }
 
         // check for alarm trigger
-        if (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm) {
+	// when snooze_time>0, just compare min portion
+	if ( (snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm))
+	     || (snooze_time>0 && (alarm_mm_snooze == rtc_mm_bcd)) ) {
             if (CONF_ALARM_ON && !alarm_trigger && !alarm_reset) {
                 alarm_trigger = 1;
             }
@@ -434,15 +473,31 @@ int main()
         }
 
         // S1 or S2 to stop alarm
+	// Snooze by pushing S1
         if (alarm_trigger && !alarm_reset) {
-            if (ev == EV_S1_SHORT || ev == EV_S2_SHORT) {
+            if (ev == EV_S1_SHORT) {
+	      //set snooze
+                alarm_trigger = 0;
+		snooze_time += 5;	//next alarm as 5min later
+		//stop snooze after 1hour passing from the first alarm
+		if (snooze_time>60) snooze_time=0;
+		
+		//need BCD calculation
+		alarm_mm_snooze = add_BCD(ds_int2bcd(snooze_time));
+		
+		if (alarm_mm_snooze > 0x59) alarm_mm_snooze = alarm_mm_snooze - 0x60;
+                ev = EV_NONE;
+	    }
+            else if (ev == EV_S2_SHORT) {
                 alarm_reset = 1;
                 alarm_trigger = 0;
                 ev = EV_NONE;
+		snooze_time = 0;
             }
         }
 #endif
 
+	/////////////////////////////////////////////////////////////////////
         // keyboard decision tree
         switch (kmode) {
 
@@ -538,9 +593,21 @@ int main()
                     ds_weekday_incr();
                 }
                 else if (ev == EV_S2_SHORT) {
-                    kmode = K_NORMAL;
+//                    kmode = K_NORMAL;
+		    // next mode is year_disp
+                    kmode = K_YEAR_DISP;
                 }
                 break;
+
+	    case K_YEAR_DISP:
+                dmode = M_YEAR_DISP;
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                    ds_year_incr();
+                }
+                else if (ev == EV_S2_SHORT) {
+                    kmode = K_NORMAL;
+                }
+	        break;
 
 #ifdef DEBUG
             // To enter DEBUG mode, go to the SECONDS display, then hold S1 and S2 simultaneously.
@@ -649,9 +716,24 @@ int main()
 #endif
         };
 
+	/////////////////////////////////////////////////////////////////////
         // display execution tree
 
         clearTmpDisplay();
+
+	dmode_bak = dmode;
+
+#ifdef SHOW_TEMP_DATE_WEEKDAY
+	if (dmode==M_NORMAL) {
+
+	  ss = rtc_table[DS_ADDR_SECONDS];
+	  if (ss < 0x20) dmode = M_NORMAL;
+	  else if (ss < 0x25) dmode = M_TEMP_DISP;
+	  else if (ss < 0x30) dmode = M_DATE_DISP;
+	  else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
+	  
+	}
+#endif
 
         switch (dmode) {
             case M_NORMAL:
@@ -741,12 +823,28 @@ int main()
 #endif
 
             case M_WEEKDAY_DISP:
-                filldisplay( 1, LED_DASH, 0);
-                filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0); //weekday ( &MASK_UNITS useless, all MSBs are '0')
-                filldisplay( 3, LED_DASH, 0);
-                dot3display(0);
-                break;
+	      {
+	      uint8_t wd;
+ 
+	      wd = rtc_table[DS_ADDR_WEEKDAY]-1;
 
+	      filldisplay(1, weekDay[wd][0]-'A'+LED_a, 0);
+	      filldisplay(2, weekDay[wd][1]-'A'+LED_a, 0);
+	      filldisplay(3, weekDay[wd][2]-'A'+LED_a, 0);
+	      
+	      dot3display(0);
+	      }
+	      break;
+
+            case M_YEAR_DISP:
+	      //fix upper 2 digit as 20
+	      filldisplay(0, 2, 0);
+	      filldisplay(1, 0, 0);
+	      
+	      filldisplay(2,(rtc_table[DS_ADDR_YEAR] >> 4) & (DS_MASK_YEAR_TENS >> 4), 0);
+	      filldisplay(3, rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR_UNITS, 0);
+	      break;
+	      
             case M_TEMP_DISP:
                 filldisplay( 0, ds_int2bcd_tens(temp), 0);
                 filldisplay( 1, ds_int2bcd_ones(temp), 0);
@@ -794,6 +892,8 @@ int main()
             }
 #endif
         }
+
+	dmode = dmode_bak;	// back to original dmode
 
 #ifndef WITHOUT_ALARM
         if (alarm_trigger && !alarm_reset) {
