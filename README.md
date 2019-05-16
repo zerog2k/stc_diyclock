@@ -17,12 +17,11 @@ Basic functionality is working:
 * alarm with snooze
 
 ## Experimental support
-* time sync to GPS receiver outputting serial NMEA data (STC15W408AS)
+* time sync to GPS receiver outputting serial NMEA data
   * on `gps` branch: https://github.com/zerog2k/stc_diyclock/tree/gps
-  * for STC15W408AS (sorry no STC15F204EA, not enough ram/code, and no hw uart)
+  * for STC15W408AS or STC15W404AS (sorry no STC15F204EA, not enough ram/code, no hw uart)
   * very experimental at this point (help wanted to polish this)
 * platformio support
-  * on `platformio` branch
   * see platformio build section below for platform installation instructions
   * tested on linux/vscode w/ stc15w408as based clock kit
 
