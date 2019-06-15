@@ -14,6 +14,7 @@
 #include "led.h"
 
 #define FOSC    11059200
+//#define DEBUG
 
 // clear wdt
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
@@ -69,6 +70,10 @@ enum display_mode {
 #endif
 };
 #define NUM_DEBUG 3
+
+#ifdef DEBUG
+uint8_t hex[] = {0,1,2,3,4,5,6,7,8,9,14,15,16,17,18,19};
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*
@@ -865,8 +870,8 @@ int main()
                     filldisplay(0, (rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
                     filldisplay(1, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, blinker_slow );
                 }
-                filldisplay(2, cc >> 4 & 0x0F, ev != EV_NONE);
-                filldisplay(3, cc & 0x0F, blinker_slow & blinker_fast);
+                filldisplay(2, hex[cc >> 4 & 0x0F], ev != EV_NONE);
+                filldisplay(3, hex[cc & 0x0F], blinker_slow & blinker_fast);
                 break;
             }
             case M_DEBUG2:
@@ -874,20 +879,20 @@ int main()
                 // photoresistor adc and lightval
                 uint8_t adc = getADCResult8(ADC_LIGHT);
                 uint8_t lv = lightval;
-                filldisplay( 0, adc >> 4, 0);
-                filldisplay( 1, adc & 0x0F, 0);
-                filldisplay( 2, lv >> 4, 1);
-                filldisplay( 3, lv & 0x0F, 0);
+                filldisplay( 0, hex[adc>>4], 0);
+                filldisplay( 1, hex[adc & 0x0F], 0);
+                filldisplay( 2, hex[lv>>4], 0);
+                filldisplay( 3, hex[lv & 0x0F], 0);
                 break;
             }
             case M_DEBUG3:
             {
                 // thermistor adc
                 uint16_t rt = getADCResult(ADC_TEMP);
-                filldisplay( 0, rt >> 12, 0);
-                filldisplay( 1, rt >> 8 & 0x0F, 0);
-                filldisplay( 2, rt >> 4 & 0x0F, 0);
-                filldisplay( 3, rt & 0x0F, 0);
+                filldisplay( 0, hex[rt >> 12], 0);
+                filldisplay( 1, hex[rt >> 8 & 0x0F], 0);
+                filldisplay( 2, hex[rt >> 4 & 0x0F], 0);
+                filldisplay( 3, hex[rt & 0x0F], 0);
                 break;
             }
 #endif
