@@ -262,9 +262,9 @@ void ds_alarm_minutes_incr() {
 }
 
 void ds_alarm_hours_incr() {
-    uint8_t hh = cfg_table[CFG_ALARM_HOURS_BYTE] >> 3;
+    uint8_t hh = cfg_table[CFG_ALARM_HOURS_BYTE] >> CFG_ALARM_HOURS_SHIFT;
     INCR(hh, 0, 23);
-    hh <<= 3;
+    hh <<= CFG_ALARM_HOURS_SHIFT;
     cfg_table[CFG_ALARM_HOURS_BYTE] &= ~CFG_ALARM_HOURS_MASK;
     cfg_table[CFG_ALARM_HOURS_BYTE] |= hh;
     ds_ram_config_write();
@@ -272,6 +272,28 @@ void ds_alarm_hours_incr() {
 
 void ds_alarm_on_toggle() {
     CONF_ALARM_ON = !CONF_ALARM_ON;
+    ds_ram_config_write();
+}
+
+void ds_chime_since_incr() {
+    uint8_t hh = cfg_table[CFG_CHIME_SINCE_BYTE ] >> CFG_CHIME_SINCE_SHIFT;
+    INCR(hh, 0, 23);
+    hh <<= CFG_CHIME_SINCE_SHIFT;
+    cfg_table[CFG_CHIME_SINCE_BYTE] &= ~CFG_CHIME_SINCE_MASK ;
+    cfg_table[CFG_CHIME_SINCE_BYTE] |= hh;
+    ds_ram_config_write();
+}
+
+void ds_chime_until_incr() {
+    uint8_t hh = cfg_table[CFG_CHIME_UNTIL_BYTE] & CFG_CHIME_UNTIL_MASK;
+    INCR(hh, 0, 23);
+    cfg_table[CFG_CHIME_UNTIL_BYTE] &= ~CFG_CHIME_UNTIL_MASK;
+    cfg_table[CFG_CHIME_UNTIL_BYTE] |= hh;
+    ds_ram_config_write();
+}
+
+void ds_chime_on_toggle() {
+    CONF_CHIME_ON = !CONF_CHIME_ON;
     ds_ram_config_write();
 }
 
