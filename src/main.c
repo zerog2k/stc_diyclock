@@ -424,6 +424,10 @@ int main()
     ds_init();
     // init/read ram config
     ds_ram_config_init();
+#ifdef WITH_CAPACITOR
+    // enable capacitor trickle charge ~1mA
+    ds_writebyte(DS_ADDR_TCSDS, DS_TCS_TCON | DS_TC_D1_4KO);
+#endif
 
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();

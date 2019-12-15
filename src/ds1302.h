@@ -24,6 +24,16 @@
 #define DS_ADDR_WP          7
 #define DS_ADDR_TCSDS       8
 
+// trickle charge for super capacitors - 1/2 diodes, 2/4/8 kOhm resistor
+#define DS_TCS_TCON 0b10100000
+
+#define DS_TC_D1_2KO 0b0101
+#define DS_TC_D1_4KO 0b0110
+#define DS_TC_D1_8KO 0b0111
+#define DS_TC_D2_2KO 0b1001
+#define DS_TC_D2_4KO 0b1010
+#define DS_TC_D2_8KO 0b1011
+
 #define DS_BURST_MODE       31
 
 // DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
