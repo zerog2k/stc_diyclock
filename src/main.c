@@ -42,6 +42,11 @@ enum keyboard_mode {
     K_ALARM_SET_HOUR,
     K_ALARM_SET_MINUTE,
 #endif
+#ifndef WITHOUT_CHIME
+    K_CHIME,
+    K_CHIME_SET_SINCE,
+    K_CHIME_SET_UNTIL,
+#endif
 #ifdef DEBUG
     K_DEBUG,
     K_DEBUG2,
@@ -62,6 +67,9 @@ enum display_mode {
     M_YEAR_DISP,
 #ifndef WITHOUT_ALARM
     M_ALARM,
+#endif
+#ifndef WITHOUT_CHIME
+    M_CHIME,
 #endif
 #ifdef DEBUG
     M_DEBUG,
@@ -108,6 +116,9 @@ volatile int8_t count_5000;	//0.5s=500ms
 volatile int16_t count_20000;	//2s
 volatile __bit blinker_slowest;
 #endif
+#ifndef WITHOUT_CHIME
+volatile int16_t chime_ticks;	//100ms inc
+#endif
 
 volatile uint16_t count_timeout; // max 6.5536 sec
 #define TIMEOUT_LONG 0xFFFF
@@ -131,6 +142,13 @@ uint8_t alarm_mm_bcd;
 __bit alarm_pm;
 __bit alarm_trigger;
 __bit alarm_reset;
+#endif
+#ifndef WITHOUT_CHIME
+uint8_t chime_ss_bcd; // hour since
+uint8_t chime_uu_bcd; // hour until
+__bit chime_ss_pm;
+__bit chime_uu_pm;
+__bit chime_trigger = 0;
 #endif
 __bit cfg_changed = 1;
 uint8_t snooze_time;	//snooze(min)
@@ -166,7 +184,6 @@ enum Event {
 };
 
 volatile enum Event event;
-
 /*
   interrupt: every 0.1ms=100us come here
 
@@ -201,6 +218,7 @@ void timer0_isr() __interrupt 1 __using 1
         count_100 = 0;
 	count_1000++;	//increment every 10ms
 
+
         // 10/sec: 100 ms
         if (count_1000 == 10) {
             count_1000 = 0;
@@ -210,6 +228,10 @@ void timer0_isr() __interrupt 1 __using 1
 	    count_5000++;	//increment every 100ms
 #ifndef WITHOUT_ALARM
 	    count_20000++;	//increment every 100ms
+#endif
+#ifndef WITHOUT_CHIME
+        if (chime_trigger)
+            chime_ticks ++;	//increment every 100ms
 #endif
 	    // 2/sec: 500 ms
             if (count_5000 == 5) {
@@ -375,7 +397,7 @@ void dot3display(__bit pm)
     dotdisplay(3, pm);
 }
 
-
+#ifndef WITHOUT_ALARM
 //set next alarm_min by adding snooze
 uint8_t add_BCD(uint8_t snooze) {
   snooze;	//dpl
@@ -388,6 +410,7 @@ uint8_t add_BCD(uint8_t snooze) {
   __endasm;
 	
 }
+#endif
 
 /*********************************************/
 int main()
@@ -401,6 +424,10 @@ int main()
     ds_init();
     // init/read ram config
     ds_ram_config_init();
+#ifdef WITH_CAPACITOR
+    // enable capacitor trickle charge ~1mA
+    ds_writebyte(DS_ADDR_TCSDS, DS_TCS_TCON | DS_TC_D1_4KO);
+#endif
 
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();
@@ -443,10 +470,33 @@ int main()
             rtc_mm_bcd = rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES;
         }
 
-#ifndef WITHOUT_ALARM
+#if !defined(WITHOUT_ALARM) || !defined(WITHOUT_CHIME)
         if (cfg_changed) {
+#ifndef WITHOUT_CHIME
+            chime_ss_bcd = cfg_table[CFG_CHIME_SINCE_BYTE] >> CFG_CHIME_SINCE_SHIFT;
+            chime_uu_bcd = cfg_table[CFG_CHIME_UNTIL_BYTE] & CFG_CHIME_UNTIL_MASK;
+            chime_ss_pm = chime_uu_pm = 0;
+            if (H12_12) {
+                if (chime_ss_bcd >= 12) {
+                    chime_ss_pm = 1;
+                    chime_ss_bcd -= 12;
+                }
+                if (chime_ss_bcd == 0)
+                    chime_ss_bcd = 12;
+                if (chime_uu_bcd >= 12) {
+                    chime_uu_pm = 1;
+                    chime_uu_bcd -= 12;
+                }
+                if (chime_uu_bcd == 0)
+                    chime_uu_bcd = 12;
+            }
+            // convert to BCD
+            chime_ss_bcd = ds_int2bcd(chime_ss_bcd);
+            chime_uu_bcd = ds_int2bcd(chime_uu_bcd);
+#endif
+#ifndef WITHOUT_ALARM
             alarm_pm = 0;
-            alarm_hh_bcd = cfg_table[CFG_ALARM_HOURS_BYTE] >> 3;
+            alarm_hh_bcd = cfg_table[CFG_ALARM_HOURS_BYTE] >> CFG_ALARM_HOURS_SHIFT;
             if (H12_12) {
                 if (alarm_hh_bcd >= 12) {
                     alarm_pm = 1;
@@ -462,12 +512,43 @@ int main()
             alarm_mm_bcd = ds_int2bcd(alarm_mm_bcd);
 
 	    snooze_time = 0;
+#endif
 	    cfg_changed = 0;
         }
+#endif // !defined(WITHOUT_ALARM) || !defined(WITHOUT_CHIME)
 
+#ifndef WITHOUT_CHIME
+        // xx:00:00
+        if (CONF_CHIME_ON && !chime_trigger && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
+            uint8_t hh = rtc_hh_bcd;
+            uint8_t ss = chime_ss_bcd;
+            uint8_t uu = chime_uu_bcd;
+            // convert all to 24h for comparision
+            if (H12_12) {
+                if (hh == 0x12 && !rtc_pm)
+                    hh == 0x00;
+                else if (hh != 0x12 && rtc_pm)
+                    hh += 0x12;
+                if (ss == 0x12 && !chime_ss_pm)
+                    ss == 0x00;
+                else if (ss != 0x12 && chime_ss_pm)
+                    ss += 0x12;
+                if (uu == 0x12 && !chime_uu_pm)
+                    uu == 0x00;
+                else if (uu != 0x12 && chime_uu_pm)
+                    uu += 0x12;
+            }
+            if((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu))) {
+                chime_ticks = 0;
+                chime_trigger = 1;
+            }
+        }
+#endif
+
+#ifndef WITHOUT_ALARM
         // check for alarm trigger
 	// when snooze_time>0, just compare min portion
-	if ( (snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm))
+        if ((snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm))
 	     || (snooze_time>0 && (alarm_mm_snooze == rtc_mm_bcd)) ) {
             if (CONF_ALARM_ON && !alarm_trigger && !alarm_reset) {
                 alarm_trigger = 1;
@@ -508,23 +589,19 @@ int main()
 
             case K_SET_HOUR:
                 flash_01 = 1;
-                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
                     ds_hours_incr();
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S2_SHORT)
                     kmode = K_SET_MINUTE;
-                }
                 break;
 
             case K_SET_MINUTE:
                 flash_01 = 0;
                 flash_23 = 1;
-                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
                     ds_minutes_incr();
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S2_SHORT)
                     kmode = K_SET_HOUR_12_24;
-                }
                 break;
 
             case K_SET_HOUR_12_24:
@@ -532,20 +609,16 @@ int main()
                 if (ev == EV_S1_SHORT) {
                     ds_hours_12_24_toggle();
                     cfg_changed = 1;
-                }
-                else if (ev == EV_S2_SHORT) {
+                } else if (ev == EV_S2_SHORT)
                     kmode = K_NORMAL;
-                }
                 break;
 
             case K_TEMP_DISP:
                 dmode = M_TEMP_DISP;
-                if (ev == EV_S1_SHORT) {
+                if (ev == EV_S1_SHORT)
                     ds_temperature_offset_incr();
-                }
-                else if (ev == EV_S1_LONG) {
+                else if (ev == EV_S1_LONG)
                     ds_temperature_cf_toggle();
-                }
                 else if (ev == EV_S2_SHORT) {
 #ifndef WITHOUT_DATE
                     kmode = K_DATE_DISP;
@@ -558,22 +631,18 @@ int main()
 #ifndef WITHOUT_DATE
             case K_DATE_DISP:
                 dmode = M_DATE_DISP;
-                if (ev == EV_S1_SHORT) {
+                if (ev == EV_S1_SHORT)
                     ds_date_mmdd_toggle();
-                }
-                else if (ev == EV_S1_LONG) {
+                else if (ev == EV_S1_LONG)
                     kmode = CONF_SW_MMDD ? K_SET_DAY : K_SET_MONTH;
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S2_SHORT)
                     kmode = K_WEEKDAY_DISP;
-                }
                 break;
 
             case K_SET_MONTH:
                 flash_01 = 1;
-                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast))
                     ds_month_incr();
-                }
                 else if (ev == EV_S1_SHORT) {
                     flash_01 = 0;
                     kmode = CONF_SW_MMDD ? K_DATE_DISP : K_SET_DAY;
@@ -582,9 +651,8 @@ int main()
 
             case K_SET_DAY:
                 flash_23 = 1;
-                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast)) {
+                if (ev == EV_S2_SHORT || (S2_LONG && blinker_fast))
                     ds_day_incr();
-                }
                 else if (ev == EV_S1_SHORT) {
                     flash_23 = 0;
                     kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
@@ -594,24 +662,19 @@ int main()
 
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
-                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
                     ds_weekday_incr();
-                }
-                else if (ev == EV_S2_SHORT) {
-//                    kmode = K_NORMAL;
+                else if (ev == EV_S2_SHORT)
 		    // next mode is year_disp
                     kmode = K_YEAR_DISP;
-                }
                 break;
 
 	    case K_YEAR_DISP:
                 dmode = M_YEAR_DISP;
-                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
                     ds_year_incr();
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S2_SHORT)
                     kmode = K_NORMAL;
-                }
 	        break;
 
 #ifdef DEBUG
@@ -635,18 +698,19 @@ int main()
                 dmode = M_SEC_DISP;
                 if (ev == EV_S1_SHORT) {
 #ifndef WITHOUT_ALARM
+                    count_timeout = TIMEOUT_LONG; // timeout for alarm disp
                     kmode = K_ALARM;
+#elif !defined(WITHOUT_CHIME)
+                    count_timeout = TIMEOUT_LONG; // timeout for chime disp
+                    kmode = K_CHIME;
 #else
                     kmode = K_NORMAL;
 #endif
-                }
-                else if (ev == EV_S2_SHORT) {
+                } else if (ev == EV_S2_SHORT)
                     ds_sec_zero();
-                }
 #ifdef DEBUG
-                else if (ev == EV_S1S2_LONG) {
+                else if (ev == EV_S1S2_LONG)
                     kmode = K_DEBUG;
-                }
 #endif
                 break;
 
@@ -655,19 +719,21 @@ int main()
                 flash_01 = 0;
                 flash_23 = 0;
                 dmode = M_ALARM;
-                if (count_timeout == 0) {
-                    count_timeout = TIMEOUT_LONG;
-                }
-                if (ev == EV_S1_SHORT || ev == EV_TIMEOUT) {
-                    count_timeout = 0;
+                if (ev == EV_TIMEOUT)
                     kmode = K_NORMAL;
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S1_SHORT) {
+#if !defined(WITHOUT_CHIME)
+                    count_timeout = TIMEOUT_LONG; // timeout for chime disp
+                    kmode = K_CHIME;
+#else
+                    kmode = K_NORMAL;
+#endif
+                } else if (ev == EV_S2_SHORT) {
+                    count_timeout = TIMEOUT_LONG; // reset timeout on toggle
                     ds_alarm_on_toggle();
                     cfg_changed = 1;
-                }
-                else if (ev == EV_S2_LONG) {
-                    count_timeout = 0;
+                } else if (ev == EV_S2_LONG) {
+                    count_timeout = 0; // infinite adjusting
                     kmode = K_ALARM_SET_HOUR;
                 }
                 break;
@@ -675,9 +741,8 @@ int main()
             case K_ALARM_SET_HOUR:
                 flash_01 = 1;
                 alarm_reset = 1; // don't trigger while setting
-                if (ev == EV_S2_SHORT) {
+                if (ev == EV_S2_SHORT)
                     kmode = K_ALARM_SET_MINUTE;
-                }
                 else if (ev == EV_S1_SHORT || S1_LONG && blinker_fast) {
                     ds_alarm_hours_incr();
                     cfg_changed = 1;
@@ -689,10 +754,50 @@ int main()
                 flash_23 = 1;
                 alarm_reset = 1;
                 if (ev == EV_S2_SHORT) {
+                    count_timeout = TIMEOUT_LONG; // timeout for alarm disp
                     kmode = K_ALARM;
-                }
-                else if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                } else if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
                     ds_alarm_minutes_incr();
+                    cfg_changed = 1;
+                }
+                break;
+#endif
+
+#ifndef WITHOUT_CHIME
+            case K_CHIME:
+                flash_01 = 0;
+                flash_23 = 0;
+                dmode = M_CHIME;
+                if (ev == EV_S1_SHORT || ev == EV_TIMEOUT) {
+                    kmode = K_NORMAL;
+                } else if (ev == EV_S2_SHORT) {
+                    count_timeout = TIMEOUT_LONG; // reset timeout on toggle
+                    ds_chime_on_toggle();
+                    cfg_changed = 1;
+                } else if (ev == EV_S2_LONG) {
+                    count_timeout = 0; // infinite adjusting
+                    kmode = K_CHIME_SET_SINCE;
+                }
+                break;
+
+            case K_CHIME_SET_SINCE:
+                flash_01 = 1;
+                if (ev == EV_S2_SHORT)
+                    kmode = K_CHIME_SET_UNTIL;
+                else if (ev == EV_S1_SHORT || S1_LONG && blinker_fast) {
+                    ds_chime_since_incr();
+                    cfg_changed = 1;
+                }
+                break;
+
+            case K_CHIME_SET_UNTIL:
+                flash_01 = 0;
+                flash_23 = 1;
+                if (ev == EV_S2_SHORT) {
+                    count_timeout = TIMEOUT_LONG; // timeout for chime disp
+                    kmode = K_CHIME;
+                } else if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
+                    ds_chime_until_incr();
                     cfg_changed = 1;
                 }
                 break;
@@ -704,16 +809,15 @@ int main()
                 flash_23 = 0;
 
                 dmode = M_NORMAL;
+                if (count_timeout)
+                    count_timeout = 0; // no timeout for normal (time display) mode
 
-                if (ev == EV_S1_SHORT) {
+                if (ev == EV_S1_SHORT)
                     kmode = K_SEC_DISP;
-                }
-                else if (ev == EV_S2_LONG) {
+                else if (ev == EV_S2_LONG)
                     kmode = K_SET_HOUR;
-                }
-                else if (ev == EV_S2_SHORT) {
+                else if (ev == EV_S2_SHORT)
                     kmode = K_TEMP_DISP;
-                }
 #ifdef stc15w408as
                 else if (ev == EV_S3_LONG) {
                     LED = !LED;
@@ -745,6 +849,9 @@ int main()
 #ifndef WITHOUT_ALARM
             case M_ALARM:
 #endif
+#ifndef WITHOUT_CHIME
+            case M_CHIME:
+#endif
             {
                 uint8_t hh = rtc_hh_bcd;
                 uint8_t mm = rtc_mm_bcd;
@@ -758,6 +865,14 @@ int main()
                 }
 #endif
 
+#ifndef WITHOUT_CHIME
+                if (dmode == M_CHIME) {
+                    hh = chime_ss_bcd;
+                    mm = chime_uu_bcd;
+                    pm = chime_uu_pm;
+                }
+#endif
+
                 if (!flash_01 || blinker_fast || S1_LONG) {
                     uint8_t h0 = hh >> 4;
                     if (H12_12 && h0 == 0) {
@@ -768,15 +883,36 @@ int main()
                 }
 
                 if (!flash_23 || blinker_fast || S1_LONG) {
+#ifndef WITHOUT_CHIME
+                    if (dmode == M_CHIME) {
+                        // remove leading zero in chime stop hr
+                        uint8_t m0 = mm >> 4;
+                        if (H12_12 && m0 == 0) {
+                            m0 = LED_BLANK;
+                        }
+                        filldisplay(2, m0, 0);
+                    } else
+#endif
                     filldisplay(2, mm >> 4, 0);
                     filldisplay(3, mm & 0x0F, 0);
                 }
 
                 if (blinker_slow || dmode != M_NORMAL) {
+#ifndef WITHOUT_CHIME
+                    if (dmode != M_CHIME) {
+#endif
                     dotdisplay(1, 1);
                     dotdisplay(2, 1);
+#ifndef WITHOUT_CHIME
                 }
-
+#endif
+                }
+#ifndef WITHOUT_CHIME
+                if (dmode == M_CHIME) {
+                    dotdisplay(2, CONF_CHIME_ON);
+                    dotdisplay(1, chime_ss_pm);
+                }
+#endif
                 dot3display(pm);
                 break;
             }
@@ -909,8 +1045,23 @@ int main()
                 BUZZER_OFF;
             }
         } else {
+#ifndef WITHOUT_CHIME
+            if (!chime_trigger)
+#endif
             BUZZER_OFF;
         }
+#endif
+
+#ifndef WITHOUT_CHIME
+        if (chime_trigger)
+            //if(chime_ticks == 0 || chime_ticks == 2)
+            if (chime_ticks == 0)
+                BUZZER_ON;
+            //else if(chime_ticks == 1 || chime_ticks == 3)
+            else if (chime_ticks == 1 || chime_ticks == 2) // 2 times off - just in case
+                BUZZER_OFF;
+            else if (chime_ticks > 100) // disable after >1sec.
+                chime_trigger = 0;
 #endif
 
         __critical {

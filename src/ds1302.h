@@ -24,6 +24,16 @@
 #define DS_ADDR_WP          7
 #define DS_ADDR_TCSDS       8
 
+// trickle charge for super capacitors - 1/2 diodes, 2/4/8 kOhm resistor
+#define DS_TCS_TCON 0b10100000
+
+#define DS_TC_D1_2KO 0b0101
+#define DS_TC_D1_4KO 0b0110
+#define DS_TC_D1_8KO 0b0111
+#define DS_TC_D2_2KO 0b1001
+#define DS_TC_D2_4KO 0b1010
+#define DS_TC_D2_8KO 0b1011
+
 #define DS_BURST_MODE       31
 
 // DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
@@ -84,12 +94,21 @@ __bit __at (0x37) H12_12;
 uint8_t __at (0x2c) cfg_table[4];
 
 #define CFG_ALARM_HOURS_BYTE   0
-#define CFG_ALARM_MINUTES_BYTE 1
-#define CFG_TEMP_BYTE          2
-
 #define CFG_ALARM_HOURS_MASK   0b11111000
+#define CFG_ALARM_HOURS_SHIFT  3
+
+#define CFG_ALARM_MINUTES_BYTE 1
 #define CFG_ALARM_MINUTES_MASK 0b00111111
+
+#define CFG_TEMP_BYTE          2
 #define CFG_TEMP_MASK          0b00000111
+
+#define CFG_CHIME_SINCE_BYTE   2
+#define CFG_CHIME_SINCE_MASK   0b11111000
+#define CFG_CHIME_SINCE_SHIFT  3
+
+#define CFG_CHIME_UNTIL_BYTE   3
+#define CFG_CHIME_UNTIL_MASK   0b00011111
 
 // Offset 0 => alarm_hour (7..3) / chime_on (2) / alarm_on (1) / temp_C_F (0)
 // Offset 1 => (7) not used / (6) sw_mmdd / alarm_minute (5..0)
@@ -156,6 +175,9 @@ uint8_t ds_int2bcd_ones(uint8_t integer);
 void ds_alarm_minutes_incr();
 void ds_alarm_hours_incr();
 void ds_alarm_on_toggle();
+void ds_chime_since_incr();
+void ds_chime_until_incr();
+void ds_chime_on_toggle();
 void ds_date_mmdd_toggle();
 void ds_temperature_offset_incr();
 void ds_temperature_cf_toggle();
