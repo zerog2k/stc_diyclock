@@ -7,31 +7,27 @@ Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood
 [link to Banggood product page for SKU 972289](http://www.banggood.com/DIY-4-Digit-LED-Electronic-Clock-Kit-Temperature-Light-Control-Version-p-972289.html?p=WX0407753399201409DA)
 
 ## features
-Basic functionality is working:
 * time display/set (12/24 hour modes)
 * date display/set (with reversible MM/YY, YY/MM display)
 * day of week
+* year
 * seconds display/reset
 * display auto-dim
 * temperature display in C or F (with user-defined offset adjustment)
 * alarm with snooze
+* hourly chime
 
 ## Experimental support
 * time sync to GPS receiver outputting serial NMEA data
   * on `gps` branch: https://github.com/zerog2k/stc_diyclock/tree/gps
   * for STC15W408AS or STC15W404AS (sorry no STC15F204EA, not enough ram/code, no hw uart)
   * very experimental at this point (help wanted to polish this)
-* platformio support
-  * see platformio build section below for platform installation instructions
-  * tested on linux/vscode w/ stc15w408as based clock kit
 
 **note this project in development and a work-in-progress**
 *Pull requests are welcome.*
 
 ## TODOs
-* chime ?
 * time sync to WWVB radio receiver module (for STC15W408AS)
-
 
 ## hardware
 
@@ -123,8 +119,14 @@ http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 VE3LNY's adaptation of this hardware to AVR (he has some interesting AVR projects there):
 http://www.qsl.net/v/ve3lny/travel_clock.html
 
+## diagrams
+### new operation
+[new firmware operation flow diagram](docs/DIY_LED_Clock_operation_new.png)
+
+### original operation
 [original firmware operation flow state diagram](docs/DIY_LED_Clock_operation_original.png)
 
+### schematics
 Kit instructions w/ schematic: [scan](docs/DIY_LED_Clock.png) | [PDF](http://img.banggood.com/file/products/20170116024635SKU203096.pdf)
 
 
