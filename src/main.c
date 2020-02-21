@@ -833,7 +833,7 @@ int main()
 	dmode_bak = dmode;
 
 #ifdef SHOW_TEMP_DATE_WEEKDAY
-	if (dmode==M_NORMAL) {
+	if (dmode == M_NORMAL && kmode == K_NORMAL) {
 
 	  ss = rtc_table[DS_ADDR_SECONDS];
 	  if (ss < 0x20) dmode = M_NORMAL;
