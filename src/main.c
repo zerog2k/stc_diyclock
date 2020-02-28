@@ -117,7 +117,7 @@ volatile int16_t count_20000;	//2s
 volatile __bit blinker_slowest;
 #endif
 #ifndef WITHOUT_CHIME
-volatile int16_t chime_ticks;   //10ms inc
+volatile int16_t chime_ticks;	//100ms inc
 #endif
 
 volatile uint16_t count_timeout; // max 6.5536 sec
@@ -148,7 +148,7 @@ uint8_t chime_ss_bcd; // hour since
 uint8_t chime_uu_bcd; // hour until
 __bit chime_ss_pm;
 __bit chime_uu_pm;
-volatile uint8_t chime_trigger = 0;
+__bit chime_trigger = 0;
 #endif
 __bit cfg_changed = 1;
 uint8_t snooze_time;	//snooze(min)
@@ -218,10 +218,6 @@ void timer0_isr() __interrupt 1 __using 1
         count_100 = 0;
 	count_1000++;	//increment every 10ms
 
-#ifndef WITHOUT_CHIME
-        if (chime_trigger)
-            chime_ticks ++;     //increment every 10ms
-#endif
 
         // 10/sec: 100 ms
         if (count_1000 == 10) {
@@ -232,6 +228,10 @@ void timer0_isr() __interrupt 1 __using 1
 	    count_5000++;	//increment every 100ms
 #ifndef WITHOUT_ALARM
 	    count_20000++;	//increment every 100ms
+#endif
+#ifndef WITHOUT_CHIME
+        if (chime_trigger)
+            chime_ticks ++;	//increment every 100ms
 #endif
 	    // 2/sec: 500 ms
             if (count_5000 == 5) {
@@ -538,9 +538,11 @@ int main()
                 else if (uu != 0x12 && chime_uu_pm)
                     uu += 0x12;
             }
-            if((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu)))
+            if((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu))) {
+                chime_ticks = 0;
                 chime_trigger = 1;
             }
+        }
 #endif
 
 #ifndef WITHOUT_ALARM
@@ -1043,24 +1045,23 @@ int main()
                 BUZZER_OFF;
             }
         } else {
+#ifndef WITHOUT_CHIME
+            if (!chime_trigger)
+#endif
             BUZZER_OFF;
         }
 #endif
 
 #ifndef WITHOUT_CHIME
-        switch (chime_trigger) {
-        case 1: // ~100ms chime
+        if (chime_trigger)
+            //if(chime_ticks == 0 || chime_ticks == 2)
+            if (chime_ticks == 0)
                 BUZZER_ON;
-            for (chime_ticks = 0; chime_ticks < 10; );
+            //else if(chime_ticks == 1 || chime_ticks == 3)
+            else if (chime_ticks == 1 || chime_ticks == 2) // 2 times off - just in case
                 BUZZER_OFF;
-            chime_trigger = 2;
-        case 2: // wait > 1sec until rtc sec changed
-            if (chime_ticks > 150)
-                chime_trigger = 0; // stop chime
-            break;
-        default:
-            break;
-        }
+            else if (chime_ticks > 100) // disable after >1sec.
+                chime_trigger = 0;
 #endif
 
         __critical {
