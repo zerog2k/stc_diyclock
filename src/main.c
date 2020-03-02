@@ -155,16 +155,6 @@ uint8_t snooze_time;	//snooze(min)
 uint8_t alarm_mm_snooze;	//next alarm time (min)
 uint8_t ss;
 
-#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
-#define SEC_PER_MONTH 2592000
-#if WITH_MONTHLY_CORR > 0
-#define CORR_VALUE 1 // +1 sec every ~RUNTIME_PER_SEC seconds
-#else
-#define CORR_VALUE -1 // -1 sec every ~RUNTIME_PER_SEC seconds
-#endif
-#define RUNTIME_PER_SEC (SEC_PER_MONTH / (WITH_MONTHLY_CORR * CORR_VALUE))
-volatile uint32_t corr_remaining = RUNTIME_PER_SEC;
-#endif
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
@@ -247,10 +237,6 @@ void timer0_isr() __interrupt 1 __using 1
             if (count_5000 == 5) {
                 count_5000 = 0;
                 blinker_slow = !blinker_slow;	//blink every 500ms
-#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
-                if (!blinker_slow && corr_remaining)
-                    corr_remaining --;
-#endif
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
                 if (count_20000 == 20) {
@@ -854,13 +840,6 @@ int main()
 	  else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
 	  
 	}
-#endif
-
-#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
-        if (!corr_remaining && rtc_table[DS_ADDR_SECONDS] == 0x50) {
-            ds_writebyte(DS_ADDR_SECONDS, rtc_table[DS_ADDR_SECONDS] + CORR_VALUE);
-            corr_remaining = RUNTIME_PER_SEC;
-        }
 #endif
 
         switch (dmode) {
