@@ -22,7 +22,7 @@
 // hardware configuration
 #include "hwconfig.h"
 
-// display mode states
+// keyboard mode states
 enum keyboard_mode {
     K_NORMAL,
     K_SET_HOUR,
