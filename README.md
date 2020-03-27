@@ -74,6 +74,14 @@ make flash
 * flashing STC15W408AS:
 `STCGALPROT="stc15" make flash`
 
+## Flashing issues
+### A bit of feedback about flashing the MCU using STCGAL on OSX.
+I firtsly tried to flash the MCU (STC15W404AS) wired to a FTDI(F232RL) USB/Serial chip, tried all day with different wirings and STCGAL arguments but coulnd't even get a transmission no matter what, not even on windows with STC-ISP tool.
+
+Got better luck with a CP2102 chip after installing the drivers, but the connection got lost on baudrate switch after handshake as discussed [here](https://github.com/grigorig/stcgal/issues/8)
+I've finally managed to flash the MCU on Windows 10 using STCGAL throught the CP2102 chip.
+
+
 ## pre-compiled binaries
 If you like, you can try pre-compiled binaries here:
 https://github.com/zerog2k/stc_diyclock/releases

@@ -298,7 +298,7 @@ void timer0_isr() __interrupt 1 __using 1
         }
     }
     count_100++;	//increment every 0.1ms
-    
+
 #ifndef WITHOUT_ALARM
     if (count_timeout != 0) {
         count_timeout--;
@@ -342,7 +342,7 @@ void timer0_isr() __interrupt 1 __using 1
 // Call timer0_isr() 10000/sec: 0.0001 sec
 // Initialize the timer count so that it overflows after 0.0001 sec
 // THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
-// When 11.0592MHz clock case, set every 100us interruption 
+// When 11.0592MHz clock case, set every 100us interruption
 void Timer0Init(void)		//100us @ 11.0592MHz
 {
     // refer to section 7 of datasheet: STC15F2K60S2-en2.pdf
@@ -372,9 +372,9 @@ int8_t gettemp(uint16_t raw) {
 
     if (CONF_C_F) {val=6835; temp=32;}  // equiv. to temp=xxxx-(9/5)*raw/10 i.e. 9*raw/50
                                         // see next - same for degF
-             else {val=5*757; temp=0;}  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50  
+             else {val=5*757; temp=0;}  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50
                                         // at 25degC, raw is 512, thus 24 is 522 and limit between 24 and 25 is 517
-                                        // so between 0deg and 1deg, limit is 517+24*10 = 757 
+                                        // so between 0deg and 1deg, limit is 517+24*10 = 757
                                         // (*5 due to previous adjustment of raw value)
     while (raw<val) {temp++; val-=50;}
 
@@ -390,7 +390,7 @@ void dot3display(__bit pm)
     if (!H12_12) { // 24h mode
         pm = CONF_ALARM_ON && blinker_slowest && blinker_fast;
     } else if (CONF_ALARM_ON && blinker_slowest) {
-      //12h mode case: blink 500ms, AM/PM=Off/On in another 500ms 
+      //12h mode case: blink 500ms, AM/PM=Off/On in another 500ms
         pm = blinker_fast;
     }
 #endif
@@ -408,7 +408,7 @@ uint8_t add_BCD(uint8_t snooze) {
     mov dpl, a
     ret
   __endasm;
-	
+
 }
 #endif
 
@@ -567,10 +567,10 @@ int main()
 		snooze_time += 5;	//next alarm as 5min later
 		//stop snooze after 1hour passing from the first alarm
 		if (snooze_time>60) snooze_time=0;
-		
+
 		//need BCD calculation
 		alarm_mm_snooze = add_BCD(ds_int2bcd(snooze_time));
-		
+
 		if (alarm_mm_snooze > 0x59) alarm_mm_snooze = alarm_mm_snooze - 0x60;
                 ev = EV_NONE;
 	    }
@@ -658,7 +658,6 @@ int main()
                     kmode = CONF_SW_MMDD ? K_SET_MONTH : K_DATE_DISP;
                 }
                 break;
-#endif
 
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
@@ -676,6 +675,7 @@ int main()
                 else if (ev == EV_S2_SHORT)
                     kmode = K_NORMAL;
 	        break;
+#endif
 
 #ifdef DEBUG
             // To enter DEBUG mode, go to the SECONDS display, then hold S1 and S2 simultaneously.
@@ -838,9 +838,11 @@ int main()
 	  ss = rtc_table[DS_ADDR_SECONDS];
 	  if (ss < 0x20) dmode = M_NORMAL;
 	  else if (ss < 0x25) dmode = M_TEMP_DISP;
-	  else if (ss < 0x30) dmode = M_DATE_DISP;
-	  else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
-	  
+    	#ifndef WITHOUT_DATE
+			else if (ss < 0x30) dmode = M_DATE_DISP;
+	        else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
+    	#endif
+
 	}
 #endif
 
@@ -966,13 +968,13 @@ int main()
             case M_WEEKDAY_DISP:
 	      {
 	      uint8_t wd;
- 
+
 	      wd = rtc_table[DS_ADDR_WEEKDAY]-1;
 
 	      filldisplay(1, weekDay[wd][0]-'A'+LED_a, 0);
 	      filldisplay(2, weekDay[wd][1]-'A'+LED_a, 0);
 	      filldisplay(3, weekDay[wd][2]-'A'+LED_a, 0);
-	      
+
 	      dot3display(0);
 	      }
 	      break;
@@ -981,11 +983,11 @@ int main()
 	      //fix upper 2 digit as 20
 	      filldisplay(0, 2, 0);
 	      filldisplay(1, 0, 0);
-	      
+
 	      filldisplay(2,(rtc_table[DS_ADDR_YEAR] >> 4) & (DS_MASK_YEAR_TENS >> 4), 0);
 	      filldisplay(3, rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR_UNITS, 0);
 	      break;
-	      
+
             case M_TEMP_DISP:
                 filldisplay( 0, ds_int2bcd_tens(temp), 0);
                 filldisplay( 1, ds_int2bcd_ones(temp), 0);
