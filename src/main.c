@@ -148,7 +148,12 @@ uint8_t chime_ss_bcd; // hour since
 uint8_t chime_uu_bcd; // hour until
 __bit chime_ss_pm;
 __bit chime_uu_pm;
-volatile uint8_t chime_trigger = 0;
+enum chime_state {
+    CHIME_IDLE = 0,
+    CHIME_RUNNING,
+    CHIME_WAITING
+};
+volatile uint8_t chime_trigger = CHIME_IDLE;
 #endif
 __bit cfg_changed = 1;
 uint8_t snooze_time;	//snooze(min)
@@ -229,7 +234,7 @@ void timer0_isr() __interrupt 1 __using 1
 	count_1000++;	//increment every 10ms
 
 #ifndef WITHOUT_CHIME
-        if (chime_trigger)
+        if (chime_trigger != CHIME_IDLE)
             chime_ticks ++;     //increment every 10ms
 #endif
 
@@ -533,7 +538,7 @@ int main()
 
 #ifndef WITHOUT_CHIME
         // xx:00:00
-        if (CONF_CHIME_ON && !chime_trigger && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
+        if (CONF_CHIME_ON && chime_trigger == CHIME_IDLE && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
             uint8_t hh = rtc_hh_bcd;
             uint8_t ss = chime_ss_bcd;
             uint8_t uu = chime_uu_bcd;
@@ -553,7 +558,7 @@ int main()
                     uu += 0x12;
             }
             if((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu)))
-                chime_trigger = 1;
+                chime_trigger = CHIME_RUNNING;
             }
 #endif
 
@@ -1074,14 +1079,14 @@ int main()
 
 #ifndef WITHOUT_CHIME
         switch (chime_trigger) {
-        case 1: // ~100ms chime
+        case CHIME_RUNNING: // ~100ms chime
                 BUZZER_ON;
             for (chime_ticks = 0; chime_ticks < 10; );
                 BUZZER_OFF;
-            chime_trigger = 2;
-        case 2: // wait > 1sec until rtc sec changed
+            chime_trigger = CHIME_WAITING;
+        case CHIME_WAITING: // wait > 1sec until rtc sec changed
             if (chime_ticks > 150)
-                chime_trigger = 0; // stop chime
+                chime_trigger = CHIME_IDLE; // stop chime
             break;
         default:
             break;
