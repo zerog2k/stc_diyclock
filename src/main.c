@@ -148,13 +148,28 @@ uint8_t chime_ss_bcd; // hour since
 uint8_t chime_uu_bcd; // hour until
 __bit chime_ss_pm;
 __bit chime_uu_pm;
-volatile uint8_t chime_trigger = 0;
+enum chime_state {
+    CHIME_IDLE = 0,
+    CHIME_RUNNING,
+    CHIME_WAITING
+};
+volatile uint8_t chime_trigger = CHIME_IDLE;
 #endif
 __bit cfg_changed = 1;
 uint8_t snooze_time;	//snooze(min)
 uint8_t alarm_mm_snooze;	//next alarm time (min)
 uint8_t ss;
 
+#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
+#define SEC_PER_MONTH 2592000
+#if WITH_MONTHLY_CORR > 0
+#define CORR_VALUE 1 // +1 sec every ~RUNTIME_PER_SEC seconds
+#else
+#define CORR_VALUE -1 // -1 sec every ~RUNTIME_PER_SEC seconds
+#endif
+#define RUNTIME_PER_SEC (SEC_PER_MONTH / (WITH_MONTHLY_CORR * CORR_VALUE))
+volatile uint32_t corr_remaining = RUNTIME_PER_SEC;
+#endif
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
@@ -219,7 +234,7 @@ void timer0_isr() __interrupt 1 __using 1
 	count_1000++;	//increment every 10ms
 
 #ifndef WITHOUT_CHIME
-        if (chime_trigger)
+        if (chime_trigger != CHIME_IDLE)
             chime_ticks ++;     //increment every 10ms
 #endif
 
@@ -237,6 +252,10 @@ void timer0_isr() __interrupt 1 __using 1
             if (count_5000 == 5) {
                 count_5000 = 0;
                 blinker_slow = !blinker_slow;	//blink every 500ms
+#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
+                if (!blinker_slow && corr_remaining)
+                    corr_remaining --;
+#endif
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
                 if (count_20000 == 20) {
@@ -519,7 +538,7 @@ int main()
 
 #ifndef WITHOUT_CHIME
         // xx:00:00
-        if (CONF_CHIME_ON && !chime_trigger && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
+        if (CONF_CHIME_ON && chime_trigger == CHIME_IDLE && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
             uint8_t hh = rtc_hh_bcd;
             uint8_t ss = chime_ss_bcd;
             uint8_t uu = chime_uu_bcd;
@@ -539,7 +558,7 @@ int main()
                     uu += 0x12;
             }
             if((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu)))
-                chime_trigger = 1;
+                chime_trigger = CHIME_RUNNING;
             }
 #endif
 
@@ -704,8 +723,12 @@ int main()
 #else
                     kmode = K_NORMAL;
 #endif
-                } else if (ev == EV_S2_SHORT)
+                } else if (ev == EV_S2_SHORT) {
                     ds_sec_zero();
+#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
+                    corr_remaining = RUNTIME_PER_SEC;
+#endif
+                }
 #ifdef DEBUG
                 else if (ev == EV_S1S2_LONG)
                     kmode = K_DEBUG;
@@ -840,6 +863,13 @@ int main()
 	  else if (ss < 0x35) dmode = M_WEEKDAY_DISP;
 	  
 	}
+#endif
+
+#if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
+        if (!corr_remaining && rtc_table[DS_ADDR_SECONDS] == 0x51) {
+            ds_writebyte(DS_ADDR_SECONDS, rtc_table[DS_ADDR_SECONDS] + CORR_VALUE);
+            corr_remaining = RUNTIME_PER_SEC;
+        }
 #endif
 
         switch (dmode) {
@@ -1049,14 +1079,14 @@ int main()
 
 #ifndef WITHOUT_CHIME
         switch (chime_trigger) {
-        case 1: // ~100ms chime
+        case CHIME_RUNNING: // ~100ms chime
                 BUZZER_ON;
             for (chime_ticks = 0; chime_ticks < 10; );
                 BUZZER_OFF;
-            chime_trigger = 2;
-        case 2: // wait > 1sec until rtc sec changed
+            chime_trigger = CHIME_WAITING;
+        case CHIME_WAITING: // wait > 1sec until rtc sec changed
             if (chime_ticks > 150)
-                chime_trigger = 0; // stop chime
+                chime_trigger = CHIME_IDLE; // stop chime
             break;
         default:
             break;
