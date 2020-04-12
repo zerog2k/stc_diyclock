@@ -324,7 +324,8 @@ void ds_weekday_incr() {
 
 void ds_sec_zero() {
     rtc_table[DS_ADDR_SECONDS] = 0;
-    ds_writebyte(DS_ADDR_SECONDS, 0);
+    ds_writebyte(DS_ADDR_SECONDS, 0b10000000); // set CH, stop clock
+    ds_writebyte(DS_ADDR_SECONDS, 0); // clear CH, start clock
 }
     
 uint8_t ds_split2int(uint8_t tens_ones) {
