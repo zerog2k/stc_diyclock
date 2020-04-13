@@ -45,13 +45,12 @@ Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood
 ## requirements
 * linux or mac (windows untested, but should work)
 * sdcc installed and in the path (recommend sdcc >= 3.5.0)
-* stcgal (or optionally stc-isp). Note you can either do "git clone --recursive ..." when you check this repo out, or do "git submodule update --init --recursive" in order to fetch stcgal.
+* stcgal (or optionally stc-isp). Note you can either do `git clone --recursive ...` when you check this repo out, or do `git submodule update --init --recursive` in order to fetch stcgal.
 
 ## usage
-choose platformio or traditional make build
+choose platformio (preferred) or traditional make build
 
 ### platformio support
-_experimental_
 
 * assumes you have platformio installed
 * choose which mcu you are building for by uncommenting one `env_default` in `platformio.ini`
@@ -82,13 +81,12 @@ https://github.com/zerog2k/stc_diyclock/releases
 Instead of stcgal, you could alternatively use the official stc-isp tool, e.g stc-isp-15xx-v6.85I.exe, to flash.
 A windows app, but also works fine for me under mac and linux with wine.
 
-~~
-**note** due to optimizations that make use of "eeprom" section for holding lookup tables, if you are using 4k flash model mcu AND if using stc-isp tool, you must flash main.hex (as code file) and eeprom.hex (as eeprom file). (Ignore stc-isp warning about exceeding space when loading code file.)
+
+~**note** due to optimizations that make use of "eeprom" section for holding lookup tables, if you are using 4k flash model mcu AND if using stc-isp tool, you must flash main.hex (as code file) and eeprom.hex (as eeprom file). (Ignore stc-isp warning about exceeding space when loading code file.)~ (not really needed anymore as current build is within 4k code)
 To generate eeprom.hex, run:
 ```
 make eeprom
 ```
-~~
 
 ## clock assumptions
 For STC15F204EA, some of the code assumes 11.0592 MHz internal RC system clock (set by stc-isp or stcgal).
