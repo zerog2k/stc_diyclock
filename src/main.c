@@ -198,7 +198,12 @@ enum Event {
     EV_TIMEOUT,
 };
 
+#ifdef WITH_NTP
+#include "ntp.h"
+#endif // def WITH_NTP
+
 volatile enum Event event;
+
 /*
   interrupt: every 0.1ms=100us come here
 
@@ -452,6 +457,10 @@ int main()
     //ds_reset_clock();
 
     Timer0Init(); // display refresh & switch read
+
+#ifdef WITH_NTP
+    uart1_init();   // setup uart
+#endif
 
     // LOOP
     while (1)
