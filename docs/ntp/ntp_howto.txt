@@ -1,6 +1,8 @@
-STC15Wxxx clock ntp syncronisation
+STC15Wxxx clock ntp syncronisation (WITH_NTP)
 
 original idea and lua init example by onivan (https://github.com/onivan/stc_diyclock-ntp)
+
+requires STC15W408AS cpu with > 4K flash
 
 warning! there should be only one ESP8266 power source, 
 so USB-TTL +5V line shouldn't be connected when powered from the clock!
@@ -29,6 +31,11 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
 - check nodemcu running via serial console.
   there should be output #WYYYYMMDDhhmmss# like #120200325141501#
+
+- rebuild clock FW with -DWITH_NTP
+  Makefile also should be updated for large fw size
+    TCCODESIZE ?= 8185
+    SDCCREV ?= -Dstc15w408as
 
 you can test your nodemcu going to simple web page located
 at http://10.10.10.110 (updated once per minute).
