@@ -41,3 +41,6 @@ you can test your nodemcu going to simple web page located
 at http://10.10.10.110 (updated once per minute).
 first connection to WiFi and NTP can last long, so be patient.
 clock will be synced after successfull NTP sync.
+
+please notice, the ES8266 is significantly warm during operation (up to 40 Celsius)
+and it can affect the temperature sensor if it is located close to the watch case.
