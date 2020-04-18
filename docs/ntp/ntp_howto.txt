@@ -1,0 +1,48 @@
+STC15Wxxx clock ntp syncronisation (WITH_NTP)
+
+original idea and lua init example by onivan (https://github.com/onivan/stc_diyclock-ntp)
+
+requires STC15W408AS cpu with > 4K flash
+
+warning! there should be only one ESP8266 power source, 
+so USB-TTL +5V line shouldn't be connected when powered from the clock!
+
+- customize your nodemcu FW at https://nodemcu-build.com/index.php 
+  with RTC fifo, RTC mem, RTC time, SNTP modules enabled, 
+  download FW and flash your ESP8266.
+
+- customize your init.lua:
+
+  station_cfg.ssid="yourssid" -- SSID of your WiFi network
+  station_cfg.pwd="yourpass"  -- password of your WiFi network
+  UTCTZ = 5                   -- your timezone (unix TZ) offset
+  sync_delay = 480            -- sync once per X mins (480 == 8hrs)
+  -- set your static network parameters here
+  wifi.sta.setip({ip="10.10.10.110",netmask="255.255.255.0",gateway="10.10.10.1"})
+
+
+- upload init.lua script to ESP8266 using ESPlorer or nodemcu-uploader:
+
+  pip3 install nodemcu-uploader
+  
+  nodemcu-uploader upload init.lua
+
+- reboot nodemcu with node.restart()
+
+- check nodemcu running via serial console.
+  there should be output #WYYYYMMDDhhmmss# like #120200325141501#
+$GPRMC,232231.00,A,,,,,,,170420,,,*27
+
+
+- rebuild clock FW with -DWITH_NTP
+  Makefile also should be updated for large fw size
+    TCCODESIZE ?= 8185
+    SDCCREV ?= -Dstc15w408as
+
+you can test your nodemcu going to simple web page located
+at http://10.10.10.110 (updated once per minute).
+first connection to WiFi and NTP can last long, so be patient.
+clock will be synced after successfull NTP sync.
+
+please notice, the ES8266 is significantly warm during operation (up to 40 Celsius)
+and it can affect the temperature sensor if it is located close to the watch case.
