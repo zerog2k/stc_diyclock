@@ -198,7 +198,12 @@ enum Event {
     EV_TIMEOUT,
 };
 
+#ifdef WITH_NMEA
+#include "nmea.h"
+#endif
+
 volatile enum Event event;
+
 /*
   interrupt: every 0.1ms=100us come here
 
@@ -255,6 +260,10 @@ void timer0_isr() __interrupt 1 __using 1
 #if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
                 if (!blinker_slow && corr_remaining)
                     corr_remaining --;
+#endif
+#if defined(WITH_NMEA)
+                if (!blinker_slow && sync_remaining)
+                    sync_remaining --;
 #endif
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
@@ -452,6 +461,10 @@ int main()
     //ds_reset_clock();
 
     Timer0Init(); // display refresh & switch read
+
+#ifdef WITH_NMEA
+    uart1_init();   // setup uart
+#endif
 
     // LOOP
     while (1)
@@ -1099,6 +1112,18 @@ int main()
 
         count++;
         WDT_CLEAR();
+
+#ifdef WITH_NMEA
+        if (nmea_state == NMEA_SET) {
+            if (!sync_remaining) {
+                nmea2localtime();
+                sync_remaining = MIN_NMEA_PAUSE;
+            }
+            uidx = 0;
+            nmea_state = NMEA_NONE;
+            REN = 1;
+        }
+#endif
     }
 }
 /* ------------------------------------------------------------------------- */

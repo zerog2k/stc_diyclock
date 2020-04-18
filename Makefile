@@ -1,14 +1,15 @@
 SDCC ?= sdcc
-STCCODESIZE ?= 4089
-SDCCOPTS ?= --code-size $(STCCODESIZE) --xram-size 0 --data-loc 0x30 --disable-warning 126 --disable-warning 59
-SDCCREV ?= -Dstc15f204ea
+STCCODESIZE ?= 8184
+SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
+SDCCREV ?= -Dstc15w408as
 STCGAL ?= stcgal/stcgal.py
 STCGALOPTS ?= 
 STCGALPORT ?= /dev/ttyUSB0
 STCGALPROT ?= auto
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
-CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC -DSHOW_TEMP_DATE_WEEKDAY
+CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC -DSHOW_TEMP_DATE_WEEKDAY -DWITH_CAPACITOR -DWITH_NMEA
+#-DWITH_MONTHLY_CORR=-13
 
 SRC = src/adc.c src/ds1302.c
 
