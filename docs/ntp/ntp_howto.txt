@@ -31,8 +31,9 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 - reboot nodemcu with node.restart()
 
 - check nodemcu running via serial console.
-  there should be output #WYYYYMMDDhhmmss# like #120200325141501#
-$GPRMC,232231.00,A,,,,,,,170420,,,*27
+  there should be output like
+
+  $GPRMC,232231.00,A,,,,,,,170420,,,*27
 
 - rebuild clock FW with -DWITH_NMEA CFLAGS, Makefile should be updated for large fw size
     STCCODESIZE ?= 8184
