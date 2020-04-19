@@ -35,7 +35,6 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 $GPRMC,232231.00,A,,,,,,,170420,,,*27
 
 - rebuild clock FW with -DWITH_NMEA CFLAGS, Makefile should be updated for large fw size
-    SDCCREV ?= -Dstc15w408as
     STCCODESIZE ?= 8184
     SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
     SDCCREV ?= -Dstc15w408as
