@@ -1,7 +1,5 @@
+#include "eeprom.h"
 #include <time.h>
-
-#define LOC_TZ_SEC 18000 // TZ offset in seconds (Urals+5 = 5*3600 = 18000)
-#define LOC_DST 0 // daylight saving time 0/1 == off/on
 
 #define BAUDRATE 9600 // serial port speed (9600 - standard for GPS)
 
@@ -147,7 +145,7 @@ void nmea2localtime(void)
     t.tm_hour = char2int(p);
     t.tm_min = char2int(p+2);
     t.tm_sec = char2int(p+4);
-    t.tm_isdst = LOC_DST;
+    //t.tm_isdst = LOC_DST;
     //time_t ts;
     //ts = mktime(&t);  // make unix timestamp
     //ts += LOC_TZ_SEC + 1; // +1 to compensate transfer/delays
@@ -163,4 +161,40 @@ void nmea2localtime(void)
     ds_writebyte(DS_ADDR_SECONDS, 0b10000000); // set CH, stop clock
     ds_writebyte(DS_ADDR_SECONDS, ds_int2bcd(t.tm_sec)); // clear CH, start clock
 
+}
+
+#define IAP_TZ_ADDRESS 0x0000
+#define IAP_TZ_HR      0x0000
+#define IAP_TZ_MIN     0x0001
+#define IAP_TZ_DST     0x0002
+
+volatile int8_t nmea_tz_hr;
+volatile uint8_t nmea_tz_min;
+volatile uint8_t nmea_tz_dst;
+int8_t nmea_saved_tz_hr;
+uint8_t nmea_saved_tz_min;
+uint8_t nmea_saved_tz_dst;
+
+nmea_save_tz()
+{
+    Delay(10);
+    IapEraseSector(IAP_TZ_ADDRESS);
+    Delay(10);
+    IapProgramByte(IAP_TZ_HR, (uint8_t) nmea_tz_hr);
+    IapProgramByte(IAP_TZ_MIN, nmea_tz_min);
+    IapProgramByte(IAP_TZ_DST, nmea_tz_dst);
+}
+
+nmea_load_tz()
+{
+    nmea_tz_hr = (int8_t) IapReadByte(IAP_TZ_HR);
+    nmea_tz_min = IapReadByte(IAP_TZ_MIN);
+    nmea_tz_dst = IapReadByte(IAP_TZ_DST);
+    // HR after reflash will be == 0xff == -1 by default
+    if (nmea_tz_hr < -12 || nmea_tz_hr > 12)
+        nmea_tz_hr = 0;
+    if (nmea_tz_min == 0xff ||  nmea_tz_min && nmea_tz_min != 30 && nmea_tz_min != 45)
+        nmea_tz_min = 0;
+    if (nmea_tz_dst == 0xff ||  nmea_tz_dst > 1)
+        nmea_tz_dst = 0;
 }
