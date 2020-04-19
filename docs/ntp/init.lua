@@ -15,7 +15,7 @@ ntp_server = "pool.ntp.org"
 timestring = 0
 uarttimestring = 0
 rtcGood = 0
-UTCTZ = 5                   -- your timezone (unix TZ) offset
+-- UTCTZ = 5                   -- your timezone (unix TZ) offset
 sync_delay = 480            -- sync once per X mins (480 == 8hrs)
 sync_att = sync_delay
                         
@@ -140,7 +140,8 @@ function UpdateRtc()
           sec, usec = rtctime.get()    
       until usec > 150000
     end
-    tm = rtctime.epoch2cal((rtctime.get()+1)+UTCTZ*3600)
+    -- tm = rtctime.epoch2cal((rtctime.get()+1)+UTCTZ*3600)
+    tm = rtctime.epoch2cal(rtctime.get())
     timestring = string.format("%d %04d-%02d-%02d %02d:%02d:%02d", tm["wday"], tm["year"], tm["mon"], tm["day"], tm["hour"], tm["min"], tm["sec"])
     if (tm["year"] >= 2000) then
         tm["year"] = tm["year"] - 2000;

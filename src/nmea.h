@@ -3,9 +3,35 @@
 
 #define BAUDRATE 9600 // serial port speed (9600 - standard for GPS)
 
-#define MIN_NMEA_PAUSE 14400 // min pause between syncs (sec) - 4hr
+#define MIN_NMEA_PAUSE 21600 // min pause between syncs (sec) - 6hr
 
 volatile uint32_t sync_remaining = 0;
+
+#define IAP_TZ_ADDRESS 0x0000
+#define IAP_TZ_HR      0x0000
+#define IAP_TZ_MIN     0x0001
+#define IAP_TZ_DST     0x0002
+
+volatile int8_t nmea_tz_hr;
+volatile uint8_t nmea_tz_min;
+volatile uint8_t nmea_tz_dst;
+int8_t nmea_prev_tz_hr;
+uint8_t nmea_prev_tz_min;
+uint8_t nmea_prev_tz_dst;
+
+#define NMEA_LINE_LEN_MAX 84
+
+__pdata char ubuf[NMEA_LINE_LEN_MAX];
+volatile int8_t uidx = 0;
+
+__code const char NMEA_TOKEN[] = "$GPRMC";
+
+volatile enum {
+    NMEA_NONE = 0,
+    NMEA_START,
+    NMEA_PARSE,
+    NMEA_SET
+} nmea_state = NMEA_NONE;
 
 void uart1_init()
 {
@@ -20,18 +46,6 @@ void uart1_init()
     EA = 1;                     // enable interrupts
     REN = 1;
 }
-
-#define NMEA_LINE_LEN_MAX 84
-__pdata char ubuf[NMEA_LINE_LEN_MAX];
-volatile int8_t uidx = 0;
-__code const char NMEA_TOKEN[] = "$GPRMC";
-
-volatile enum {
-    NMEA_NONE = 0,
-    NMEA_START,
-    NMEA_PARSE,
-    NMEA_SET
-} nmea_state = NMEA_NONE;
 
 // return pointer to comma N num in ubuf
 char *nmea_comma(uint8_t num)
@@ -122,20 +136,94 @@ uint8_t char2int(char *p)
     return (*p - '0') * 10 + (*(p + 1) - '0');
 }
 
+__code static uint8_t doft[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
 // method by Tomohiko Sakamoto, 1992, accurate for any Gregorian date
 // returns 0 = Sunday, 1 = Monday, etc.
-
 uint8_t dayofweek(uint16_t y, uint8_t m, uint8_t d)
 {   // 1 <= m <= 12,  y > 1752 (in the U.K.)
-    static uint8_t t[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
     y -= m < 3;
-    return (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7;
+    return (y + y / 4 - y / 100 + y / 400 + doft[m - 1] + d) % 7;
+}
+
+uint8_t isleap(uint16_t year)
+{
+    return (((year % 4 == 0) && (year % 100!= 0)) || (year%400 == 0));
+}
+
+__code const uint8_t monlen[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+// month 1..12, year with century
+uint8_t days_per_month(uint16_t year, uint8_t month)
+{
+    if (month == 1)
+        return isleap(year) ? 29 : 28;
+    else
+        return monlen[month-1];
+}
+
+void nmea_apply_tz(struct tm *t)
+{
+    int8_t hdiff = nmea_tz_hr;
+    if (t->tm_sec < 59)
+        t->tm_sec ++; // just 1 sec compensation for nmea transfer delay
+    if (nmea_tz_dst)
+        hdiff ++;
+    if (nmea_tz_min)
+        if (hdiff >= 0) {
+            // positive TZ
+            if ((t->tm_min = t->tm_min + nmea_tz_min) >= 60) {
+                t->tm_min -= 60;
+                hdiff ++;
+            }
+        } else {
+            // negative TZ
+            if (nmea_tz_min > t->tm_min) {
+                t->tm_min = t->tm_min + 60 - nmea_tz_min;
+                hdiff --;
+            } else
+                t->tm_min = t->tm_min - nmea_tz_min;
+        }
+    if (hdiff > 0) {
+        // positive TZ
+        if ((t->tm_hour = t->tm_hour + hdiff) >= 24) {
+            // next day
+            t->tm_hour -= 24;
+            if (++t->tm_mday > days_per_month(t->tm_year+1900, t->tm_mon)) {
+                // next month
+                t->tm_mday = 1;
+                if (++t->tm_mon >= 12) {
+                    // next year
+                    t->tm_mon = 0; // jan
+                    t->tm_year ++; 
+                }
+            }
+        }
+    } else if (hdiff < 0) {
+        // negative TZ
+        if (-hdiff > t->tm_hour) {
+            // prev day
+            t->tm_hour += 24 + hdiff;
+            if (!--t->tm_mday) {
+                // prev month
+                if (!t->tm_mon) { // jan
+                    // prev year
+                    t->tm_mon = 11; // dec
+                    t->tm_year --;
+                } else
+                    t->tm_mon --;
+                t->tm_mday  =days_per_month(t->tm_year+1900, t->tm_mon);
+            }
+        } else
+            // same day
+            t->tm_hour += hdiff;
+    }
 }
 
 void nmea2localtime(void)
 {
     char *p;
     struct tm t;
+    uint8_t hmode = DS_MASK_1224_MODE;;
     // $GPRMC,232231.00,A,,,,,,,170420,,,*27
     p = nmea_comma(9) + 1;
     t.tm_mday = char2int(p);          // day
@@ -145,37 +233,29 @@ void nmea2localtime(void)
     t.tm_hour = char2int(p);
     t.tm_min = char2int(p+2);
     t.tm_sec = char2int(p+4);
-    //t.tm_isdst = LOC_DST;
-    //time_t ts;
-    //ts = mktime(&t);  // make unix timestamp
-    //ts += LOC_TZ_SEC + 1; // +1 to compensate transfer/delays
-    //nmea_cpy((char *) &t, (char *) localtime(&ts), sizeof(struct tm));
-    //ts = mktime(&t); // just update struct tm with weekday set
-    //ds_writebyte(DS_ADDR_WEEKDAY, t.tm_wday + 1);
+    nmea_apply_tz(&t);
+
     ds_writebyte(DS_ADDR_DAY, ds_int2bcd(t.tm_mday));
     ds_writebyte(DS_ADDR_MONTH, ds_int2bcd(t.tm_mon + 1));
     ds_writebyte(DS_ADDR_YEAR, ds_int2bcd(t.tm_year - 100));
     ds_writebyte(DS_ADDR_WEEKDAY, dayofweek(t.tm_year+1900, t.tm_mon+1, t.tm_mday) + 1);
-    ds_writebyte(DS_ADDR_HOUR,    ds_int2bcd(t.tm_hour));
+    if (!H12_12) {
+        ds_writebyte(DS_ADDR_HOUR, ds_int2bcd(t.tm_hour));
+    } else {
+        if (t.tm_hour >= 12) {
+            t.tm_hour -= 12;
+            hmode |= DS_MASK_PM;
+        }
+        if (!t.tm_hour)
+            t.tm_hour = 12;
+        ds_writebyte(DS_ADDR_HOUR, ds_int2bcd(t.tm_hour) | hmode);
+    }
     ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(t.tm_min));
     ds_writebyte(DS_ADDR_SECONDS, 0b10000000); // set CH, stop clock
     ds_writebyte(DS_ADDR_SECONDS, ds_int2bcd(t.tm_sec)); // clear CH, start clock
-
 }
 
-#define IAP_TZ_ADDRESS 0x0000
-#define IAP_TZ_HR      0x0000
-#define IAP_TZ_MIN     0x0001
-#define IAP_TZ_DST     0x0002
-
-volatile int8_t nmea_tz_hr;
-volatile uint8_t nmea_tz_min;
-volatile uint8_t nmea_tz_dst;
-int8_t nmea_saved_tz_hr;
-uint8_t nmea_saved_tz_min;
-uint8_t nmea_saved_tz_dst;
-
-nmea_save_tz()
+void nmea_save_tz(void )
 {
     Delay(10);
     IapEraseSector(IAP_TZ_ADDRESS);
@@ -185,7 +265,7 @@ nmea_save_tz()
     IapProgramByte(IAP_TZ_DST, nmea_tz_dst);
 }
 
-nmea_load_tz()
+void nmea_load_tz(void )
 {
     nmea_tz_hr = (int8_t) IapReadByte(IAP_TZ_HR);
     nmea_tz_min = IapReadByte(IAP_TZ_MIN);

@@ -13,18 +13,19 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
 - customize your init.lua:
 
-  station_cfg.ssid="yourssid" -- SSID of your WiFi network
-  station_cfg.pwd="yourpass"  -- password of your WiFi network
-  UTCTZ = 5                   -- your timezone (unix TZ) offset
-  sync_delay = 480            -- sync once per X mins (480 == 8hrs)
+  station_cfg.ssid="nautilus" -- SSID of your WiFi network
+  station_cfg.pwd="xxxxxxxxxx"  -- password of your WiFi network
   -- set your static network parameters here
-  wifi.sta.setip({ip="10.10.10.110",netmask="255.255.255.0",gateway="10.10.10.1"})
-
+  net_ip     = "10.10.10.110"
+  net_mask   = "255.255.255.0"
+  net_gate   = "10.10.10.1"
+  ntp_server = "pool.ntp.org"
+  sync_delay = 480            -- sync once per X mins (480 == 8hrs)
 
 - upload init.lua script to ESP8266 using ESPlorer or nodemcu-uploader:
 
   pip3 install nodemcu-uploader
-  
+
   nodemcu-uploader upload init.lua
 
 - reboot nodemcu with node.restart()
@@ -33,14 +34,14 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
   there should be output #WYYYYMMDDhhmmss# like #120200325141501#
 $GPRMC,232231.00,A,,,,,,,170420,,,*27
 
-
-- rebuild clock FW with -DWITH_NTP
-  Makefile also should be updated for large fw size
-    TCCODESIZE ?= 8185
+- rebuild clock FW with -DWITH_NMEA CFLAGS, Makefile should be updated for large fw size
+    SDCCREV ?= -Dstc15w408as
+    STCCODESIZE ?= 8184
+    SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
     SDCCREV ?= -Dstc15w408as
 
 you can test your nodemcu going to simple web page located
-at http://10.10.10.110 (updated once per minute).
+at http://10.10.10.110 (configured address, updated once per minute).
 first connection to WiFi and NTP can last long, so be patient.
 clock will be synced after successfull NTP sync.
 

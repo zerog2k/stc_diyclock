@@ -651,9 +651,9 @@ int main()
                     cfg_changed = 1;
                 } else if (ev == EV_S2_SHORT) {
 #ifdef WITH_NMEA
-                    nmea_saved_tz_hr = nmea_tz_hr;
-                    nmea_saved_tz_min = nmea_tz_min;
-                    nmea_saved_tz_dst = nmea_tz_dst;
+                    nmea_prev_tz_hr = nmea_tz_hr;
+                    nmea_prev_tz_min = nmea_tz_min;
+                    nmea_prev_tz_dst = nmea_tz_dst;
                     kmode = K_TZ_SET_HOUR;
 #else
                     kmode = K_NORMAL;
@@ -696,9 +696,9 @@ int main()
                 else if (ev == EV_S2_SHORT) {
                     flash_01 = flash_23 = 0;
                     kmode = K_NORMAL;
-                    if (nmea_saved_tz_hr != nmea_tz_hr ||
-                        nmea_saved_tz_min != nmea_tz_min ||
-                        nmea_saved_tz_dst != nmea_tz_dst)
+                    if (nmea_prev_tz_hr != nmea_tz_hr ||
+                        nmea_prev_tz_min != nmea_tz_min ||
+                        nmea_prev_tz_dst != nmea_tz_dst)
                         nmea_save_tz();
                 }
                 break;
@@ -1029,26 +1029,28 @@ int main()
 
 #ifdef WITH_NMEA
             case M_TZ_SET_TIME:
-                nmea_saved_tz_hr = nmea_tz_hr;
-                if (nmea_saved_tz_hr < 0) {
-                    nmea_saved_tz_hr = -nmea_saved_tz_hr;
+            {
+                int8_t hh = nmea_tz_hr;
+                if (hh < 0) {
+                    hh = -hh;
                     dotdisplay(3, 1);
                 } else
                     dotdisplay(3, 0);
                 dotdisplay(2, 1);
                 if (!flash_01 || blinker_fast || S1_LONG) {
-                    if (nmea_saved_tz_hr >= 10) {
+                    if (hh >= 10) {
                         filldisplay(0, 1, 0);
                     } else {
                         filldisplay(0, LED_BLANK, 0);
                     }
-                    filldisplay(1, nmea_saved_tz_hr % 10, 0);
+                    filldisplay(1, hh % 10, 0);
                 }
                 if (!flash_23 || blinker_fast || S1_LONG) {
                     filldisplay(2, nmea_tz_min/10, 0);
                     filldisplay(3, nmea_tz_min%10, 0);
                 }
                 break;
+            }
             case M_TZ_SET_DST:
                 filldisplay(0, 'D'-'A'+LED_a, 0);
                 filldisplay(1, 'S'-'A'+LED_a, 0);
