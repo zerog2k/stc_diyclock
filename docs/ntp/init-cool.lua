@@ -160,17 +160,13 @@ function PrintUart()
         print("sending uart sync")
         uart.write(1, uarttimestring)
         sync_att = sync_att + 1
-        if (sync_att >= 2) then
-            print("going to deep sleep mode")
-            rtctime.dsleep(3600000000); -- 1 hr sleep on success
-        end
     else
         print("ntp not synced")
         fail_cnt = fail_cnt + 1
-        if (fail_cnt >= 3) then
-            print("going to deep sleep mode")
-            rtctime.dsleep(300000000); -- 5 min sleep when not synced 3 times
-        end
+    end
+    if (sync_att >= 2 or fail_cnt >= 3) then
+        print("going to deep sleep mode")
+        rtctime.dsleep(3600000000); -- 1 hr sleep, will be rebooted
     end
 end
 
