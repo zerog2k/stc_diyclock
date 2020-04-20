@@ -35,15 +35,26 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
   $GPRMC,232231.00,A,,,,,,,170420,,,*27
 
+  you can test your nodemcu going to simple web page located
+  at http://10.10.10.110 (configured address, updated once per minute).
+  first connection to WiFi and NTP can last long, so be patient.
+  clock will be synced after successfull NTP sync.
+
+  please notice, the ES8266 is significantly warm during operation (up to 40 Celsius)
+  and it can affect the temperature sensor if it is located close to the watch case.
+
+- there is also init-cool.lua init which slighly differs from included init.lua
+  - uses DHCP mode by default (can be disabled with DHCP=0)
+  - has no http server
+  - after 2 successfull sync attempts it goes to deep sleep for 0.5 hr.
+    so it consumes much less power and generates almost no heat.
+    just rename it to init.lua before uploading to ESP866.
+
 - rebuild clock FW with -DWITH_NMEA CFLAGS, Makefile should be updated for large fw size
-    STCCODESIZE ?= 8184
-    SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
-    SDCCREV ?= -Dstc15w408as
 
-you can test your nodemcu going to simple web page located
-at http://10.10.10.110 (configured address, updated once per minute).
-first connection to WiFi and NTP can last long, so be patient.
-clock will be synced after successfull NTP sync.
+  STCCODESIZE ?= 8184
+  SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
+  SDCCREV ?= -Dstc15w408as
 
-please notice, the ES8266 is significantly warm during operation (up to 40 Celsius)
-and it can affect the temperature sensor if it is located close to the watch case.
+
+
