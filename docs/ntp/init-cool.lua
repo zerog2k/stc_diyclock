@@ -165,7 +165,6 @@ function PrintUart()
         sync_att = sync_att + 1
         if (sync_att >= 2) then
             print("going to deep sleep mode")
-            for i=1,1000000 do end
             rtctime.dsleep(1800000000); -- 1/2 hrs
         end
     end
