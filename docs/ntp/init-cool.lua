@@ -18,6 +18,7 @@ uarttimestring = 0
 rtcGood = 0
 -- UTCTZ = 5                   -- your timezone (unix TZ) offset
 sync_att = 0
+fail_cnt = 0
 
 local function check_int(n)
     -- checking not float
@@ -149,23 +150,26 @@ function UpdateRtc()
         crc = bit_xor(crc, string.byte(uarttimestring,i));
     end
     uarttimestring = uarttimestring..to_hex(crc).."\r\n"
-    if (rtcGood == 1) then
-        print(uarttimestring)
-    else
-        print("ntp not synced")
-    end
 end
 
 function PrintUart()
     print("ESP8266 wifi : " .. wifi.sta.getip())
     UpdateRtc()
     if (rtcGood == 1) then
+        print(uarttimestring)
+        print("sending uart sync")
         uart.write(1, uarttimestring)
-        print("uart sync sent")
         sync_att = sync_att + 1
         if (sync_att >= 2) then
             print("going to deep sleep mode")
-            rtctime.dsleep(1800000000); -- 1/2 hrs
+            rtctime.dsleep(3600000000); -- 1 hr sleep on success
+        end
+    else
+        print("ntp not synced")
+        fail_cnt = fail_cnt + 1
+        if (fail_cnt >= 3) then
+            print("going to deep sleep mode")
+            rtctime.dsleep(300000000); -- 5 min sleep when not synced 3 times
         end
     end
 end
