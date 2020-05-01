@@ -54,9 +54,13 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
 - rebuild clock FW with -DWITH_NMEA CFLAGS, Makefile should be updated for large fw size
 
-  STCCODESIZE ?= 8184
-  SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
-  SDCCREV ?= -Dstc15w408as
+    STCCODESIZE ?= 8184
+    SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
 
+  if you have a clock with STC15W408AS + voice + 3 buttons, compile it with
 
+    SDCCREV ?= -Dstc15w408as
 
+  otherwise, e.g. if you swapped STC15W404AS -> STC15W408AS, keep using
+
+    SDCCREV ?= -Dstc15w404as
