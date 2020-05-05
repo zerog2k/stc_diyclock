@@ -272,7 +272,8 @@ void timer0_isr() __interrupt 1 __using 1
 #endif
 #if defined(WITH_NMEA)
                 if (!blinker_slow && sync_remaining)
-                    sync_remaining --;
+                    if (!--sync_remaining)
+                        REN = 1; // enable uart receiving
 #endif
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
@@ -1207,12 +1208,13 @@ int main()
 #ifdef WITH_NMEA
         if (nmea_state == NMEA_SET) {
             if (!sync_remaining) {
+                // time passed - allowed to sync
                 nmea2localtime();
+                REN = 0; // disable uart receiving
                 sync_remaining = MIN_NMEA_PAUSE;
             }
             uidx = 0;
             nmea_state = NMEA_NONE;
-            REN = 1; // start uart receiving
         }
 #endif
     }

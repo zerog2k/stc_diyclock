@@ -89,7 +89,7 @@ void uart1_isr() __interrupt 4 __using 2
     char *p;
     if (RI) {
         RI = 0;                 // clear int
-        if (nmea_state != NMEA_SET) {
+        if (nmea_state != NMEA_SET && nmea_state != NMEA_PARSE) {
             ch = SBUF;
             switch (ch) {
             case '$':
@@ -120,9 +120,12 @@ void uart1_isr() __interrupt 4 __using 2
                         p + 6 - ubuf == uidx && // correct length
                         *(p + 4) == '\r' && *(p + 5) == '\n' && // correct tail
                         nmea_crc_check()) { // correct crc
-                        REN = 0; // stop uart receiving
                         nmea_state = NMEA_SET;
-                        loop_gate = 1;
+                        loop_gate = 1; // force main loop
+                    } else {
+                        // bad line, reset
+                        uidx = 0;
+                        nmea_state = NMEA_NONE;
                     }
                 } else if (uidx >= NMEA_LINE_LEN_MAX) {
                     uidx = 0;

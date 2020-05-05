@@ -44,6 +44,8 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
   and it can affect the temperature sensor if it is located close to the watch case.
 
 - there is also init-cool.lua init which slighly differs from included init.lua
+  it is RECOMMENDED to rename it to init.lua and upload to your ES8266 as init script.
+
   - uses DHCP mode by default (can be disabled with DHCP=0)
   - has no http server
   - after 2 successfull sync attempts it goes to deep sleep for 0.5 hr.

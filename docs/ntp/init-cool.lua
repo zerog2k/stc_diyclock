@@ -166,6 +166,8 @@ function PrintUart()
     end
     if (sync_att >= 2 or fail_cnt >= 3) then
         print("going to deep sleep mode")
+        local sec, usec = rtctime.get()
+        while (sec == rtctime.get()) do end
         rtctime.dsleep(3600000000); -- 1 hr sleep, will be rebooted
     end
 end
