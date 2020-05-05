@@ -89,8 +89,8 @@ void uart1_isr() __interrupt 4 __using 2
     char *p;
     if (RI) {
         RI = 0;                 // clear int
+        ch = SBUF;
         if (nmea_state != NMEA_SET) {
-            ch = SBUF;
             switch (ch) {
             case '$':
                 uidx = 0;
