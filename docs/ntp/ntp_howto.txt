@@ -64,3 +64,7 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
   otherwise, e.g. if you swapped STC15W404AS -> STC15W408AS, keep using
 
     SDCCREV ?= -Dstc15w404as
+
+- timezone and dst settings are saved to EEPROM and reset on each reflash, 
+  so cycle power of the clock after setting them for proper synchronization 
+  in order to not wait for the next sync session.
