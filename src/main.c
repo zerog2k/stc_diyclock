@@ -1212,7 +1212,7 @@ int main()
             }
             uidx = 0;
             nmea_state = NMEA_NONE;
-            REN = 1;
+            //REN = 1; // start uart receiving
         }
 #endif
     }

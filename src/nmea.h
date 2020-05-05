@@ -89,43 +89,45 @@ void uart1_isr() __interrupt 4 __using 2
     char *p;
     if (RI) {
         RI = 0;                 // clear int
-        ch = SBUF;
-        switch (ch) {
-        case '$':
-            uidx = 0;
-            nmea_state = NMEA_START;
-            break;
-        case '\n':
-            if (nmea_state != NMEA_START)
-                nmea_state = NMEA_NONE;
-            else
-                nmea_state = NMEA_PARSE;
-            break;
-        default:
-            if (nmea_state != NMEA_START)
-                nmea_state = NMEA_NONE;
-            break;
-        }
-        if (nmea_state != NMEA_NONE) {
-            ubuf[uidx++] = ch;
-            if (nmea_state == NMEA_PARSE) {
-                // $GPRMC,232231.00,A,,,,,,,170420,,,*27
-                if (uidx >= sizeof(NMEA_TOKEN) - 1 + 12 + 1 + 5 + 12 && // 12 commas, A , *XX\r\n, hhmmss DDMMYY
-                    !nmea_cmp(ubuf, NMEA_TOKEN, sizeof(NMEA_TOKEN) - 1) && // correct head
-                    (p = nmea_comma(2)) && *(p + 1) == 'A' && // valid NMEA
-                    nmea_comma(2) - nmea_comma(1) >= 7 && // time length
-                    nmea_comma(10) - nmea_comma(9) == 7 && // date length
-                    (p = nmea_comma(12)) && (*(p + 1) == '*' || *(++p + 1) == '*') &&
-                    p + 6 - ubuf == uidx && // correct length
-                    *(p + 4) == '\r' && *(p + 5) == '\n' && // correct tail
-                    nmea_crc_check()) { // correct crc
-                    REN = 0;
-                    nmea_state = NMEA_SET;
-                    loop_gate = 1;
-                }
-            } else if (uidx >= NMEA_LINE_LEN_MAX) {
+        if (nmea_state != NMEA_SET) {
+            ch = SBUF;
+            switch (ch) {
+            case '$':
                 uidx = 0;
-                nmea_state = NMEA_NONE;
+                nmea_state = NMEA_START;
+                break;
+            case '\n':
+                if (nmea_state != NMEA_START)
+                    nmea_state = NMEA_NONE;
+                else
+                    nmea_state = NMEA_PARSE;
+                break;
+            default:
+                if (nmea_state != NMEA_START)
+                    nmea_state = NMEA_NONE;
+                break;
+            }
+            if (nmea_state != NMEA_NONE) {
+                ubuf[uidx++] = ch;
+                if (nmea_state == NMEA_PARSE) {
+                    // $GPRMC,232231.00,A,,,,,,,170420,,,*27
+                    if (uidx >= sizeof(NMEA_TOKEN) - 1 + 12 + 1 + 5 + 12 && // 12 commas, A , *XX\r\n, hhmmss DDMMYY
+                        !nmea_cmp(ubuf, NMEA_TOKEN, sizeof(NMEA_TOKEN) - 1) && // correct head
+                        (p = nmea_comma(2)) && *(p + 1) == 'A' && // valid NMEA
+                        nmea_comma(2) - nmea_comma(1) >= 7 && // time length
+                        nmea_comma(10) - nmea_comma(9) == 7 && // date length
+                        (p = nmea_comma(12)) && (*(p + 1) == '*' || *(++p + 1) == '*') &&
+                        p + 6 - ubuf == uidx && // correct length
+                        *(p + 4) == '\r' && *(p + 5) == '\n' && // correct tail
+                        nmea_crc_check()) { // correct crc
+                        //REN = 0; // stop uart receiving
+                        nmea_state = NMEA_SET;
+                        loop_gate = 1;
+                    }
+                } else if (uidx >= NMEA_LINE_LEN_MAX) {
+                    uidx = 0;
+                    nmea_state = NMEA_NONE;
+                }
             }
         }
     }
