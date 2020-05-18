@@ -701,6 +701,7 @@ int main()
                         nmea_prev_tz_min != nmea_tz_min ||
                         nmea_prev_tz_dst != nmea_tz_dst)
                         nmea_save_tz();
+                    sync_remaining = 10; // allow sync adter adjusting
                 }
                 break;
 #endif
