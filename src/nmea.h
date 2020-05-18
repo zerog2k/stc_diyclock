@@ -1,7 +1,7 @@
 #include "eeprom.h"
 #include <time.h>
 
-#define BAUDRATE 9600 // serial port speed (9600 - standard for GPS)
+#define BAUDRATE 9600 // serial port speed (4800/9600 - standard for GPS)
 
 #define MIN_NMEA_PAUSE 21600 // min pause between syncs (sec) - 6hr
 
