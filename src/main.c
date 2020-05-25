@@ -28,6 +28,11 @@ enum keyboard_mode {
     K_SET_HOUR,
     K_SET_MINUTE,
     K_SET_HOUR_12_24,
+#ifdef WITH_NMEA
+    K_TZ_SET_HOUR,
+    K_TZ_SET_MINUTE,
+    K_TZ_SET_DST,
+#endif
     K_SEC_DISP,
     K_TEMP_DISP,
 #ifndef WITHOUT_DATE
@@ -58,6 +63,10 @@ enum keyboard_mode {
 enum display_mode {
     M_NORMAL,
     M_SET_HOUR_12_24,
+#ifdef WITH_NMEA
+    M_TZ_SET_TIME,
+    M_TZ_SET_DST,
+#endif
     M_SEC_DISP,
     M_TEMP_DISP,
 #ifndef WITHOUT_DATE
@@ -198,7 +207,12 @@ enum Event {
     EV_TIMEOUT,
 };
 
+#ifdef WITH_NMEA
+#include "nmea.h"
+#endif
+
 volatile enum Event event;
+
 /*
   interrupt: every 0.1ms=100us come here
 
@@ -255,6 +269,11 @@ void timer0_isr() __interrupt 1 __using 1
 #if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
                 if (!blinker_slow && corr_remaining)
                     corr_remaining --;
+#endif
+#if defined(WITH_NMEA)
+                if (!blinker_slow && sync_remaining)
+                    if (!--sync_remaining)
+                        REN = 1; // enable uart receiving
 #endif
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
@@ -453,6 +472,11 @@ int main()
 
     Timer0Init(); // display refresh & switch read
 
+#ifdef WITH_NMEA
+    uart1_init();   // setup uart
+    nmea_load_tz(); // read TZ/DST from eeprom
+#endif
+
     // LOOP
     while (1)
     {
@@ -626,10 +650,61 @@ int main()
                 if (ev == EV_S1_SHORT) {
                     ds_hours_12_24_toggle();
                     cfg_changed = 1;
-                } else if (ev == EV_S2_SHORT)
+                } else if (ev == EV_S2_SHORT) {
+#ifdef WITH_NMEA
+                    nmea_prev_tz_hr = nmea_tz_hr;
+                    nmea_prev_tz_min = nmea_tz_min;
+                    nmea_prev_tz_dst = nmea_tz_dst;
+                    kmode = K_TZ_SET_HOUR;
+#else
                     kmode = K_NORMAL;
+#endif
+                }
                 break;
-
+#ifdef WITH_NMEA
+            case K_TZ_SET_HOUR:
+                dmode = M_TZ_SET_TIME;
+                flash_01 = 1;
+                flash_23 = 0;
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
+                    nmea_tz_hr = nmea_tz_hr < 12 ? nmea_tz_hr + 1 : -12;
+                else if (ev == EV_S2_SHORT)
+                    kmode = K_TZ_SET_MINUTE;
+                break;
+            case K_TZ_SET_MINUTE:
+                flash_01 = 0;
+                flash_23 = 1;
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
+                    switch(nmea_tz_min) {
+                    case 0:
+                        nmea_tz_min = 30;
+                        break;
+                    case 30:
+                        nmea_tz_min = 45;
+                        break;
+                    default:
+                        nmea_tz_min = 0;
+                        break;
+                    }
+                else if (ev == EV_S2_SHORT)
+                    kmode = K_TZ_SET_DST;
+                break;
+            case K_TZ_SET_DST:
+                dmode = M_TZ_SET_DST;
+                flash_01 = flash_23 = 1;
+                if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast))
+                    nmea_tz_dst ^= 0x01;
+                else if (ev == EV_S2_SHORT) {
+                    flash_01 = flash_23 = 0;
+                    kmode = K_NORMAL;
+                    if (nmea_prev_tz_hr != nmea_tz_hr ||
+                        nmea_prev_tz_min != nmea_tz_min ||
+                        nmea_prev_tz_dst != nmea_tz_dst)
+                        nmea_save_tz();
+                    sync_remaining = 10; // allow sync adter adjusting
+                }
+                break;
+#endif
             case K_TEMP_DISP:
                 dmode = M_TEMP_DISP;
                 if (ev == EV_S1_SHORT)
@@ -924,7 +999,6 @@ int main()
                     filldisplay(2, mm >> 4, 0);
                     filldisplay(3, mm & 0x0F, 0);
                 }
-
                 if (blinker_slow || dmode != M_NORMAL) {
 #ifndef WITHOUT_CHIME
                     if (dmode != M_CHIME) {
@@ -954,6 +1028,38 @@ int main()
                 }
                 filldisplay(3, LED_h, 0);
                 break;
+
+#ifdef WITH_NMEA
+            case M_TZ_SET_TIME:
+            {
+                int8_t hh = nmea_tz_hr;
+                if (hh < 0) {
+                    hh = -hh;
+                    dotdisplay(3, 1);
+                } else
+                    dotdisplay(3, 0);
+                dotdisplay(2, 1);
+                if (!flash_01 || blinker_fast || S1_LONG) {
+                    if (hh >= 10) {
+                        filldisplay(0, 1, 0);
+                    } else {
+                        filldisplay(0, LED_BLANK, 0);
+                    }
+                    filldisplay(1, hh % 10, 0);
+                }
+                if (!flash_23 || blinker_fast || S1_LONG) {
+                    filldisplay(2, nmea_tz_min/10, 0);
+                    filldisplay(3, nmea_tz_min%10, 0);
+                }
+                break;
+            }
+            case M_TZ_SET_DST:
+                filldisplay(0, 'D'-'A'+LED_a, 0);
+                filldisplay(1, 'S'-'A'+LED_a, 0);
+                filldisplay(2, 'T'-'A'+LED_a, 0);
+                filldisplay(3, nmea_tz_dst, 0);
+                break;
+#endif
 
             case M_SEC_DISP:
                 dotdisplay(0, 0);
@@ -1099,6 +1205,19 @@ int main()
 
         count++;
         WDT_CLEAR();
+
+#ifdef WITH_NMEA
+        if (nmea_state == NMEA_SET) {
+            if (!sync_remaining) {
+                // time passed - allowed to sync
+                nmea2localtime();
+                REN = 0; // disable uart receiving
+                sync_remaining = MIN_NMEA_PAUSE;
+            }
+            uidx = 0;
+            nmea_state = NMEA_NONE;
+        }
+#endif
     }
 }
 /* ------------------------------------------------------------------------- */
