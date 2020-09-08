@@ -153,7 +153,9 @@ function UpdateRtc()
 end
 
 function PrintUart()
-    print("ESP8266 wifi : " .. wifi.sta.getip())
+    if (wifi.sta.getip() ~= nil) then
+        print("ESP8266 wifi : " .. wifi.sta.getip())
+    end
     UpdateRtc()
     if (rtcGood == 1) then
         print(uarttimestring)
@@ -166,9 +168,10 @@ function PrintUart()
     end
     if (sync_att >= 2 or fail_cnt >= 3) then
         print("going to deep sleep mode")
-        local sec, usec = rtctime.get()
-        while (sec == rtctime.get()) do end
-        rtctime.dsleep(3600000000); -- 1 hr sleep, will be rebooted
+        -- local sec, usec = rtctime.get()
+        -- while (sec == rtctime.get()) do end
+        -- rtctime.dsleep(1810e6); -- ~30 min sleep, will be rebooted (32-bit value for "integer" fw)
+        rtctime.dsleep(10810e6) -- >3 hrs sleep, will be rebooted (64-bit value for "float" fw)
     end
 end
 
