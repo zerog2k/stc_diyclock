@@ -46,7 +46,7 @@ warning! there should be only one ESP8266 power source,
 so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
 - customize your nodemcu FW at https://nodemcu-build.com/index.php 
-  with RTC fifo, RTC mem, RTC time, SNTP modules enabled, 
+  with RTC time, SNTP modules enabled, 
   download FW and flash your ESP8266.
   it is recommended to use "float" FW version, it cat use 32+ bit values for sleep.
   maximim value for "integer" version is 2^31 usec (~36 min).
