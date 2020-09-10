@@ -1,5 +1,5 @@
 uart.setup(1, 9600, 8, uart.PARITY_NONE, uart.STOPBITS_1, 1)
-uart.write(1, "nodemcu loaded\n")
+-- uart.write(1, "nodemcu loaded\n")
 
 station_cfg = {}
 station_cfg.ssid = "RON_G" -- SSID of your WiFi network
@@ -134,8 +134,9 @@ end
 function UpdateRtc()
     local sec, usec = rtctime.get()
     if (sec ~= 0) then
-      while (sec == rtctime.get()) do end
+        while (sec == rtctime.get()) do end
     end
+    -- print("unixtime " .. rtctime.get())
     -- tm = rtctime.epoch2cal((rtctime.get()+1)+UTCTZ*3600)
     tm = rtctime.epoch2cal(rtctime.get())
     if (tm["year"] >= 2000) then
@@ -153,12 +154,13 @@ function UpdateRtc()
 end
 
 function PrintUart()
-    print("ESP8266 wifi : " .. wifi.sta.getip())
+    if (wifi.sta.getip() ~= nil) then
+        print("ESP8266 wifi : " .. wifi.sta.getip())
+    end
     UpdateRtc()
     if (rtcGood == 1) then
-        print(uarttimestring)
-        print("sending uart sync")
         uart.write(1, uarttimestring)
+        print("uart sync sent " .. uarttimestring)
         sync_att = sync_att + 1
     else
         print("ntp not synced")
@@ -166,9 +168,11 @@ function PrintUart()
     end
     if (sync_att >= 2 or fail_cnt >= 3) then
         print("going to deep sleep mode")
-        local sec, usec = rtctime.get()
-        while (sec == rtctime.get()) do end
-        rtctime.dsleep(3600000000); -- 1 hr sleep, will be rebooted
+        tmr.create():alarm(3000, tmr.ALARM_SINGLE, function()
+    	    -- !! rtctime.dsleep() breaks NTP, using node.dsleep() instead
+            -- node.dsleep(1810e6); -- ~30 min sleep, will be rebooted (32-bit value for "integer" fw)
+            node.dsleep(36000e6) -- >3 hrs sleep, will be rebooted (64-bit value for "float" fw)
+        end)
     end
 end
 
@@ -202,7 +206,7 @@ end
 
 function wifi_connected()
     print("starting sync")
-    sntp.sync(ntp_server, ntpSyncGood, ntpSyncFail, 1 )
+    sntp.sync(ntp_server, ntpSyncGood, ntpSyncFail, 1)
 end
 
 wifi.sta.connect(wifi_connected)
