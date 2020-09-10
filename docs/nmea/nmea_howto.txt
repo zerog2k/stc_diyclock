@@ -48,8 +48,10 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 - customize your nodemcu FW at https://nodemcu-build.com/index.php 
   with RTC fifo, RTC mem, RTC time, SNTP modules enabled, 
   download FW and flash your ESP8266.
+  it is recommended to use "float" FW version, it cat use 32+ bit values for sleep.
+  maximim value for "integer" version is 2^31 usec (~36 min).
 
-- customize your init.lua:
+  customize your init.lua:
 
   station_cfg.ssid="nautilus" -- SSID of your WiFi network
   station_cfg.pwd="xxxxxxxxxx"  -- password of your WiFi network
@@ -86,9 +88,11 @@ so USB-TTL +5V line shouldn't be connected when powered from the clock!
 
   - uses DHCP mode by default (can be disabled with DHCP=0)
   - has no http server
-  - after 2 successfull sync attempts it goes to deep sleep for 1 hr.
+  - after 2 successfull sync attempts it goes to deep sleep for 10 hrs.
     so it consumes much less power and generates almost no heat.
     just rename it to init.lua before uploading to ESP866.
+  - script uses node.dsleep() for 10 hrs by default.
+    please change value to 30 min if you're using "integer" nodemcu FW.
+
   notice: deep sleep function can only be used when
   ESP8266 PIN32(RST) and PIN8(XPD_DCDC aka GPIO16) are connected together.
-
