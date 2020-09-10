@@ -167,11 +167,11 @@ function PrintUart()
         fail_cnt = fail_cnt + 1
     end
     if (sync_att >= 2 or fail_cnt >= 3) then
-        print("going to deep sleep mode")
+        print("going to deep sleep for " .. math.floor((node.dsleepMax()-1e8)/1e6/60) .. " min")
         tmr.create():alarm(3000, tmr.ALARM_SINGLE, function()
     	    -- !! rtctime.dsleep() breaks NTP, using node.dsleep() instead
             -- node.dsleep(1810e6); -- ~30 min sleep, will be rebooted (32-bit value for "integer" fw)
-            node.dsleep(36000e6) -- >3 hrs sleep, will be rebooted (64-bit value for "float" fw)
+            node.dsleep(node.dsleepMax()-1e8) -- >3 hrs sleep, will be rebooted (64-bit value for "float" fw)
         end)
     end
 end
