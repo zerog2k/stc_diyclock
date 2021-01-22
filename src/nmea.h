@@ -163,7 +163,7 @@ uint8_t days_per_month(uint16_t year, uint8_t month)
     if (month == 1)
         return isleap(year) ? 29 : 28;
     else
-        return monlen[month-1];
+        return monlen[month];
 }
 
 void nmea_apply_tz(struct tm *t)
