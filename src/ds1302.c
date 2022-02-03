@@ -120,7 +120,7 @@ uint8_t ds_readbyte(uint8_t addr) {
 void ds_readburst() {
     // ds1302 burst-read 8 bytes into struct
     uint8_t j, b;
-    b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
+    b = DS_CMD | DS_CMD_CLOCK | (DS_BURST_MODE << 1) | DS_CMD_READ;
     DS_CE = 0;
     DS_SCLK = 0;
     DS_CE = 1;
