@@ -1,8 +1,16 @@
+# generated files:
 *.hex
 *.ihx
 *.bin
-.*.swp
 build/*
+
+# vim
+.*.swp
+
+# ctags
+tags
+
+# vs/platformio
 config
 .pioenvs
 .piolibdeps
