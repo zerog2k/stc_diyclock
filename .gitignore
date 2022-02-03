@@ -11,9 +11,13 @@ build/*
 tags
 
 # vs/platformio
-config
 .pioenvs
 .piolibdeps
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/.browse.c_cpp.db*
+
+# misc
+config
+*.diff
+diff
