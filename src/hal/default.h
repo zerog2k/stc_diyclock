@@ -6,7 +6,6 @@
  */
 
 // alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
-#define RELAY   P1_4
 #define BUZZER  P1_5
 #define BUZZER_ON  BUZZER = 0
 #define BUZZER_OFF BUZZER = 1
