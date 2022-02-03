@@ -4,7 +4,7 @@
 
 #include "stc15.h"
 #include <stdint.h>
-#include "hwconfig.h"
+#include HARDWARE
 
 #define _nop_ __asm nop __endasm;
 
