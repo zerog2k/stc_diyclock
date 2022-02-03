@@ -147,7 +147,7 @@ uint8_t dbuf[4];
 #define filldisplay(pos,val,dp) { framebuffer[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
 #define dotdisplay(pos,dp) { if (dp) dot##pos=1;}
 
-#define updateTmpDisplay() { uint8_t tmp; \
+#define syncFramebuffer() { uint8_t tmp; \
                         tmp=ledtable[framebuffer[0]]; if (dot0) tmp&=0x7F; dbuf[0]=tmp; \
                         tmp=ledtable[framebuffer[1]]; if (dot1) tmp&=0x7F; dbuf[1]=tmp; \
                         tmp=ledtable[framebuffer[3]]; if (dot3) tmp&=0x7F; dbuf[3]=tmp; \

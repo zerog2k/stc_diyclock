@@ -1200,7 +1200,7 @@ int main()
 #endif
 
         __critical {
-            updateTmpDisplay();
+            syncFramebuffer();
         }
 
         count++;
