@@ -56,6 +56,12 @@ choose platformio (preferred) or traditional make build
 * choose which mcu you are building for by uncommenting one `env_default` in `platformio.ini`
 * adjust `upload_port` as needed in `platformio.ini`
 
+Then you can use the [standard platformio commands](https://docs.platformio.org/en/stable/core/quickstart.html#process-project)
+```
+pio run
+pio run --target upload
+```
+
 ### traditional make
 ```
 make clean
