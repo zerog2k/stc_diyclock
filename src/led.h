@@ -133,7 +133,8 @@ const char weekDay[][4] = {
       "SAT",
 };
 
-uint8_t tmpbuf[4];
+// each four characters for the 7-segments display
+uint8_t framebuffer[4];
 __bit   dot0;
 __bit   dot1;
 __bit   dot2;
@@ -141,14 +142,14 @@ __bit   dot3;
 
 uint8_t dbuf[4];
 
-#define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; tmpbuf[0]=tmpbuf[1]=tmpbuf[2]=tmpbuf[3]=LED_BLANK; }
+#define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; framebuffer[0]=framebuffer[1]=framebuffer[2]=framebuffer[3]=LED_BLANK; }
 
-#define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
+#define filldisplay(pos,val,dp) { framebuffer[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
 #define dotdisplay(pos,dp) { if (dp) dot##pos=1;}
 
-#define updateTmpDisplay() { uint8_t tmp; \
-                        tmp=ledtable[tmpbuf[0]]; if (dot0) tmp&=0x7F; dbuf[0]=tmp; \
-                        tmp=ledtable[tmpbuf[1]]; if (dot1) tmp&=0x7F; dbuf[1]=tmp; \
-                        tmp=ledtable[tmpbuf[3]]; if (dot3) tmp&=0x7F; dbuf[3]=tmp; \
-                        tmp=ledtable2[tmpbuf[2]]; if (dot2) tmp&=0x7F; dbuf[2]=tmp; }
+#define syncFramebuffer() { uint8_t tmp; \
+                        tmp=ledtable[framebuffer[0]]; if (dot0) tmp&=0x7F; dbuf[0]=tmp; \
+                        tmp=ledtable[framebuffer[1]]; if (dot1) tmp&=0x7F; dbuf[1]=tmp; \
+                        tmp=ledtable[framebuffer[3]]; if (dot3) tmp&=0x7F; dbuf[3]=tmp; \
+                        tmp=ledtable2[framebuffer[2]]; if (dot2) tmp&=0x7F; dbuf[2]=tmp; }
                         

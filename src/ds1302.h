@@ -4,15 +4,15 @@
 
 #include "stc15.h"
 #include <stdint.h>
-#include "hwconfig.h"
+#include HARDWARE
 
 #define _nop_ __asm nop __endasm;
 
-#define DS_CMD        1 << 7
-#define DS_CMD_READ   1
+#define DS_CMD        (1u << 7)
+#define DS_CMD_READ   1u
 #define DS_CMD_WRITE  0
 #define DS_CMD_RAM    1 << 6
-#define DS_CMD_CLOCK  0 << 6
+#define DS_CMD_CLOCK  (0u << 6)
 
 #define DS_ADDR_SECONDS     0
 #define DS_ADDR_MINUTES     1
@@ -34,7 +34,7 @@
 #define DS_TC_D2_4KO 0b1010
 #define DS_TC_D2_8KO 0b1011
 
-#define DS_BURST_MODE       31
+#define DS_BURST_MODE       31u
 
 // DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
 // DS_ADDR_MINUTES	x111_1111	0_0-5_9

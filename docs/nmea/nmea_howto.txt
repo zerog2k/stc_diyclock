@@ -12,13 +12,7 @@ requires STC15W408AS cpu with > 4K flash.
     STCCODESIZE ?= 8184
     SDCCOPTS ?= --code-size $(STCCODESIZE) --stack-auto --iram-size 256 --xram-size 256 --data-loc 0x30 --disable-warning 126 --disable-warning 59
 
-  if you have a clock with STC15W408AS + voice + 3 buttons, compile it with
-
-    SDCCREV ?= -Dstc15w408as
-
-  otherwise, e.g. if you swapped STC15W404AS -> STC15W408AS, keep using
-
-    SDCCREV ?= -Dstc15w404as
+  Double check the hardware target at the beginning of the Makefile ("HARDWARE" variable)
 
 - timezone and dst settings are saved to EEPROM and reset on each reflash, 
   so cycle power of the clock after setting them for proper synchronization 

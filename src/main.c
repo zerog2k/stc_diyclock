@@ -20,7 +20,7 @@
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
 
 // hardware configuration
-#include "hwconfig.h"
+#include HARDWARE
 
 // keyboard mode states
 enum keyboard_mode {
@@ -184,7 +184,7 @@ volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
 volatile __bit S2_LONG;
 volatile __bit S2_PRESSED;
-#ifdef stc15w408as
+#ifdef SW3
 volatile __bit S3_LONG;
 volatile __bit S3_PRESSED;
 #endif
@@ -200,7 +200,7 @@ enum Event {
     EV_S2_SHORT,
     EV_S2_LONG,
     EV_S1S2_LONG,
-#ifdef stc15w408as
+#ifdef SW3
     EV_S3_SHORT,
     EV_S3_LONG,
 #endif
@@ -318,7 +318,7 @@ void timer0_isr() __interrupt 1 __using 1
 
         MONITOR_S(1);
         MONITOR_S(2);
-#ifdef stc15w408as
+#ifdef SW3
         MONITOR_S(3);
 #endif
 
@@ -914,7 +914,7 @@ int main()
                     kmode = K_SET_HOUR;
                 else if (ev == EV_S2_SHORT)
                     kmode = K_TEMP_DISP;
-#ifdef stc15w408as
+#ifdef SW3
                 else if (ev == EV_S3_LONG) {
                     LED = !LED;
                 }
@@ -1200,7 +1200,7 @@ int main()
 #endif
 
         __critical {
-            updateTmpDisplay();
+            syncFramebuffer();
         }
 
         count++;

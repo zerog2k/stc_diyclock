@@ -1,11 +1,23 @@
+# generated files:
 *.hex
 *.ihx
 *.bin
-.*.swp
 build/*
-config
+
+# vim
+.*.swp
+
+# ctags
+tags
+
+# vs/platformio
 .pioenvs
 .piolibdeps
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/.browse.c_cpp.db*
+
+# misc
+config
+*.diff
+diff
