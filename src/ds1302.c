@@ -16,7 +16,7 @@
 
 /*
   Judge whether need to initialize RAM or not by checking RAM address 0x10-0x11 has A5,5A (MAGIC).
-  When MAGIC key is found, initialize. Other case, read out the data.
+  If the MAGIC key is found, read the data. Otherwise initialize.
  */
 void ds_ram_config_init() {
     uint8_t i,j;
@@ -44,17 +44,17 @@ void ds_ram_config_init() {
 
 /*
   Data written to EEPROM
-  0x10 A5
-  0x11 5A
+  0x10 A5             (written by ds_ram_config_init)
+  0x11 5A             (written by ds_ram_config_init)
   0x12 HH             <- cfg_table[0]
   0x13 MM             <- cfg_table[1]
   0x14 Temperature    <- cfg_table[2]
-  0x15 --
+  0x15 --             <- cfg_table[3]
  */
 void ds_ram_config_write() {
     uint8_t i, j;
     j = DS_CMD_RAM >> 1 | 2;
-    for (i=0; i!=4; i++) {
+    for (i = 0; i != 4; i++) {
         ds_writebyte( j, cfg_table[i]);
         j++;
     }
@@ -105,7 +105,7 @@ uint8_t readbyte()
 uint8_t ds_readbyte(uint8_t addr) {
     // ds1302 single-byte read
     uint8_t b;
-    b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_READ;
+    b = DS_CMD | DS_CMD_CLOCK | (addr << 1) | DS_CMD_READ;
     DS_CE = 0;
     DS_SCLK = 0;
     DS_CE = 1;
@@ -120,7 +120,7 @@ uint8_t ds_readbyte(uint8_t addr) {
 void ds_readburst() {
     // ds1302 burst-read 8 bytes into struct
     uint8_t j, b;
-    b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE << 1 | DS_CMD_READ;
+    b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE | DS_CMD_READ;
     DS_CE = 0;
     DS_SCLK = 0;
     DS_CE = 1;
@@ -158,7 +158,7 @@ void ds_writebyte(uint8_t addr, uint8_t data) {
 void ds_init() {
     uint8_t b = ds_readbyte(DS_ADDR_SECONDS);
     ds_writebyte(DS_ADDR_WP, 0); // clear WP
-    b &= ~(0b10000000);	// clear Bit7
+    b &= 0x7F;	// clear bit7
     ds_writebyte(DS_ADDR_SECONDS, b); // clear CH
 }
 
@@ -173,10 +173,9 @@ void ds_reset_clock() {
 */
 
 void ds_hours_12_24_toggle() {
-
     uint8_t hours,b;
     if (H12_12) { // 12h->24h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
+        hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
         if (hours == 12) {
             if (!H12_PM) {
                 hours = 0;
@@ -189,7 +188,7 @@ void ds_hours_12_24_toggle() {
         b = ds_int2bcd(hours);			 // clear hour_12_24 bit
     }
     else { // 24h->12h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
+        hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
         b = DS_MASK_1224_MODE;
         if (hours >= 12) { 	// pm
             hours -= 12;
@@ -207,48 +206,48 @@ void ds_hours_12_24_toggle() {
 // increment hours
 void ds_hours_incr() {
     uint8_t hours, b = 0;
-    if (!H12_12) {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);	//24h format
-        INCR(hours, 0, 23);
-        b = ds_int2bcd(hours);		// bit 7 = 0
-    } else {
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12);	//12h format
+    if (H12_12) {
+        hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12);	//12h format
         INCR(hours, 1, 12);
         if (hours == 12) {
             H12_PM = !H12_PM;
         }
-        b = ds_int2bcd(hours) | DS_MASK_1224_MODE;
+        b = ds_int2bcd(hours) | DS_MASK_1224_MODE; // bit 7 = 1 -> 12h mode
         if (H12_PM) {
             b |=  DS_MASK_PM;
         }
+    } else {
+        hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);	//24h format
+        INCR(hours, 0, 23);
+        b = ds_int2bcd(hours);		// bit 7 = 0 -> 24h mode
     }
     ds_writebyte(DS_ADDR_HOUR, b);
 }
 
 // increment minutes
 void ds_minutes_incr() {
-    uint8_t minutes = ds_split2int(rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES);
+    uint8_t minutes = ds_bcd2int(rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES);
     INCR(minutes, 0, 59);
     ds_writebyte(DS_ADDR_MINUTES, ds_int2bcd(minutes));
 }
 
 // increment year
 void ds_year_incr() {
-    uint8_t year = ds_split2int(rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR);
+    uint8_t year = ds_bcd2int(rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR);
     INCR(year, 0, 99);
     ds_writebyte(DS_ADDR_YEAR, ds_int2bcd(year));
 }
 
 // increment month
 void ds_month_incr() {
-    uint8_t month = ds_split2int(rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH);
+    uint8_t month = ds_bcd2int(rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH);
     INCR(month, 1, 12);
     ds_writebyte(DS_ADDR_MONTH, ds_int2bcd(month));
 }
 
 // increment day
 void ds_day_incr() {
-    uint8_t day = ds_split2int(rtc_table[DS_ADDR_DAY] & DS_MASK_DAY);
+    uint8_t day = ds_bcd2int(rtc_table[DS_ADDR_DAY] & DS_MASK_DAY);
     INCR(day, 1, 31);
     ds_writebyte(DS_ADDR_DAY, ds_int2bcd(day));
 }
@@ -324,18 +323,132 @@ void ds_weekday_incr() {
 
 void ds_sec_zero() {
     rtc_table[DS_ADDR_SECONDS] = 0;
-    ds_writebyte(DS_ADDR_SECONDS, 0b10000000); // set CH, stop clock
-    ds_writebyte(DS_ADDR_SECONDS, 0); // clear CH, start clock
+    ds_writebyte(DS_ADDR_SECONDS, DS_CLOCK_HALT); // set CH, stop clock
+    ds_writebyte(DS_ADDR_SECONDS, 0); // clear CH, start clock, set seconds to zero
 }
     
-uint8_t ds_split2int(uint8_t tens_ones) {
+// return integer from bcd byte
+uint8_t ds_bcd2int(uint8_t tens_ones) {
+    // 8051 has a 'mul' operation, so teh resulting assembly code is quite short
     return (tens_ones >> 4) * 10 + (tens_ones & 0x0F);
 }
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer) {
+    // decimal adjust (da a)
+    if (integer & 0x0F > 9) integer += 0x06;
+    if (integer > 0x99) integer += 0x60;
+    return integer & 0xFF;
+
+    /*  Original version:
+
     return integer / 10 << 4 | integer % 10;
+
+    8051 does not have 'div', so this needs a LOT of assembly:
+
+    _ds_int2bcd:
+        mov	r7,dpl
+    ;	src\ds1302.c:337: return integer / 10 << 4 | integer % 10;
+        mov	r6,#0x00
+        mov	__divsint_PARM_2,#0x0a
+    ;	1-genFromRTrack replaced	mov	(__divsint_PARM_2 + 1),#0x00
+        mov	(__divsint_PARM_2 + 1),r6
+        mov	dpl,r7
+        mov	dph,r6
+        push	ar7
+        push	ar6
+        lcall	__divsint
+        mov	r4,dpl
+        pop	ar6
+        pop	ar7
+        mov	a,r4
+        swap	a
+        anl	a,#0xf0
+        mov	r4,a
+        mov	__modsint_PARM_2,#0x0a
+        mov	(__modsint_PARM_2 + 1),#0x00
+        mov	dpl,r7
+        mov	dph,r6
+        push	ar4
+        lcall	__modsint
+        mov	r6,dpl
+        pop	ar4
+        mov	a,r6
+        orl	a,r4
+        mov	dpl,a
+    ;	src\ds1302.c:338: }
+        ret
+
+    */
+
+    /* Second test to check if we can make the assembly smaller:
+
+    if (integer & 0x0F > 9) integer += 0x06;
+    if ((integer >> 4) > 9) integer += 0x60;
+    return integer & 0xFF;
+
+    _ds_int2bcd:
+    ;	src\ds1302.c:374: if (integer & 0x0F > 9) integer += 0x06;
+        mov	a,dpl
+        mov	r7,a
+        jnb	acc.0,00102$
+        mov	ar6,r7
+        mov	a,#0x06
+        add	a,r6
+        mov	r7,a
+    00102$:
+    ;	src\ds1302.c:375: if ((integer >> 4) > 9) integer += 0x60;
+        mov	a,r7
+        swap	a
+        anl	a,#0x0f
+        add	a,#0xff - 0x09
+        jnc	00104$
+        mov	ar6,r7
+        mov	a,#0x60
+        add	a,r6
+        mov	r7,a
+    00104$:
+    ;	src\ds1302.c:376: return integer & 0xFF;
+        mov	dpl,r7
+    ;	src\ds1302.c:406: }
+        ret
+    */
+
+
+    /* Initial test (shortest one):
+
+    if (integer & 0x0F > 9) integer += 0x06;
+    if (integer > 0x99) integer += 0x60;
+    return integer & 0xFF;
+
+    _ds_int2bcd:
+    ;	src\ds1302.c:374: if (integer & 0x0F > 9) integer += 0x06;
+        mov	a,dpl
+        mov	r7,a
+        jnb	acc.0,00102$
+        mov	ar6,r7
+        mov	a,#0x06
+        add	a,r6
+        mov	r7,a
+    00102$:
+    ;	src\ds1302.c:375: if (integer > 0x99) integer += 0x60;
+        mov	a,r7
+        add	a,#0xff - 0x99
+        jnc	00104$
+        mov	ar6,r7
+        mov	a,#0x60
+        add	a,r6
+        mov	r7,a
+    00104$:
+    ;	src\ds1302.c:376: return integer & 0xFF;
+        mov	dpl,r7
+    ;	src\ds1302.c:377: }
+        ret
+*/
 }
+
+#if 0 
+// we don't need those two routines
 
 uint8_t ds_int2bcd_tens(uint8_t integer) {
     return integer / 10 % 10;
@@ -344,3 +457,4 @@ uint8_t ds_int2bcd_tens(uint8_t integer) {
 uint8_t ds_int2bcd_ones(uint8_t integer) {
     return integer % 10;
 }
+#endif // 0

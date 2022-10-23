@@ -8,11 +8,12 @@
 
 #define _nop_ __asm nop __endasm;
 
-#define DS_CMD        1 << 7
+#define DS_CMD        0x80
 #define DS_CMD_READ   1
 #define DS_CMD_WRITE  0
-#define DS_CMD_RAM    1 << 6
-#define DS_CMD_CLOCK  0 << 6
+#define DS_CMD_RAM    0x40
+#define DS_CMD_CLOCK  0x00
+#define DS_BURST_MODE 0x3E
 
 #define DS_ADDR_SECONDS     0
 #define DS_ADDR_MINUTES     1
@@ -34,7 +35,6 @@
 #define DS_TC_D2_4KO 0b1010
 #define DS_TC_D2_8KO 0b1011
 
-#define DS_BURST_MODE       31
 
 // DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
 // DS_ADDR_MINUTES	x111_1111	0_0-5_9
@@ -43,6 +43,8 @@
 // DS_ADDR_MONTH        0001_1111	0_1-1_2
 // DS_ADDR_WEEKDAY      0000_0111	0_1-0_7
 // DS_ADDR_YEAR		1111_1111	0_0-9_9 
+
+#define DS_CLOCK_HALT         0b10000000
 
 #define DS_MASK_SECONDS       0b01111111
 #define DS_MASK_SECONDS_TENS  0b01110000
@@ -163,7 +165,7 @@ void ds_weekday_incr();
 void ds_sec_zero();
     
 // split bcd to int
-uint8_t ds_split2int(uint8_t tens_ones);
+uint8_t ds_bcd2int(uint8_t tens_ones);
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer);

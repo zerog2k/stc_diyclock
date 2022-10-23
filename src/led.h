@@ -143,8 +143,8 @@ uint8_t dbuf[4];
 
 #define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; tmpbuf[0]=tmpbuf[1]=tmpbuf[2]=tmpbuf[3]=LED_BLANK; }
 
-#define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); if (dp) dot##pos=1;}
-#define dotdisplay(pos,dp) { if (dp) dot##pos=1;}
+#define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); dot##pos=!!dp;}
+#define dotdisplay(pos,dp) { dot##pos=!!dp;}
 
 #define updateTmpDisplay() { uint8_t tmp; \
                         tmp=ledtable[tmpbuf[0]]; if (dot0) tmp&=0x7F; dbuf[0]=tmp; \
