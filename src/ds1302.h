@@ -36,13 +36,13 @@
 #define DS_TC_D2_8KO 0b1011
 
 
-// DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
-// DS_ADDR_MINUTES	x111_1111	0_0-5_9
-// DS_ADDR_HOUR		a0b1_1111	0_1-1_2/0_0-2_3 - a=12/not 24, b=not AM/PM if a=1 , else hour(0x20) 
-// DS_ADDR_DAY          0011_1111	0_1-3_1
-// DS_ADDR_MONTH        0001_1111	0_1-1_2
-// DS_ADDR_WEEKDAY      0000_0111	0_1-0_7
-// DS_ADDR_YEAR		1111_1111	0_0-9_9 
+// DS_ADDR_SECONDS   c111_1111	0_0-5_9 c=clock_halt
+// DS_ADDR_MINUTES   x111_1111	0_0-5_9
+// DS_ADDR_HOUR      a0b1_1111	0_1-1_2/0_0-2_3 - a=12/not 24, b=not AM/PM if a=1 , else hour(0x20) 
+// DS_ADDR_DAY       0011_1111	0_1-3_1
+// DS_ADDR_MONTH     0001_1111	0_1-1_2
+// DS_ADDR_WEEKDAY   0000_0111	0_1-0_7
+// DS_ADDR_YEAR      1111_1111	0_0-9_9
 
 #define DS_CLOCK_HALT         0b10000000
 

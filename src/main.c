@@ -1,27 +1,36 @@
+// STC15-based DIY LED Clock
 //
-// STC15F204EA DIY LED Clock
-// Copyright 2016, Jens Jensen
+// Variants: stc15f204ea, stc15w404as, stc15w408as
 //
+// Copyright 2016, Jens Jensen (github user 'zerog2k')
+// Changes 2022, Hagen Patzke (github user 'hagen-git')
 
-// silence: "src/main.c:672: warning 126: unreachable code"
-//#pragma disable_warning 126
+//#pragma disable_warning 126 // silence 'unreachable code' warning
 
 #include <stdint.h>
 #include <stdio.h>
 
+// local includes
 #include "adc.h"
 #include "ds1302.h"
 #include "led.h"
 #include "stc15.h"
+#include "hwconfig.h"
 
+// standard defines
 #define FOSC 11059200
-//#define DEBUG
+#define WITH_DATE
+#define WITH_ALARM
+#define WITH_CHIME
+// additional configuration
+//#define SHOW_TEMP_DATE_WEEKDAY -- done in makefile
+//#undef WITH_NMEA
+//#undef  WITH_CAPACITOR
+//#undef  WITH_MONTHLY_CORR
+//#undef  DEBUG
 
 // clear wdt
 #define WDT_CLEAR() (WDT_CONTR |= 1 << 4)
-
-// hardware configuration
-#include "hwconfig.h"
 
 // keyboard mode states
 enum keyboard_mode {
@@ -36,19 +45,19 @@ enum keyboard_mode {
 #endif
   K_SEC_DISP,
   K_TEMP_DISP,
-#ifndef WITHOUT_DATE
+#ifdef WITH_DATE
   K_DATE_DISP,
   K_SET_MONTH,
   K_SET_DAY,
   K_YEAR_DISP,
 #endif
   K_WEEKDAY_DISP,
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
   K_ALARM,
   K_ALARM_SET_HOUR,
   K_ALARM_SET_MINUTE,
 #endif
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
   K_CHIME,
   K_CHIME_SET_SINCE,
   K_CHIME_SET_UNTIL,
@@ -70,15 +79,15 @@ enum display_mode {
 #endif
   M_SEC_DISP,
   M_TEMP_DISP,
-#ifndef WITHOUT_DATE
+#ifdef WITH_DATE
   M_DATE_DISP,
 #endif
   M_WEEKDAY_DISP,
   M_YEAR_DISP,
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
   M_ALARM,
 #endif
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
   M_CHIME,
 #endif
 #ifdef DEBUG
@@ -122,11 +131,11 @@ volatile uint8_t displaycounter;
 volatile int8_t count_100;   // 0.01s=10ms
 volatile int8_t count_1000;  // 0.1s=100ms
 volatile int8_t count_5000;  // 0.5s=500ms
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
 volatile int16_t count_20000;  // 2s
 volatile __bit blinker_slowest;
 #endif
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
 volatile int16_t chime_ticks;  // 10ms inc
 #endif
 
@@ -146,14 +155,14 @@ __bit flash_23;
 uint8_t rtc_hh_bcd;
 uint8_t rtc_mm_bcd;
 __bit rtc_pm;
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
 uint8_t alarm_hh_bcd;
 uint8_t alarm_mm_bcd;
 __bit alarm_pm;
 __bit alarm_trigger;
 __bit alarm_reset;
 #endif
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
 uint8_t chime_ss_bcd;  // hour since
 uint8_t chime_uu_bcd;  // hour until
 __bit chime_ss_pm;
@@ -174,18 +183,18 @@ uint8_t ss;
 #define SEC_PER_MONTH 2592000
 #if WITH_MONTHLY_CORR > 0
 #define CORR_VALUE 1  // +1 sec every ~RUNTIME_PER_SEC seconds
-#else
+#else // not WITH_MONTHLY_CORR > 0
 #define CORR_VALUE -1  // -1 sec every ~RUNTIME_PER_SEC seconds
-#endif
+#endif // not WITH_MONTHLY_CORR > 0
 #define RUNTIME_PER_SEC (SEC_PER_MONTH / (WITH_MONTHLY_CORR * CORR_VALUE))
 volatile uint32_t corr_remaining = RUNTIME_PER_SEC;
-#endif
+#endif // WITH_MONTHLY_CORR
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
 volatile __bit S2_LONG;
 volatile __bit S2_PRESSED;
-#ifdef stc15w408as
+#if NUM_SW == 3 
 volatile __bit S3_LONG;
 volatile __bit S3_PRESSED;
 #endif
@@ -201,7 +210,7 @@ enum Event {
   EV_S2_SHORT,
   EV_S2_LONG,
   EV_S1S2_LONG,
-#ifdef stc15w408as
+#if NUM_SW == 3 
   EV_S3_SHORT,
   EV_S3_LONG,
 #endif
@@ -247,7 +256,7 @@ void timer0_isr() __interrupt 1 __using 1 {
     count_100 = 0;
     count_1000++;  // increment every 10ms
 
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
     if (chime_trigger != CHIME_IDLE)
       chime_ticks++;  // increment every 10ms
 #endif
@@ -259,7 +268,7 @@ void timer0_isr() __interrupt 1 __using 1 {
       loop_gate = 1;                 // every 100ms
 
       count_5000++;  // increment every 100ms
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
       count_20000++;  // increment every 100ms
 #endif
       // 2/sec: 500 ms
@@ -270,12 +279,12 @@ void timer0_isr() __interrupt 1 __using 1 {
         if (!blinker_slow && corr_remaining)
           corr_remaining--;
 #endif
-#if defined(WITH_NMEA)
+#ifdef WITH_NMEA
         if (!blinker_slow && sync_remaining)
           if (!--sync_remaining)
             REN = 1;  // enable uart receiving
 #endif
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
         // 1/ 2sec: 20000 ms
         if (count_20000 == 20) {
           count_20000 = 0;
@@ -337,7 +346,7 @@ void timer0_isr() __interrupt 1 __using 1 {
   }
   count_100++;  // increment every 0.1ms
 
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
   if (count_timeout != 0) {
     count_timeout--;
     if (count_timeout == 0) {
@@ -430,7 +439,7 @@ int8_t gettemp(uint16_t raw) {
 
 // 3rd LED's dot display. Blink pattern is set when alarm is set.
 void dot3display(__bit pm) {
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
   // dot 3: If alarm is on, blink for 500 ms every 2000 ms
   //        If 12h: on if pm when not blinking
   if (!H12_12) {  // 24h mode
@@ -443,40 +452,22 @@ void dot3display(__bit pm) {
   dotdisplay(3, pm);
 }
 
-// #ifndef WITHOUT_ALARM
-// // set next alarm_min by adding snooze
-// uint8_t add_BCD(uint8_t snooze) {
-//   __asm;
-//   mov a, dpl;
-//   add a, _alarm_mm_bcd;
-//   da a;
-//   mov dpl, a;
-//   ret;
-//   __endasm;
-// }
-// #endif
-
 /*********************************************/
 int main() {
   // SETUP
   // set photoresistor & ntc pins to open-drain output
   P1M1 |= (1 << ADC_LIGHT) | (1 << ADC_TEMP);
   P1M0 |= (1 << ADC_LIGHT) | (1 << ADC_TEMP);
-
-  // init rtc
+  // init rtc and init/read config in RAM
   ds_init();
-  // init/read ram config
   ds_ram_config_init();
 #ifdef WITH_CAPACITOR
   // enable capacitor trickle charge ~1mA
   ds_writebyte(DS_ADDR_TCSDS, DS_TCS_TCON | DS_TC_D1_4KO);
 #endif
-
   // uncomment in order to reset minutes and hours to zero.. Should not need this.
   // ds_reset_clock();
-
   Timer0Init();  // display refresh & switch read
-
 #ifdef WITH_NMEA
   uart1_init();    // setup uart
   nmea_load_tz();  // read TZ/DST from eeprom
@@ -486,14 +477,15 @@ int main() {
   while (1) {
     enum Event ev;
 
+    // TODO check if we could use some kind of sleep() here
     while (!loop_gate)
-      ;             // wait for open every 100ms
+      /* wait for open every 100ms */;
     loop_gate = 0;  // close gate
 
     ev = event;
     event = EV_NONE;
 
-    // sample adc, run frequently
+    // sample ADC for the LDR (dimming), run frequently
     if (count % (uint8_t)4 == 0) {
       temp = gettemp(getADCResult(ADC_TEMP));
       // auto-dimming, by dividing adc range into 8 steps
@@ -518,9 +510,9 @@ int main() {
       rtc_mm_bcd = rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES;
     }
 
-#if !defined(WITHOUT_ALARM) || !defined(WITHOUT_CHIME)
+#if defined(WITH_ALARM) || defined(WITH_CHIME)
     if (cfg_changed) {
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
       chime_ss_bcd = cfg_table[CFG_CHIME_SINCE_BYTE] >> CFG_CHIME_SINCE_SHIFT;
       chime_uu_bcd = cfg_table[CFG_CHIME_UNTIL_BYTE] & CFG_CHIME_UNTIL_MASK;
       chime_ss_pm = chime_uu_pm = 0;
@@ -542,7 +534,7 @@ int main() {
       chime_ss_bcd = ds_int2bcd(chime_ss_bcd);
       chime_uu_bcd = ds_int2bcd(chime_uu_bcd);
 #endif
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
       alarm_pm = 0;
       alarm_hh_bcd = cfg_table[CFG_ALARM_HOURS_BYTE] >> CFG_ALARM_HOURS_SHIFT;
       if (H12_12) {
@@ -563,9 +555,9 @@ int main() {
 #endif
       cfg_changed = 0;
     }
-#endif  // !defined(WITHOUT_ALARM) || !defined(WITHOUT_CHIME)
+#endif  // defined(WITH_ALARM) || defined(WITH_CHIME)
 
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
     // xx:00:00
     if (CONF_CHIME_ON && chime_trigger == CHIME_IDLE && !rtc_mm_bcd && !rtc_table[DS_ADDR_SECONDS]) {
       uint8_t hh = rtc_hh_bcd;
@@ -591,7 +583,7 @@ int main() {
     }
 #endif
 
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
     // check for alarm trigger
     // when snooze_time>0, just compare min portion
     if ((snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm)) || (snooze_time > 0 && (alarm_mm_snooze == rtc_mm_bcd))) {
@@ -707,7 +699,7 @@ int main() {
           sync_remaining = 10;  // allow sync adter adjusting
         }
         break;
-#endif
+#endif // WITH_NMEA
       case K_TEMP_DISP:
         dmode = M_TEMP_DISP;
         if (ev == EV_S1_SHORT)
@@ -715,7 +707,7 @@ int main() {
         else if (ev == EV_S1_LONG)
           ds_temperature_cf_toggle();
         else if (ev == EV_S2_SHORT) {
-#ifndef WITHOUT_DATE
+#ifdef WITH_DATE
           kmode = K_DATE_DISP;
 #else
           kmode = K_WEEKDAY_DISP;
@@ -723,7 +715,7 @@ int main() {
         }
         break;
 
-#ifndef WITHOUT_DATE
+#ifdef WITH_DATE
       case K_DATE_DISP:
         dmode = M_DATE_DISP;
         if (ev == EV_S1_SHORT)
@@ -791,10 +783,10 @@ int main() {
       case K_SEC_DISP:
         dmode = M_SEC_DISP;
         if (ev == EV_S1_SHORT) {
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
           count_timeout = TIMEOUT_LONG;  // timeout for alarm disp
           kmode = K_ALARM;
-#elif !defined(WITHOUT_CHIME)
+#elif defined(WITH_CHIME)
           count_timeout = TIMEOUT_LONG;  // timeout for chime disp
           kmode = K_CHIME;
 #else
@@ -812,7 +804,7 @@ int main() {
 #endif
         break;
 
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
       case K_ALARM:
         flash_01 = 0;
         flash_23 = 0;
@@ -820,7 +812,7 @@ int main() {
         if (ev == EV_TIMEOUT)
           kmode = K_NORMAL;
         else if (ev == EV_S1_SHORT) {
-#if !defined(WITHOUT_CHIME)
+#ifdef WITH_CHIME
           count_timeout = TIMEOUT_LONG;  // timeout for chime disp
           kmode = K_CHIME;
 #else
@@ -859,9 +851,9 @@ int main() {
           cfg_changed = 1;
         }
         break;
-#endif
+#endif // WITH_ALARM
 
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
       case K_CHIME:
         flash_01 = 0;
         flash_23 = 0;
@@ -899,7 +891,7 @@ int main() {
           cfg_changed = 1;
         }
         break;
-#endif
+#endif // WITH_CHIME
 
       case K_NORMAL:
       default:
@@ -953,10 +945,10 @@ int main() {
 
     switch (dmode) {
       case M_NORMAL:
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
       case M_ALARM:
 #endif
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
       case M_CHIME:
 #endif
       {
@@ -964,7 +956,7 @@ int main() {
         uint8_t mm = rtc_mm_bcd;
         __bit pm = rtc_pm;
 
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
         if (dmode == M_ALARM) {
           hh = alarm_hh_bcd;
           mm = alarm_mm_bcd;
@@ -972,7 +964,7 @@ int main() {
         }
 #endif
 
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
         if (dmode == M_CHIME) {
           hh = chime_ss_bcd;
           mm = chime_uu_bcd;
@@ -990,7 +982,7 @@ int main() {
         }
 
         if (!flash_23 || blinker_fast || S1_LONG) {
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
           if (dmode == M_CHIME) {
             // remove leading zero in chime stop hr
             uint8_t m0 = mm >> 4;
@@ -1004,16 +996,16 @@ int main() {
           filldisplay(3, mm & 0x0F, 0);
         }
         if (blinker_slow || dmode != M_NORMAL) {
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
           if (dmode != M_CHIME) {
 #endif
             dotdisplay(1, 1);
             dotdisplay(2, 1);
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
           }
 #endif
         }
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
         if (dmode == M_CHIME) {
           dotdisplay(2, CONF_CHIME_ON);
           dotdisplay(1, chime_ss_pm);
@@ -1072,7 +1064,7 @@ int main() {
         dot3display(0);
       } break;
 
-#ifndef WITHOUT_DATE
+#ifdef WITH_DATE
       case M_DATE_DISP:
         if (!flash_01 || blinker_fast || S2_LONG) {
           if (!CONF_SW_MMDD) {
@@ -1167,7 +1159,7 @@ int main() {
 
     dmode = dmode_bak;  // back to original dmode
 
-#ifndef WITHOUT_ALARM
+#ifdef WITH_ALARM
     if (alarm_trigger && !alarm_reset) {
       if (blinker_slow && blinker_fast) {
         clearTmpDisplay();
@@ -1180,7 +1172,7 @@ int main() {
     }
 #endif
 
-#ifndef WITHOUT_CHIME
+#ifdef WITH_CHIME
     switch (chime_trigger) {
       case CHIME_RUNNING:  // ~100ms chime
         BUZZER_ON;
