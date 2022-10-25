@@ -25,9 +25,9 @@
 // additional configuration
 //#define SHOW_TEMP_DATE_WEEKDAY -- done in makefile
 //#undef WITH_NMEA
-//#undef  WITH_CAPACITOR
-//#undef  WITH_MONTHLY_CORR
-//#undef  DEBUG
+//#undef WITH_CAPACITOR
+//#undef WITH_MONTHLY_CORR
+//#define DEBUG
 
 // clear wdt
 #define WDT_CLEAR() (WDT_CONTR |= 0x10)
@@ -494,12 +494,15 @@ int main() {
     // sample ADC for the LDR (dimming), run frequently
     if (count % (uint8_t)4 == 0) {
       temp = gettemp(getADCResult(ADC_TEMP));
-      // auto-dimming, by dividing adc range into 8 steps
-      lightval = getADCResult8(ADC_LIGHT) >> 3;
+      // auto-dimming, reduce adc range to 5 bits
+      lightval = (~(getADCResult8(ADC_LIGHT) >> 3)) & 0x1F;
       // set floor of dimming range
-      if (lightval < 4) {
-        lightval = 4;
-      }
+      if (lightval < 1) lightval = 1;
+      //if (lightval < 4) {
+      //  lightval = 4;
+      //}
+      // -> 00 (brightest) to 0x20 (dimmest)
+
     }
 
     // Read RTC
@@ -1131,8 +1134,8 @@ int main() {
         // seconds, loop counter, blinkers, S1/S2, keypress events
         uint8_t cc = count;
         if (S1_PRESSED || S2_PRESSED) {
-          filldisplay(0, S1_PRESSED || S2_PRESSED ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT || ev == EV_S2_SHORT);
-          filldisplay(1, S1_LONG || S2_LONG ? LED_DASH : LED_BLANK, ev == EV_S1_LONG || ev == EV_S2_LONG);
+          filldisplay(0, !!(S1_PRESSED || S2_PRESSED) ? LED_DASH : LED_BLANK, ev == EV_S1_SHORT || ev == EV_S2_SHORT);
+          filldisplay(1, !!(S1_LONG || S2_LONG) ? LED_DASH : LED_BLANK, ev == EV_S1_LONG || ev == EV_S2_LONG);
         } else {
           filldisplay(0, (rtc_table[DS_ADDR_SECONDS] >> 4) & (DS_MASK_SECONDS_TENS >> 4), 0);
           filldisplay(1, rtc_table[DS_ADDR_SECONDS] & DS_MASK_SECONDS_UNITS, blinker_slow);
