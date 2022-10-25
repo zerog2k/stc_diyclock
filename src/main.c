@@ -875,7 +875,7 @@ int main() {
         if (ev == EV_S2_SHORT)
           kmode = K_CHIME_SET_UNTIL;
         else if (ev == EV_S1_SHORT || S1_LONG && blinker_fast) {
-          ds_chime_since_incr();
+          ds_chime_start_incr();
           cfg_changed = 1;
         }
         break;
