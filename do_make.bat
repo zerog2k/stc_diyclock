@@ -1,8 +1,8 @@
 @echo off
-echo "make clean"
+echo make clean
 del main.hex
 del build\*.?*
-echo "make"
+echo make
 rem mkdir -p build/
 if not exist build mkdir build
 SET SDCC_FLAGS=--code-size 4089 --xram-size 0 --data-loc 0x30 
@@ -15,5 +15,5 @@ sdcc %SDCC_FLAGS% %MAIN_DEFINES% -o build\  src\main.c build\adc.rel build\ds130
 rem tail -n 5 build/main.mem | head -n 2
 rem tail -n 1 build/main.mem
 copy build\main.ihx main.hex
-echo "make flash"
-echo stcgal/stcgal.py -p /dev/ttyUSB0 -P auto -t 11059  main.hex
+echo make flash
+echo stcgal -p /dev/ttyUSB0 -P auto -t 11059  main.hex

@@ -13,9 +13,9 @@
 // local includes
 #include "adc.h"
 #include "ds1302.h"
+#include "hwconfig.h"
 #include "led.h"
 #include "stc15.h"
-#include "hwconfig.h"
 
 // standard defines
 #define FOSC 11059200
@@ -30,7 +30,7 @@
 //#undef  DEBUG
 
 // clear wdt
-#define WDT_CLEAR() (WDT_CONTR |= 1 << 4)
+#define WDT_CLEAR() (WDT_CONTR |= 0x10)
 
 // keyboard mode states
 enum keyboard_mode {
@@ -182,19 +182,19 @@ uint8_t ss;
 #if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
 #define SEC_PER_MONTH 2592000
 #if WITH_MONTHLY_CORR > 0
-#define CORR_VALUE 1  // +1 sec every ~RUNTIME_PER_SEC seconds
-#else // not WITH_MONTHLY_CORR > 0
+#define CORR_VALUE 1   // +1 sec every ~RUNTIME_PER_SEC seconds
+#else                  // not WITH_MONTHLY_CORR > 0
 #define CORR_VALUE -1  // -1 sec every ~RUNTIME_PER_SEC seconds
-#endif // not WITH_MONTHLY_CORR > 0
+#endif                 // not WITH_MONTHLY_CORR > 0
 #define RUNTIME_PER_SEC (SEC_PER_MONTH / (WITH_MONTHLY_CORR * CORR_VALUE))
 volatile uint32_t corr_remaining = RUNTIME_PER_SEC;
-#endif // WITH_MONTHLY_CORR
+#endif  // WITH_MONTHLY_CORR
 
 volatile __bit S1_LONG;
 volatile __bit S1_PRESSED;
 volatile __bit S2_LONG;
 volatile __bit S2_PRESSED;
-#if NUM_SW == 3 
+#if NUM_SW == 3
 volatile __bit S3_LONG;
 volatile __bit S3_PRESSED;
 #endif
@@ -210,7 +210,7 @@ enum Event {
   EV_S2_SHORT,
   EV_S2_LONG,
   EV_S1S2_LONG,
-#if NUM_SW == 3 
+#if NUM_SW == 3
   EV_S3_SHORT,
   EV_S3_LONG,
 #endif
@@ -224,32 +224,38 @@ enum Event {
 volatile enum Event event;
 
 /*
-  interrupt: every 0.1ms=100us come here
-
-  Check button status
-  Dynamically LED turn on
+  Interrupt Service Routine, come here every 100us == 0.1ms
+  - Multiplex LEDs:
+    100Hz are 10ms, so we have 25 ticks per display for dimming
+    But this means we have a counter to 25 and another from 0..3.
+    If we go down to 78Hz, we can use a counter to 32.
+  - Check button status
  */
 void timer0_isr() __interrupt 1 __using 1 {
-  uint8_t tmp;
   enum Event ev = EV_NONE;
-  // display refresh ISR
-  // cycle thru digits one at a time
-  uint8_t digit = displaycounter % (uint8_t)4;
+  uint8_t tmp = (displaycounter & 0x1F);         // 0..31
+  uint8_t digit = (displaycounter >> 5) & 0x03;  // 0..3
+  displaycounter++;
 
-  // turn off all digits, set high
-  LED_DIGITS_OFF();
+  if (tmp == 0) {
+    // new LED position
+    LED_DIGITS_OFF();  // not strictly necessary _if_ we turn it off
+    LED_SEGMENT_PORT = dbuf[digit];
+    // turn on selected digit (=low)
+    // tmp = ~((1 << LED_DIGITS_PORT_BASE) << digit);
+    LED_DIGITS_PORT &= ~((1 << LED_DIGITS_PORT_BASE) << digit);
+  } else if (tmp > lightval) {
+    // end of LED duty cycle, turn off
+    LED_DIGITS_OFF();
+  }
 
   // auto dimming, skip lighting for some cycles
-  if (displaycounter % lightval < 4) {
-    // fill digits
-    LED_SEGMENT_PORT = dbuf[digit];
-    // turn on selected digit, set low
-    // LED_DIGIT_ON(digit);
-    // issue #32, fix for newer sdcc versions which are using non-atomic port access
-    tmp = ~((1 << LED_DIGITS_PORT_BASE) << digit);
-    LED_DIGITS_PORT &= tmp;
-  }
-  displaycounter++;
+  // if (displaycounter % lightval < 4) {
+  //   LED_SEGMENT_PORT = dbuf[digit];
+  //   // turn on selected digit (=low)
+  //   tmp = ~((1 << LED_DIGITS_PORT_BASE) << digit);
+  //   LED_DIGITS_PORT &= tmp;
+  // }
 
   // 100/sec: 10 ms
   if (count_100 == 100) {
@@ -699,7 +705,7 @@ int main() {
           sync_remaining = 10;  // allow sync adter adjusting
         }
         break;
-#endif // WITH_NMEA
+#endif  // WITH_NMEA
       case K_TEMP_DISP:
         dmode = M_TEMP_DISP;
         if (ev == EV_S1_SHORT)
@@ -851,7 +857,7 @@ int main() {
           cfg_changed = 1;
         }
         break;
-#endif // WITH_ALARM
+#endif  // WITH_ALARM
 
 #ifdef WITH_CHIME
       case K_CHIME:
@@ -891,7 +897,7 @@ int main() {
           cfg_changed = 1;
         }
         break;
-#endif // WITH_CHIME
+#endif  // WITH_CHIME
 
       case K_NORMAL:
       default:
