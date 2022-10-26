@@ -158,7 +158,7 @@ void ds_init() {
   ds_writebyte(DS_ADDR_WP, 0);       // clear WP
   b &= 0x7F;                         // clear CH (bit7)
   ds_writebyte(DS_ADDR_SECONDS, b);  // clear CH
-  #if 1 // reset clock
+  #if 0 // reset clock
   // reset date, time
   ds_writebyte(DS_ADDR_MINUTES, 0x00);
   ds_writebyte(DS_ADDR_HOUR,  DS_MASK_1224_MODE|0x07);
