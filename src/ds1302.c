@@ -99,6 +99,17 @@ uint8_t readbyte() {
   __endasm;
 }
 
+void ds_writebyte(uint8_t addr, uint8_t data) {
+  // ds1302 single-byte write
+  uint8_t cmd = DS_CMD | DS_CMD_CLOCK | (addr << 1) | DS_CMD_WRITE;
+  DS_CE = 0;
+  DS_SCLK = 0;
+  DS_CE = 1;
+  sendbyte(cmd);
+  sendbyte(data);
+  DS_CE = 0;
+}
+
 uint8_t ds_readbyte(uint8_t addr) {
   // ds1302 single-byte read
   uint8_t b;
@@ -116,32 +127,15 @@ uint8_t ds_readbyte(uint8_t addr) {
 
 void ds_readburst() {
   // ds1302 burst-read 8 bytes into struct
-  uint8_t j, b;
-  b = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE | DS_CMD_READ;
+  uint8_t j;
+  uint8_t cmd = DS_CMD | DS_CMD_CLOCK | DS_BURST_MODE | DS_CMD_READ;
   DS_CE = 0;
   DS_SCLK = 0;
   DS_CE = 1;
-  // send cmd byte
-  sendbyte(b);
-  // read bytes
+  sendbyte(cmd);
   for (j = 0; j != 8; j++) {
     rtc_table[j] = readbyte();
   }
-  DS_CE = 0;
-}
-
-void ds_writebyte(uint8_t addr, uint8_t data) {
-  // ds1302 single-byte write
-  uint8_t b = 0;
-  b = DS_CMD | DS_CMD_CLOCK | addr << 1 | DS_CMD_WRITE;
-  DS_CE = 0;
-  DS_SCLK = 0;
-  DS_CE = 1;
-  // send cmd byte
-  sendbyte(b);
-  // send data byte
-  sendbyte(data);
-
   DS_CE = 0;
 }
 
@@ -164,6 +158,13 @@ void ds_init() {
   ds_writebyte(DS_ADDR_WP, 0);       // clear WP
   b &= 0x7F;                         // clear CH (bit7)
   ds_writebyte(DS_ADDR_SECONDS, b);  // clear CH
+  #if 1 // reset clock
+  // reset date, time
+  ds_writebyte(DS_ADDR_MINUTES, 0x00);
+  ds_writebyte(DS_ADDR_HOUR,  DS_MASK_1224_MODE|0x07);
+  ds_writebyte(DS_ADDR_MONTH, 0x01);
+  ds_writebyte(DS_ADDR_DAY,   0x01);
+  #endif
 }
 
 /*
@@ -321,7 +322,7 @@ void ds_weekday_incr() {
   uint8_t day = rtc_table[DS_ADDR_WEEKDAY];
   INCR(day, 1, 7);
   ds_writebyte(DS_ADDR_WEEKDAY, day);
-  rtc_table[DS_ADDR_WEEKDAY] = day;  // usefull ?
+  rtc_table[DS_ADDR_WEEKDAY] = day;  // useful?
 }
 
 void ds_sec_zero() {
@@ -338,125 +339,14 @@ uint8_t ds_bcd2int(uint8_t tens_ones) {
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer) {
-  // decimal adjust (da a)
-  if (integer & 0x0F > 9) integer += 0x06;
-  if (integer > 0x99) integer += 0x60;
-  return integer & 0xFF;
-
-  /*  Original version:
-
+  #if 0
+  // 8051 does not have div and mod instructions
+  // TODO check if there is a cheaper way of doing this:
   return integer / 10 << 4 | integer % 10;
-
-  8051 does not have 'div', so this needs a LOT of assembly code:
-
-  _ds_int2bcd:
-      mov	r7,dpl
-  ;	src\ds1302.c:337: return integer / 10 << 4 | integer % 10;
-      mov	r6,#0x00
-      mov	__divsint_PARM_2,#0x0a
-  ;	1-genFromRTrack replaced	mov	(__divsint_PARM_2 + 1),#0x00
-      mov	(__divsint_PARM_2 + 1),r6
-      mov	dpl,r7
-      mov	dph,r6
-      push	ar7
-      push	ar6
-      lcall	__divsint
-      mov	r4,dpl
-      pop	ar6
-      pop	ar7
-      mov	a,r4
-      swap	a
-      anl	a,#0xf0
-      mov	r4,a
-      mov	__modsint_PARM_2,#0x0a
-      mov	(__modsint_PARM_2 + 1),#0x00
-      mov	dpl,r7
-      mov	dph,r6
-      push	ar4
-      lcall	__modsint
-      mov	r6,dpl
-      pop	ar4
-      mov	a,r6
-      orl	a,r4
-      mov	dpl,a
-  ;	src\ds1302.c:338: }
-      ret
-
-  */
-
-  /* Second test to check if we can make the assembly smaller:
-
-  if (integer & 0x0F > 9) integer += 0x06;
-  if ((integer >> 4) > 9) integer += 0x60;
-  return integer & 0xFF;
-
-  _ds_int2bcd:
-  ;	src\ds1302.c:374: if (integer & 0x0F > 9) integer += 0x06;
-      mov	a,dpl
-      mov	r7,a
-      jnb	acc.0,00102$
-      mov	ar6,r7
-      mov	a,#0x06
-      add	a,r6
-      mov	r7,a
-  00102$:
-  ;	src\ds1302.c:375: if ((integer >> 4) > 9) integer += 0x60;
-      mov	a,r7
-      swap	a
-      anl	a,#0x0f
-      add	a,#0xff - 0x09
-      jnc	00104$
-      mov	ar6,r7
-      mov	a,#0x60
-      add	a,r6
-      mov	r7,a
-  00104$:
-  ;	src\ds1302.c:376: return integer & 0xFF;
-      mov	dpl,r7
-  ;	src\ds1302.c:406: }
-      ret
-  */
-
-  /* Initial test (shortest one):
-
-  if (integer & 0x0F > 9) integer += 0x06;
-  if (integer > 0x99) integer += 0x60;
-  return integer & 0xFF;
-
-  _ds_int2bcd:
-  ;	src\ds1302.c:374: if (integer & 0x0F > 9) integer += 0x06;
-      mov	a,dpl
-      mov	r7,a
-      jnb	acc.0,00102$
-      mov	ar6,r7
-      mov	a,#0x06
-      add	a,r6
-      mov	r7,a
-  00102$:
-  ;	src\ds1302.c:375: if (integer > 0x99) integer += 0x60;
-      mov	a,r7
-      add	a,#0xff - 0x99
-      jnc	00104$
-      mov	ar6,r7
-      mov	a,#0x60
-      add	a,r6
-      mov	r7,a
-  00104$:
-  ;	src\ds1302.c:376: return integer & 0xFF;
-      mov	dpl,r7
-  ;	src\ds1302.c:377: }
-      ret
-*/
+  #else
+  uint8_t tens = 0;
+  while (integer > 99) { integer -= 100; }
+  while (integer > 9) { integer -= 10; tens++; }
+  return tens << 4 | integer;
+  #endif
 }
-
-#if 0 
-// we don't need these two routines
-
-uint8_t ds_int2bcd_tens(uint8_t integer) {
-    return integer / 10 % 10;
-}
-
-uint8_t ds_int2bcd_ones(uint8_t integer) {
-    return integer % 10;
-}
-#endif  // 0
