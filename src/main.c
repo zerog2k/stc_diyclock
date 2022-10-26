@@ -496,13 +496,7 @@ int main() {
       temp = gettemp(getADCResult(ADC_TEMP));
       // auto-dimming, reduce adc range to 5 bits
       lightval = (~(getADCResult8(ADC_LIGHT) >> 3)) & 0x1F;
-      // set floor of dimming range
-      if (lightval < 1) lightval = 1;
-      //if (lightval < 4) {
-      //  lightval = 4;
-      //}
-      // -> 00 (brightest) to 0x20 (dimmest)
-
+      // now 0x00 is dimmest and 0x1F is brightest
     }
 
     // Read RTC
