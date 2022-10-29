@@ -4,13 +4,8 @@
 //
 // Copyright 2016, Jens Jensen (github user 'zerog2k')
 // Changes 2022, Hagen Patzke (github user 'hagen-git')
-
-//#pragma disable_warning 126 // silence 'unreachable code' warning
-
 #include <stdint.h>
-#include <stdio.h>
 
-// local includes
 #include "adc.h"
 #include "ds1302.h"
 #include "hwconfig.h"
@@ -127,16 +122,17 @@ uint8_t count;     // main loop counter
 uint8_t temp;      // temperature sensor value
 uint8_t lightval;  // light sensor value
 
-volatile uint8_t displaycounter;
-volatile int8_t count_100;   // 0.01s=10ms
-volatile int8_t count_1000;  // 0.1s=100ms
-volatile int8_t count_5000;  // 0.5s=500ms
+// Timer 0 Interrupt Service Routine variables
+volatile uint8_t displaycounter = 0; // 0.0001s = 100ns
+volatile uint8_t count_100 = 0;   // 0.01s=10ms
+volatile uint8_t count_1000 = 0;   // 0.1s=100ms
+volatile uint8_t count_5000 = 0;   // 0.5s=500ms
 #ifdef WITH_ALARM
-volatile int16_t count_20000;  // 2s
+volatile uint16_t count_20000;  // 2s
 volatile __bit blinker_slowest;
 #endif
 #ifdef WITH_CHIME
-volatile int16_t chime_ticks;  // 10ms inc
+volatile uint16_t chime_ticks;  // 10ms inc
 #endif
 
 volatile uint16_t count_timeout;  // max 6.5536 sec
@@ -261,10 +257,6 @@ void Timer0_ISR() __interrupt 1 __using 1 {
       blinker_fast = !blinker_fast;  // blink every 100ms
       loop_gate = 1;                 // every 100ms
 
-#ifdef WITH_ALARM
-      count_20000++;  // increment every 100ms
-#endif
-
       if (++count_5000 == 5) { // 2/sec: 500 ms
         count_5000 = 0;
         blinker_slow = !blinker_slow;  // blink every 500ms
@@ -278,14 +270,14 @@ void Timer0_ISR() __interrupt 1 __using 1 {
             REN = 1;  // enable uart receiving
 #endif
 #ifdef WITH_ALARM
-        if (count_20000 == 20) { // 1/ 2sec: 20000 ms
+        if (++count_20000 == 4) { // 1/ 2sec: 2s
           count_20000 = 0;
         }
         // 500 ms on=true=1, 1500 ms off=false=0
-        blinker_slowest = count_20000 < 5;
+        blinker_slowest = count_20000 == 0;
 #endif
-      }
-    }
+      } // count_5000
+    } // count_1000
 
     // Check SW status and chattering control
 #define MONITOR_S(n)                                      \
@@ -319,7 +311,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
 
     MONITOR_S(1);
     MONITOR_S(2);
-#if NUM_SW == 3
+#if WITH_3BTN == 3
     MONITOR_S(3);
 #endif
 
@@ -335,7 +327,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
     if (event == EV_NONE) {
       event = ev;
     }
-  } // if (count100 == 100)
+  } // count100
 
 #ifdef WITH_ALARM
   if (count_timeout != 0) {
@@ -1172,6 +1164,8 @@ int main() {
       nmea_state = NMEA_NONE;
     }
 #endif
-  }
-}
-/* ------------------------------------------------------------------------- */
+  } // while (1)
+
+} // main
+
+//eof

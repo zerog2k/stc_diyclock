@@ -1,7 +1,6 @@
 // DS1302 RTC IC -- see http://datasheets.maximintegrated.com/en/ds/DS1302.pdf
 
 #include <stdint.h>
-
 #include "hwconfig.h"
 #include "stc15.h"
 
@@ -122,56 +121,21 @@ __bit __at(0x62) CONF_CHIME_ON;
 __bit __at(0x6E) CONF_SW_MMDD;
 
 // DS1302 Functions
-
 void ds_ram_config_init();
 void ds_ram_config_write();
-
-// ds1302 single-byte read
-uint8_t ds_readbyte(uint8_t addr);
-
-// ds1302 burst-read 8 bytes into struct
-void ds_readburst();
-
-// ds1302 single-byte write
-void ds_writebyte(uint8_t addr, uint8_t data);
-
-// clear WP, CH
-void ds_init();
-
-// reset date/time to 01/01 00:00
-// void ds_reset_clock();
-
-// toggle 12/24 hour mode
-void ds_hours_12_24_toggle();
-
-// increment hours
-void ds_hours_incr();
-
-// increment minutes
-void ds_minutes_incr();
-
-// increment year
-void ds_year_incr();
-
-// increment month
-void ds_month_incr();
-
-// increment day
-void ds_day_incr();
-
+uint8_t ds_readbyte(uint8_t addr); // ds1302 single-byte read
+void ds_readburst(); // ds1302 burst-read 8 bytes into struct
+void ds_writebyte(uint8_t addr, uint8_t data); // ds1302 single-byte write
+void ds_init(); // clear write protect, start clock
+// void ds_reset_clock(); // reset date/time to 01/01 00:00
+void ds_hours_12_24_toggle(); // toggle 12/24 hour mode
+void ds_hours_incr();         // increment hours
+void ds_minutes_incr();       // increment minutes
+void ds_year_incr();          // increment year
+void ds_month_incr();         // increment month
+void ds_day_incr();           // increment day
 void ds_weekday_incr();
 void ds_sec_zero();
-
-// split bcd to int
-uint8_t ds_bcd2int(uint8_t tens_ones);
-
-// return bcd byte from integer
-uint8_t ds_int2bcd(uint8_t integer);
-
-// convert integer to bcd parts (high = tens, low = ones)
-uint8_t ds_int2bcd_tens(uint8_t integer);
-uint8_t ds_int2bcd_ones(uint8_t integer);
-
 void ds_alarm_minutes_incr();
 void ds_alarm_hours_incr();
 void ds_alarm_on_toggle();
@@ -181,3 +145,6 @@ void ds_chime_on_toggle();
 void ds_date_mmdd_toggle();
 void ds_temperature_offset_incr();
 void ds_temperature_cf_toggle();
+
+uint8_t ds_bcd2int(uint8_t tens_ones); // split bcd to int
+uint8_t ds_int2bcd(uint8_t integer);   // return bcd byte from integer
