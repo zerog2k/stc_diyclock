@@ -231,54 +231,41 @@ volatile enum Event event;
     If we go down to 78Hz, we can use a counter to 32.
   - Check button status
  */
-void timer0_isr() __interrupt 1 __using 1 {
+void Timer0_ISR() __interrupt 1 __using 1 {
   enum Event ev = EV_NONE;
-  uint8_t tmp = (displaycounter & 0x1F);         // 0..31
+  uint8_t pwmct = (displaycounter & 0x1F);       // 0..31
   uint8_t digit = (displaycounter >> 5) & 0x03;  // 0..3
   displaycounter++;
 
-  if (tmp == 0) {
-    // new LED position
-    LED_DIGITS_OFF();  // not strictly necessary _if_ we turn it off
+  if (pwmct == 0) { // new LED position
+    LED_DIGITS_OFF();
     LED_SEGMENT_PORT = dbuf[digit];
-    // turn on selected digit (=low)
-    // tmp = ~((1 << LED_DIGITS_PORT_BASE) << digit);
-    LED_DIGITS_PORT &= ~((1 << LED_DIGITS_PORT_BASE) << digit);
-  } else if (tmp > lightval) {
-    // end of LED duty cycle, turn off
+    LED_DIGIT_ON(digit);
+  } else
+  if (pwmct >= lightval) { // end of LED duty cycle, turn off
     LED_DIGITS_OFF();
   }
 
-  // auto dimming, skip lighting for some cycles
-  // if (displaycounter % lightval < 4) {
-  //   LED_SEGMENT_PORT = dbuf[digit];
-  //   // turn on selected digit (=low)
-  //   tmp = ~((1 << LED_DIGITS_PORT_BASE) << digit);
-  //   LED_DIGITS_PORT &= tmp;
-  // }
-
-  // 100/sec: 10 ms
-  if (count_100 == 100) {
+  
+  if (++count_100 == 100) { // 100/sec: 10 ms
     count_100 = 0;
-    count_1000++;  // increment every 10ms
 
 #ifdef WITH_CHIME
     if (chime_trigger != CHIME_IDLE)
       chime_ticks++;  // increment every 10ms
 #endif
 
-    // 10/sec: 100 ms
-    if (count_1000 == 10) {
-      count_1000 = 0;
+    
+    if (++count_1000 == 10) { // 10/sec: 100 ms
+      count_1000 = 0; 
       blinker_fast = !blinker_fast;  // blink every 100ms
       loop_gate = 1;                 // every 100ms
 
-      count_5000++;  // increment every 100ms
 #ifdef WITH_ALARM
       count_20000++;  // increment every 100ms
 #endif
-      // 2/sec: 500 ms
-      if (count_5000 == 5) {
+
+      if (++count_5000 == 5) { // 2/sec: 500 ms
         count_5000 = 0;
         blinker_slow = !blinker_slow;  // blink every 500ms
 #if defined(WITH_MONTHLY_CORR) && WITH_MONTHLY_CORR != 0
@@ -291,8 +278,7 @@ void timer0_isr() __interrupt 1 __using 1 {
             REN = 1;  // enable uart receiving
 #endif
 #ifdef WITH_ALARM
-        // 1/ 2sec: 20000 ms
-        if (count_20000 == 20) {
+        if (count_20000 == 20) { // 1/ 2sec: 20000 ms
           count_20000 = 0;
         }
         // 500 ms on=true=1, 1500 ms off=false=0
@@ -333,7 +319,7 @@ void timer0_isr() __interrupt 1 __using 1 {
 
     MONITOR_S(1);
     MONITOR_S(2);
-#ifdef stc15w408as
+#if NUM_SW == 3
     MONITOR_S(3);
 #endif
 
@@ -349,8 +335,7 @@ void timer0_isr() __interrupt 1 __using 1 {
     if (event == EV_NONE) {
       event = ev;
     }
-  }
-  count_100++;  // increment every 0.1ms
+  } // if (count100 == 100)
 
 #ifdef WITH_ALARM
   if (count_timeout != 0) {
@@ -364,35 +349,8 @@ void timer0_isr() __interrupt 1 __using 1 {
 #endif
 }
 
-/*
-// macro expansion for MONITOR_S(1)
-{
-    uint8_t s = 1 - 1;
-    debounce[s] = (debounce[s] << 1) | SW1 ;
-    if (debounce[s] == 0) {
-        S_PRESSED = 1;
-        if (!S_LONG) {
-            switchcount[s]++;
-        }
-    } else {
-        if (S1_PRESSED) {
-            if (!S1_LONG) {
-                ev = EV_S1_SHORT;
-            }
-            S1_PRESSED = 0;
-            S1_LONG = 0;
-            switchcount[s] = 0;
-        }
-    }
-    if (switchcount[s] > SW_CNTMAX) {
-        S1_LONG = 1;
-        switchcount[s] = 0;
-        ev = EV_S1_LONG;
-    }
-}
-*/
 
-// Call timer0_isr() 10000/sec: 0.0001 sec
+// Call Timer0_ISR() 10000/sec: 0.0001 sec
 // Initialize the timer count so that it overflows after 0.0001 sec
 // THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
 // When 11.0592MHz clock case, set every 100us interruption
@@ -420,26 +378,29 @@ int8_t gettemp(uint16_t raw) {
   uint8_t temp;
 
   raw <<= 2;
-  if (CONF_C_F) raw <<= 1;  // raw*5 (4+1) if Celcius, raw*9 (4*2+1) if Farenheit
+  if (CONF_C_F) raw <<= 1;  // raw*5 (4+1) if Celsius, raw*9 (4*2+1) if Fahrenheit
   raw += val;
 
   if (CONF_C_F) {
+    // equiv. to temp=xxxx-(9/5)*raw/10 i.e. 9*raw/50
+    // see next - same for degF
     val = 6835;
     temp = 32;
-  }  // equiv. to temp=xxxx-(9/5)*raw/10 i.e. 9*raw/50
-     // see next - same for degF
-  else {
-    val = 5 * 757;
+  } else {
+    // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50
+    // at 25degC, raw is 512, thus 24 is 522 and limit between 24 and 25 is 517
+    // so between 0deg and 1deg, limit is 517+24*10 = 757
+    // (*5 due to previous adjustment of raw value)
+    val = 3785; // 5 * 757
     temp = 0;
-  }  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50
-     // at 25degC, raw is 512, thus 24 is 522 and limit between 24 and 25 is 517
-     // so between 0deg and 1deg, limit is 517+24*10 = 757
-     // (*5 due to previous adjustment of raw value)
+  }
+  
   while (raw < val) {
     temp++;
     val -= 50;
   }
 
+  // add correction factor from config table
   return temp + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
 

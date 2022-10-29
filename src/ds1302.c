@@ -3,7 +3,9 @@
 
 #pragma callee_saves sendbyte, readbyte
 #pragma callee_saves ds_writebyte, ds_readbyte
-// silence: "src/ds1302.c:84: warning 59: function 'readbyte' must return value"
+// silence these warnings:
+// src/ds1302.c:101: warning 59: function 'readbyte' must return value
+// src/ds1302.c:398: warning 59: function 'ds_int2bcd' must return value
 #pragma disable_warning 59
 
 #define MAGIC_HI 0x5A
@@ -155,16 +157,9 @@ void ds_readburst() {
  */
 void ds_init() {
   uint8_t b = ds_readbyte(DS_ADDR_SECONDS);
-  ds_writebyte(DS_ADDR_WP, 0);       // clear WP
-  b &= 0x7F;                         // clear CH (bit7)
-  ds_writebyte(DS_ADDR_SECONDS, b);  // clear CH
-  #if 0 // reset clock
-  // reset date, time
-  ds_writebyte(DS_ADDR_MINUTES, 0x00);
-  ds_writebyte(DS_ADDR_HOUR,  DS_MASK_1224_MODE|0x07);
-  ds_writebyte(DS_ADDR_MONTH, 0x01);
-  ds_writebyte(DS_ADDR_DAY,   0x01);
-  #endif
+  ds_writebyte(DS_ADDR_WP, 0);       // clear write protect
+  b &= 0x7F;                         // clear CH flag (bit7)
+  ds_writebyte(DS_ADDR_SECONDS, b);  // start clock
 }
 
 /*
@@ -333,20 +328,66 @@ void ds_sec_zero() {
 
 // return integer from bcd byte
 uint8_t ds_bcd2int(uint8_t tens_ones) {
-  // 8051 has a 'mul' operation, so the generated assembly code is quite short
+  // 8051 has 'mul', so the generated assembly code is quite short
   return (tens_ones >> 4) * 10 + (tens_ones & 0x0F);
+/*
+_ds_bcd2int:
+;	src/ds1302.c:339: return (tens_ones >> 4) * ((uint8_t)10) + (tens_ones & 0x0F);
+	mov	a,dpl
+	mov	r7,a
+	swap	a
+	anl	a,#0x0f
+	mov	b,#0x0a
+	mul	ab
+	mov	r6,a
+	anl	ar7,#0x0f
+	mov	a,r7
+	add	a,r6
+	mov	dpl,a
+;	src/ds1302.c:340: }
+	ret
+*/
 }
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer) {
-  #if 0
-  // 8051 does not have div and mod instructions
-  // TODO check if there is a cheaper way of doing this:
+#ifdef INT2BCD_ORIG
+  // The original uses library calls for div and mod:
   return integer / 10 << 4 | integer % 10;
-  #else
-  uint8_t tens = 0;
-  while (integer > 99) { integer -= 100; }
-  while (integer > 9) { integer -= 10; tens++; }
-  return tens << 4 | integer;
-  #endif
+#elif  INT2BCD_SMALL
+  // 8051 has a 'div ab' instruction, placing the integer result of a/b in a, and the remainder in b.
+  // If we make sure SDCC knows that all numbers are 8-bit, it's using it:
+  uint8_t ten = 10;
+  return integer / ten << 4 | integer % ten;
+  /*
+  Generated code:
+  _ds_int2bcd:
+	mov	r7,dpl
+	mov	b,#0x0a
+	mov	a,r7
+	div	ab
+	swap	a
+	anl	a,#0xf0
+	mov	r6,a
+	mov	b,#0x0a
+	mov	a,r7
+	div	ab
+	mov	a,b
+	orl	a,r6
+	mov	dpl,a
+	ret
+  */
+#else // smallest variant
+  integer; // suppress 'unused parameter' warning
+  __asm;
+	mov	a,dpl;
+	mov	b,#0x0a;
+	div	ab;
+	swap a;
+	anl	a,#0xf0;
+    orl a,b;
+	mov	dpl,a;
+	ret;
+   __endasm;
+#endif
 }
