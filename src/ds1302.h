@@ -118,6 +118,7 @@ uint8_t __at(0x2c) cfg_table[4];
 __bit __at(0x60) CONF_C_F;
 __bit __at(0x61) CONF_ALARM_ON;
 __bit __at(0x62) CONF_CHIME_ON;
+__bit __at(0x63) CONF_12H;
 __bit __at(0x6E) CONF_SW_MMDD;
 
 // DS1302 Functions
@@ -127,6 +128,7 @@ uint8_t ds_readbyte(uint8_t addr); // ds1302 single-byte read
 void ds_readburst(); // ds1302 burst-read 8 bytes into struct
 void ds_writebyte(uint8_t addr, uint8_t data); // ds1302 single-byte write
 void ds_init(); // clear write protect, start clock
+void ds_init_hours_to_24(); // init RTC to 24h if required
 // void ds_reset_clock(); // reset date/time to 01/01 00:00
 void ds_hours_12_24_toggle(); // toggle 12/24 hour mode
 void ds_hours_incr();         // increment hours

@@ -169,34 +169,32 @@ void ds_reset_clock() {
 }
 */
 
-void ds_hours_12_24_toggle() {
-  uint8_t hours, b;
-  if (H12_12) {                                                    // 12h->24h
-    hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12);  // hours in 12h format (1-11am 12pm 1-11pm 12am)
-    if (hours == 12) {
-      if (!H12_PM) {
-        hours = 0;
-      }
-    } else {
-      if (H12_PM) {
-        hours += 12;  // to 24h format
-      }
-    }
-    b = ds_int2bcd(hours);                                         // clear hour_12_24 bit
-  } else {                                                         // 24h->12h
-    hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);  // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
-    b = DS_MASK_1224_MODE;
-    if (hours >= 12) {  // pm
-      hours -= 12;
-      b |= DS_MASK_PM;
-    }
-    if (hours == 0) {  // 12am
-      hours = 12;
-    }
-    b |= ds_int2bcd(hours);
-  }
 
-  ds_writebyte(DS_ADDR_HOUR, b);
+// We change the semantics: 
+// - the DS1302 RTC is only changed to 24h mode (once) if it is found in 12h mode
+// - otherwise 12/14h mode just controls a display flag
+void ds_hours_12_24_toggle() {
+  CONF_12H = !CONF_12H;
+  ds_ram_config_write();
+}
+
+void ds_init_hours_to_24() {
+  // convert clock from 12h to 24h mode if necessary
+  uint8_t hour = ds_readbyte(DS_ADDR_HOUR);
+  if (hour & DS_MASK_1224_MODE) {
+    __bit pm = !!(hour & DS_MASK_PM);
+    hour &= DS_MASK_HOUR12;
+    if (hour == 0x12){
+      if(!pm) hour = 0x00; // 12am == 00h
+    } else {
+      if(pm) hour += 0x12; // to 24h format
+      if ((hour & 0x0F) > 9) hour += 6; // "da a"
+    }
+    ds_writebyte(DS_ADDR_HOUR, hour);
+    // if the RTC was in 12h mode, we need to record this in the option flag
+    if (!CONF_12H)
+      ds_hours_12_24_toggle();
+  } 
 }
 
 // NB: this is shorter than with a macro and a 'pure' inc bcd routine
@@ -215,22 +213,9 @@ uint8_t inc_bcd(uint8_t val, uint8_t min, uint8_t max) {
 
 // increment hours
 void ds_hours_incr() {
-  uint8_t hours, b = 0;
-  if (H12_12) {
-    hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12);  // 12h format
-    INCR(hours, 1, 12);
-    if (hours == 12) {
-      H12_PM = !H12_PM;
-    }
-    b = ds_int2bcd(hours) | DS_MASK_1224_MODE;  // bit 7 = 1 -> 12h mode
-    if (H12_PM) {
-      b |= DS_MASK_PM;
-    }
-  } else {
-    hours = (rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);  // 24h format
-    b = inc_bcd(hours, 0x00, 0x23);  // bit 7 = 0 -> 24h mode
-  }
-  ds_writebyte(DS_ADDR_HOUR, b);
+  uint8_t hours = (rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);  // 24h format
+  hours = inc_bcd(hours, 0x00, 0x23);  // bit 7 = 0 -> 24h mode
+  ds_writebyte(DS_ADDR_HOUR, hours);
 }
 
 // increment minutes

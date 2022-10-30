@@ -401,7 +401,7 @@ void dot3display(__bit pm) {
 #ifdef WITH_ALARM
   // dot 3: If alarm is on, blink for 500 ms every 2000 ms
   //        If 12h: on if pm when not blinking
-  if (!H12_12) {  // 24h mode
+  if (!CONF_12H) {  // 24h mode
     pm = CONF_ALARM_ON && blinker_slowest;// && blinker_fast;
   } else if (CONF_ALARM_ON && blinker_slowest) {
     // 12h mode case: blink 500ms, AM/PM=Off/On in another 500ms
@@ -420,6 +420,7 @@ int main() {
   // init rtc and init/read config in RAM
   ds_init();
   ds_ram_config_init();
+  ds_init_hours_to_24(); // needs access to config
 #ifdef WITH_CAPACITOR
   // enable capacitor trickle charge ~1mA
   ds_writebyte(DS_ADDR_TCSDS, DS_TCS_TCON | DS_TC_D1_4KO);
@@ -461,14 +462,9 @@ int main() {
     ds_readburst();
     // parse RTC
     {
-      rtc_hh_bcd = rtc_table[DS_ADDR_HOUR];
-      if (H12_12) {
-        rtc_hh_bcd &= DS_MASK_HOUR12;
-      } else {
-        rtc_hh_bcd &= DS_MASK_HOUR24;
-      }
-      rtc_pm = H12_12 && H12_PM;
+      rtc_hh_bcd = rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24;
       rtc_mm_bcd = rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES;
+      rtc_pm = (rtc_hh_bcd > 0x11);
     }
 
 #if defined(WITH_ALARM) || defined(WITH_CHIME)
@@ -476,42 +472,16 @@ int main() {
 #ifdef WITH_CHIME
       chime_ss_bcd = cfg_table[CFG_CHIME_SINCE_BYTE] >> CFG_CHIME_SINCE_SHIFT;
       chime_uu_bcd = cfg_table[CFG_CHIME_UNTIL_BYTE] & CFG_CHIME_UNTIL_MASK;
-      chime_ss_pm = chime_uu_pm = 0;
-      if (H12_12) {
-        if (chime_ss_bcd >= 12) {
-          chime_ss_pm = 1;
-          chime_ss_bcd -= 12;
-        }
-        if (chime_ss_bcd == 0)
-          chime_ss_bcd = 12;
-        if (chime_uu_bcd >= 12) {
-          chime_uu_pm = 1;
-          chime_uu_bcd -= 12;
-        }
-        if (chime_uu_bcd == 0)
-          chime_uu_bcd = 12;
-      }
       // convert to BCD
       chime_ss_bcd = ds_int2bcd(chime_ss_bcd);
       chime_uu_bcd = ds_int2bcd(chime_uu_bcd);
 #endif
 #ifdef WITH_ALARM
-      alarm_pm = 0;
       alarm_hh_bcd = cfg_table[CFG_ALARM_HOURS_BYTE] >> CFG_ALARM_HOURS_SHIFT;
-      if (H12_12) {
-        if (alarm_hh_bcd >= 12) {
-          alarm_pm = 1;
-          alarm_hh_bcd -= 12;
-        }
-        if (alarm_hh_bcd == 0) {
-          alarm_hh_bcd = 12;
-        }
-      }
       alarm_mm_bcd = cfg_table[CFG_ALARM_MINUTES_BYTE] & CFG_ALARM_MINUTES_MASK;
       // convert to BCD
       alarm_hh_bcd = ds_int2bcd(alarm_hh_bcd);
       alarm_mm_bcd = ds_int2bcd(alarm_mm_bcd);
-
       snooze_time = 0;
 #endif
       cfg_changed = 0;
@@ -524,21 +494,6 @@ int main() {
       uint8_t hh = rtc_hh_bcd;
       uint8_t ss = chime_ss_bcd;
       uint8_t uu = chime_uu_bcd;
-      // convert all to 24h for comparision
-      if (H12_12) {
-        if (hh == 0x12 && !rtc_pm)
-          hh == 0x00;
-        else if (hh != 0x12 && rtc_pm)
-          hh += 0x12;
-        if (ss == 0x12 && !chime_ss_pm)
-          ss == 0x00;
-        else if (ss != 0x12 && chime_ss_pm)
-          ss += 0x12;
-        if (uu == 0x12 && !chime_uu_pm)
-          uu == 0x00;
-        else if (uu != 0x12 && chime_uu_pm)
-          uu += 0x12;
-      }
       if ((ss <= uu && hh >= ss && hh <= uu) || (ss > uu && (hh >= ss || hh <= uu)))
         chime_trigger = CHIME_RUNNING;
     }
@@ -547,7 +502,7 @@ int main() {
 #ifdef WITH_ALARM
     // check for alarm trigger
     // when snooze_time>0, just compare min portion
-    if ((snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd && alarm_pm == rtc_pm)) || (snooze_time > 0 && (alarm_mm_snooze == rtc_mm_bcd))) {
+    if ((snooze_time == 0 && (alarm_hh_bcd == rtc_hh_bcd && alarm_mm_bcd == rtc_mm_bcd)) || (snooze_time > 0 && (alarm_mm_snooze == rtc_mm_bcd))) {
       if (CONF_ALARM_ON && !alarm_trigger && !alarm_reset) {
         alarm_trigger = 1;
       }
@@ -976,12 +931,12 @@ int main() {
         break;
       }
       case M_SET_HOUR_12_24:
-        if (!H12_12) {
-          filldisplay(1, 2, 0);
-          filldisplay(2, 4, 0);
-        } else {
+        if (CONF_12H) {
           filldisplay(1, 1, 0);
           filldisplay(2, 2, 0);
+        } else {
+          filldisplay(1, 2, 0);
+          filldisplay(2, 4, 0);
         }
         filldisplay(3, LED_h, 0);
         break;
