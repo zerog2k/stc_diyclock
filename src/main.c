@@ -95,6 +95,7 @@ enum display_mode {
 
 #ifdef DEBUG
 uint8_t hex[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19};
+uint8_t adc_lightval;
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -124,11 +125,11 @@ uint8_t lightval;  // light sensor value
 
 // Timer 0 Interrupt Service Routine variables
 volatile uint8_t displaycounter = 0; // 0.0001s = 100ns
-volatile uint8_t count_100 = 0;   // 0.01s=10ms
-volatile uint8_t count_1000 = 0;   // 0.1s=100ms
-volatile uint8_t count_5000 = 0;   // 0.5s=500ms
+volatile uint8_t count_100 = 0;      // 0.01s   = 10ms
+volatile uint8_t count_1000 = 0;     // 0.1s    = 100ms
+volatile uint8_t count_5000 = 0;     // 0.5s    = 500ms
 #ifdef WITH_ALARM
-volatile uint16_t count_20000;  // 2s
+volatile uint8_t count_20000;        // 2s      = 2000ms
 volatile __bit blinker_slowest;
 #endif
 #ifdef WITH_CHIME
@@ -224,25 +225,25 @@ volatile enum Event event;
   - Multiplex LEDs:
     100Hz are 10ms, so we have 25 ticks per display for dimming
     But this means we have a counter to 25 and another from 0..3.
-    If we go down to 78Hz, we can use a counter to 32.
+    If we go down to 78Hz, we can use a 5-bit counter from 0..31.
   - Check button status
  */
 void Timer0_ISR() __interrupt 1 __using 1 {
   enum Event ev = EV_NONE;
+
+  // Display refresh
   uint8_t pwmct = (displaycounter & 0x1F);       // 0..31
   uint8_t digit = (displaycounter >> 5) & 0x03;  // 0..3
   displaycounter++;
-
-  if (pwmct == 0) { // new LED position
+  if (pwmct == 0) { // next 7seg LED position
     LED_DIGITS_OFF();
     LED_SEGMENT_PORT = dbuf[digit];
     LED_DIGIT_ON(digit);
-  } else
-  if (pwmct >= lightval) { // end of LED duty cycle, turn off
+  } else if (pwmct >= lightval) { // end of LED duty cycle, turn off
     LED_DIGITS_OFF();
   }
 
-  
+  // Counter updates
   if (++count_100 == 100) { // 100/sec: 10 ms
     count_100 = 0;
 
@@ -250,7 +251,6 @@ void Timer0_ISR() __interrupt 1 __using 1 {
     if (chime_trigger != CHIME_IDLE)
       chime_ticks++;  // increment every 10ms
 #endif
-
     
     if (++count_1000 == 10) { // 10/sec: 100 ms
       count_1000 = 0; 
@@ -311,7 +311,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
 
     MONITOR_S(1);
     MONITOR_S(2);
-#ifdef WITH_3BTN
+#if NUM_SW == 3
     MONITOR_S(3);
 #endif
 
@@ -342,7 +342,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
 }
 
 
-// Call Timer0_ISR() 10000/sec: 0.0001 sec
+// Call Timer0_ISR() 10000/sec: 0.0001 sec (100ns)
 // Initialize the timer count so that it overflows after 0.0001 sec
 // THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
 // When 11.0592MHz clock case, set every 100us interruption
@@ -445,10 +445,15 @@ int main() {
     event = EV_NONE;
 
     // sample ADC for the LDR (dimming), run frequently
-    if (0 == count & 3) {
+    if (0 == (count & 3)) {
       temp = gettemp(getADCResult(ADC_TEMP));
       // auto-dimming, reduce adc range to 5 bits
+#ifdef DEBUG
+      adc_lightval = getADCResult8(ADC_LIGHT);
+      lightval = (~(adc_lightval >> 3)) & 0x1F;
+#else
       lightval = (~(getADCResult8(ADC_LIGHT) >> 3)) & 0x1F;
+#endif
       // 0x00 is darkest and 0x1F is brightest
     }
 
@@ -864,7 +869,7 @@ int main() {
           kmode = K_SET_HOUR;
         else if (ev == EV_S2_SHORT)
           kmode = K_TEMP_DISP;
-#ifdef stc15w408as
+#if NUM_SW == 3
         else if (ev == EV_S3_LONG) {
           LED = !LED;
         }
@@ -1093,12 +1098,10 @@ int main() {
       }
       case M_DEBUG2: {
         // photoresistor adc and lightval
-        uint8_t adc = getADCResult8(ADC_LIGHT);
-        uint8_t lv = lightval;
-        filldisplay(0, hex[adc >> 4], 0);
-        filldisplay(1, hex[adc & 0x0F], 0);
-        filldisplay(2, hex[lv >> 4], 0);
-        filldisplay(3, hex[lv & 0x0F], 0);
+        filldisplay(0, hex[adc_lightval >> 4], 0);
+        filldisplay(1, hex[adc_lightval & 0x0F], 0);
+        filldisplay(2, hex[lightval >> 4], 0);
+        filldisplay(3, hex[lightval & 0x0F], 0);
         break;
       }
       case M_DEBUG3: {

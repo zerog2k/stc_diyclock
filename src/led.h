@@ -15,10 +15,12 @@
 #define LED_e      18
 #define LED_f      19
 
-#ifdef WITH_ALT_LED9 //  '9' with d segment
-#define NUMBERNINE 0b10010000
-#else                //  '9' without d segment
+#ifdef WITH_ALT_LED9 
+// number '9' without d segment
 #define NUMBERNINE 0b10011000
+#else
+// number '9' with d segment on
+#define NUMBERNINE 0b10010000
 #endif
 
 #ifdef WITH_LEDTABLE_RELOC
@@ -72,17 +74,6 @@ const uint8_t LEDTABLE_RELOC ledtable[] = {
     0b10110110, // 39 - 'Z'  0x27
 }; // ledtable
 
-#if 0
-const char weekDay[7][4] = {
-      "SUN",
-      "MON",
-      "TUE",
-      "WED",
-      "THU",
-      "FRI",
-      "SAT",
-}; // weekDay
-#else
 const char weekDay[7][3] = {
     {'S', 'U', 'N'},
     {'M', 'O', 'N'},
@@ -92,7 +83,7 @@ const char weekDay[7][3] = {
     {'F', 'R', 'I'},
     {'S', 'A', 'T'}
 };
-#endif
+
 
 uint8_t dbuf[4]; // 7seg Display buffer
 
@@ -101,7 +92,6 @@ __bit   dot0;
 __bit   dot1;
 __bit   dot2;
 __bit   dot3;
-
 
 #define clearTmpDisplay() { dot0=0; dot1=0; dot2=0; dot3=0; tmpbuf[0]=tmpbuf[1]=tmpbuf[2]=tmpbuf[3]=LED_BLANK; }
 #define filldisplay(pos,val,dp) { tmpbuf[pos]=(uint8_t)(val); dot##pos=!!dp;}
