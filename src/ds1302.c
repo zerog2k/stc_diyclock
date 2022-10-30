@@ -395,7 +395,7 @@ uint8_t ds_int2bcd(uint8_t integer) {
 	div	ab;
 	swap a;
 	anl	a,#0xf0;
-    orl a,b;
+  orl a,b;
 	mov	dpl,a;
 	ret;
    __endasm;
