@@ -11,12 +11,7 @@
 #define MAGIC_HI 0x5A
 #define MAGIC_LO 0xA5
 
-#define INCR(num, low, high) \
-  if (num < high) {          \
-    num++;                   \
-  } else {                   \
-    num = low;               \
-  }
+#define INCR(num, low, high) if(num<high){num++;}else{num=low;}
 
 /*
   Judge whether need to initialize RAM or not by checking RAM address 0x10-0x11 has A5,5A (MAGIC).
@@ -204,26 +199,18 @@ void ds_hours_12_24_toggle() {
   ds_writebyte(DS_ADDR_HOUR, b);
 }
 
-
+// NB: this is shorter than with a macro and a 'pure' inc bcd routine
 uint8_t inc_bcd(uint8_t val, uint8_t min, uint8_t max) {
   if (val >= max) {
     return min;
   } 
-#if 0
-  val++;
-  if ((val & 0x0F) > 0x09) {
-    val += 0x06;
-  }
-  return val;
-#else
   __asm;
   mov a, r7;
-  // NB: "inc a" does not work: it does not set the 'auxiliary carry' flag needed by "da a"
+  // NB: "inc a" gives a false result, it does not set the 'auxiliary carry' flag needed by "da a"
   add a, #1;
   da a;
   mov dpl, a;
   __endasm;
-#endif
 }
 
 // increment hours
@@ -240,9 +227,8 @@ void ds_hours_incr() {
       b |= DS_MASK_PM;
     }
   } else {
-    hours = ds_bcd2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);  // 24h format
-    INCR(hours, 0, 23);
-    b = ds_int2bcd(hours);  // bit 7 = 0 -> 24h mode
+    hours = (rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24);  // 24h format
+    b = inc_bcd(hours, 0x00, 0x23);  // bit 7 = 0 -> 24h mode
   }
   ds_writebyte(DS_ADDR_HOUR, b);
 }
