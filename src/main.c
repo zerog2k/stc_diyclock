@@ -279,7 +279,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
       } // count_5000
     } // count_1000
 
-    // Check SW status and chattering control
+    // Check button status and debounce
 #define MONITOR_S(n)                                      \
   {                                                       \
     uint8_t s = n - 1;                                    \
@@ -311,7 +311,7 @@ void Timer0_ISR() __interrupt 1 __using 1 {
 
     MONITOR_S(1);
     MONITOR_S(2);
-#if WITH_3BTN == 3
+#ifdef WITH_3BTN
     MONITOR_S(3);
 #endif
 
@@ -402,7 +402,7 @@ void dot3display(__bit pm) {
   // dot 3: If alarm is on, blink for 500 ms every 2000 ms
   //        If 12h: on if pm when not blinking
   if (!H12_12) {  // 24h mode
-    pm = CONF_ALARM_ON && blinker_slowest && blinker_fast;
+    pm = CONF_ALARM_ON && blinker_slowest;// && blinker_fast;
   } else if (CONF_ALARM_ON && blinker_slowest) {
     // 12h mode case: blink 500ms, AM/PM=Off/On in another 500ms
     pm = blinker_fast;
@@ -445,11 +445,11 @@ int main() {
     event = EV_NONE;
 
     // sample ADC for the LDR (dimming), run frequently
-    if (count % (uint8_t)4 == 0) {
+    if (0 == count & 3) {
       temp = gettemp(getADCResult(ADC_TEMP));
       // auto-dimming, reduce adc range to 5 bits
       lightval = (~(getADCResult8(ADC_LIGHT) >> 3)) & 0x1F;
-      // now 0x00 is dimmest and 0x1F is brightest
+      // 0x00 is darkest and 0x1F is brightest
     }
 
     // Read RTC

@@ -204,6 +204,28 @@ void ds_hours_12_24_toggle() {
   ds_writebyte(DS_ADDR_HOUR, b);
 }
 
+
+uint8_t inc_bcd(uint8_t val, uint8_t min, uint8_t max) {
+  if (val >= max) {
+    return min;
+  } 
+#if 0
+  val++;
+  if ((val & 0x0F) > 0x09) {
+    val += 0x06;
+  }
+  return val;
+#else
+  __asm;
+  mov a, r7;
+  // NB: "inc a" does not work: it does not set the 'auxiliary carry' flag needed by "da a"
+  add a, #1;
+  da a;
+  mov dpl, a;
+  __endasm;
+#endif
+}
+
 // increment hours
 void ds_hours_incr() {
   uint8_t hours, b = 0;
@@ -225,46 +247,31 @@ void ds_hours_incr() {
   ds_writebyte(DS_ADDR_HOUR, b);
 }
 
-uint8_t inc_bcd(uint8_t val, uint8_t min, uint8_t max) {
-  if (val >= max) {
-    val = min;
-  } else {
-    val++;
-    __asm;
-    mov a, r7;
-    da a;
-    mov r7, a;
-    __endasm;
-  }
-  return val;
-}
-
-
 // increment minutes
 void ds_minutes_incr() {
   uint8_t minutes = (rtc_table[DS_ADDR_MINUTES] & DS_MASK_MINUTES);
-  minutes = inc_bcd(minutes, 0, 59);
+  minutes = inc_bcd(minutes, 0x00, 0x59);
   ds_writebyte(DS_ADDR_MINUTES, minutes);
 }
 
 // increment year
 void ds_year_incr() {
   uint8_t year = (rtc_table[DS_ADDR_YEAR] & DS_MASK_YEAR);
-  year = inc_bcd(year, 0, 99);
+  year = inc_bcd(year, 0x00, 0x99);
   ds_writebyte(DS_ADDR_YEAR, year);
 }
 
 // increment month
 void ds_month_incr() {
   uint8_t month = (rtc_table[DS_ADDR_MONTH] & DS_MASK_MONTH);
-  month = inc_bcd(month, 1, 12);
+  month = inc_bcd(month, 0x01, 0x12);
   ds_writebyte(DS_ADDR_MONTH, month);
 }
 
 // increment day
 void ds_day_incr() {
   uint8_t day = (rtc_table[DS_ADDR_DAY] & DS_MASK_DAY);
-  day = inc_bcd(day, 1, 31);
+  day = inc_bcd(day, 0x01, 0x31);
   ds_writebyte(DS_ADDR_DAY, day);
 }
 
@@ -345,7 +352,7 @@ void ds_sec_zero() {
 
 // return integer from bcd byte
 uint8_t ds_bcd2int(uint8_t tens_ones) {
-  // 8051 has 'mul', so the generated assembly code is quite short
+  // 8051 has 'mul ab', so the generated assembly code is quite short
   return (tens_ones >> 4) * 10 + (tens_ones & 0x0F);
 /*
 _ds_bcd2int:
@@ -372,7 +379,7 @@ uint8_t ds_int2bcd(uint8_t integer) {
   // The original uses library calls for div and mod:
   return integer / 10 << 4 | integer % 10;
 #elif  INT2BCD_SMALL
-  // 8051 has a 'div ab' instruction, placing the integer result of a/b in a, and the remainder in b.
+  // 8051 has 'div ab', integer result of a/b in a, and remainder in b.
   // If we make sure SDCC knows that all numbers are 8-bit, it's using it:
   uint8_t ten = 10;
   return integer / ten << 4 | integer % ten;
