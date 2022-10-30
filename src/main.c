@@ -870,13 +870,12 @@ int main() {
       {
         uint8_t hh = rtc_hh_bcd;
         uint8_t mm = rtc_mm_bcd;
-        __bit pm = rtc_pm;
+        __bit pm = 0;
 
 #ifdef WITH_ALARM
         if (dmode == M_ALARM) {
           hh = alarm_hh_bcd;
           mm = alarm_mm_bcd;
-          pm = alarm_pm;
         }
 #endif
 
@@ -884,13 +883,21 @@ int main() {
         if (dmode == M_CHIME) {
           hh = chime_ss_bcd;
           mm = chime_uu_bcd;
-          pm = chime_uu_pm;
         }
 #endif
 
         if (!flash_01 || blinker_fast || S1_LONG) {
+          if (CONF_12H) { // here we adjust the DISPLAY for 12h (if needed)
+            if (hh > 0x11) {
+              pm = 1;    // PM
+              hh = ds_int2bcd(ds_bcd2int(hh) - 12);
+            }
+            if (hh == 0x00) {
+              hh = 0x12;
+            }
+          }
           uint8_t h0 = hh >> 4;
-          if (H12_12 && h0 == 0) {
+          if (CONF_12H && h0 == 0) {
             h0 = LED_BLANK;
           }
           filldisplay(0, h0, 0);
@@ -902,14 +909,14 @@ int main() {
           if (dmode == M_CHIME) {
             // remove leading zero in chime stop hr
             uint8_t m0 = mm >> 4;
-            if (H12_12 && m0 == 0) {
+            if (CONF_12H && m0 == 0) {
               m0 = LED_BLANK;
             }
             filldisplay(2, m0, 0);
           } else
 #endif
             filldisplay(2, mm >> 4, 0);
-          filldisplay(3, mm & 0x0F, 0);
+            filldisplay(3, mm & 0x0F, 0);
         }
         if (blinker_slow || dmode != M_NORMAL) {
 #ifdef WITH_CHIME
