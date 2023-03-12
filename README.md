@@ -1,6 +1,6 @@
 # STC DIY Clock Kit firmware
 
-Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA (and STC15W408AS) series microcontroller.
+Firmware replacement for STC15 mcu-based DIY Clock Kit (available from banggood [see below for link], aliexpress, et al.) Uses [sdcc](http://sdcc.sf.net) to build and [stcgal](https://github.com/grigorig/stcgal) to flash firmware on to STC15F204EA (and STC15W408AS) series microcontroller.
 
 ![Image of Banggood SKU972289](http://img.banggood.com/thumb/large/2014/xiemeijuan/03/SKU203096/A3.jpg?p=WX0407753399201409DA)
 
@@ -18,7 +18,7 @@ Firmware replacement for STC15F mcu-based DIY Clock Kit (available from banggood
 * hourly chime
 
 ## Experimental support
-* time sync to GPS receiver outputting serial NMEA data
+* time sync to serial NMEA data output from GPS receiver
   * on `gps` branch: https://github.com/zerog2k/stc_diyclock/tree/gps
   * for STC15W408AS or STC15W404AS (sorry no STC15F204EA, not enough ram/code, no hw uart)
   * very experimental at this point (help wanted to polish this)
